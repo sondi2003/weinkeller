@@ -8,15 +8,36 @@ import ImageIO
 @MainActor
 final class LabelScanViewModel {
 
-    var frontImage: UIImage?
-    var backImage: UIImage?
+    /// Ein Etikettfoto samt Herkunft.
+    struct Photo {
+        let image: UIImage
+        /// Vom Dokumentenscanner bereits zugeschnitten und begradigt.
+        let isPreCropped: Bool
+    }
+
+    var front: Photo?
+    var back: Photo?
     var isProcessing = false
     var result: LabelScanResult?
     var errorMessage: String?
     /// Erkannter Rohtext – zum Aufklappen, falls die Zuordnung mal danebenliegt.
     var recognizedText = ""
 
-    var hasImages: Bool { frontImage != nil || backImage != nil }
+    var hasImages: Bool { front != nil || back != nil }
+
+    /// Seiten aus dem Dokumentenscanner übernehmen: erste = Vorderseite, zweite = Rückseite.
+    /// Ist die Vorderseite schon belegt, füllt eine einzelne Seite die Rückseite.
+    func applyScannedPages(_ pages: [UIImage]) {
+        guard !pages.isEmpty else { return }
+        if pages.count >= 2 {
+            front = Photo(image: pages[0], isPreCropped: true)
+            back = Photo(image: pages[1], isPreCropped: true)
+        } else if front == nil {
+            front = Photo(image: pages[0], isPreCropped: true)
+        } else {
+            back = Photo(image: pages[0], isPreCropped: true)
+        }
+    }
 
     func scan(service: LabelScanService, settings: AISettings) async {
         guard hasImages, !isProcessing else { return }
@@ -25,15 +46,15 @@ final class LabelScanViewModel {
         result = nil
         defer { isProcessing = false }
 
-        let front = frontImage.flatMap(Self.scanImage(from:))
-        let back = backImage.flatMap(Self.scanImage(from:))
+        let frontScan = front.flatMap(Self.scanImage(from:))
+        let backScan = back.flatMap(Self.scanImage(from:))
 
         let cloud: CloudCredentials? = settings.activeProvider.map {
             CloudCredentials(provider: $0, apiKey: settings.apiKey(for: $0), model: settings.model(for: $0))
         }
 
         do {
-            let scanResult = try await service.scan(front: front, back: back, cloud: cloud)
+            let scanResult = try await service.scan(front: frontScan, back: backScan, cloud: cloud)
             result = scanResult
             recognizedText = scanResult.recognizedText
         } catch let error as LabelScanError {
@@ -47,10 +68,14 @@ final class LabelScanViewModel {
     // MARK: Bild-Konvertierung
 
     /// `UIImage` → `CGImage` + Ausrichtung, ggf. auf eine sinnvolle Größe verkleinert.
-    private static func scanImage(from image: UIImage) -> ScanImage? {
-        let resized = image.resizedForRecognition(maxDimension: 2400)
+    private static func scanImage(from photo: Photo) -> ScanImage? {
+        let resized = photo.image.resizedForRecognition(maxDimension: 2400)
         guard let cgImage = resized.cgImage else { return nil }
-        return ScanImage(cgImage: cgImage, orientation: CGImagePropertyOrientation(resized.imageOrientation))
+        return ScanImage(
+            cgImage: cgImage,
+            orientation: CGImagePropertyOrientation(resized.imageOrientation),
+            isPreCropped: photo.isPreCropped
+        )
     }
 }
 

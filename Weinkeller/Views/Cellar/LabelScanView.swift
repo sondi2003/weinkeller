@@ -1,7 +1,7 @@
 import SwiftUI
 import PhotosUI
 
-/// Sheet: Etikett vorne und hinten fotografieren, Text erkennen, Felder zuordnen.
+/// Sheet: Etikett vorne und hinten erfassen, Text erkennen, Felder zuordnen.
 /// Liefert das Ergebnis über `onResult` an das Formular zurück.
 struct LabelScanView: View {
 
@@ -11,19 +11,23 @@ struct LabelScanView: View {
     @Environment(AISettings.self) private var settings
     @Environment(\.aiService) private var aiService
     @State private var viewModel = LabelScanViewModel()
+    @State private var isShowingDocumentScanner = false
     @State private var isShowingRecognizedText = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    intro
-
-                    HStack(spacing: 12) {
-                        LabelPhotoSlot(title: "Vorderseite", symbol: "tag", image: $viewModel.frontImage)
-                        LabelPhotoSlot(title: "Rückseite", symbol: "text.alignleft", image: $viewModel.backImage)
+                    if DocumentScannerView.isSupported {
+                        scannerButton
                     }
 
+                    HStack(spacing: 12) {
+                        LabelPhotoSlot(title: "Vorderseite", symbol: "tag", photo: $viewModel.front)
+                        LabelPhotoSlot(title: "Rückseite", symbol: "text.alignleft", photo: $viewModel.back)
+                    }
+
+                    intro
                     scanButton
 
                     if viewModel.isProcessing {
@@ -43,6 +47,13 @@ struct LabelScanView: View {
                     Button("Abbrechen") { dismiss() }
                 }
             }
+            .fullScreenCover(isPresented: $isShowingDocumentScanner) {
+                DocumentScannerView { pages in
+                    viewModel.applyScannedPages(pages)
+                    isShowingDocumentScanner = false
+                }
+                .ignoresSafeArea()
+            }
             .onChange(of: viewModel.result) { _, result in
                 if let result {
                     onResult(result)
@@ -54,9 +65,28 @@ struct LabelScanView: View {
 
     // MARK: Bausteine
 
+    /// Der Hauptweg: Apples Dokumentenscanner erkennt das Etikett live, schneidet zu und begradigt.
+    private var scannerButton: some View {
+        Button {
+            isShowingDocumentScanner = true
+        } label: {
+            VStack(spacing: 6) {
+                Label("Etikett mit Kamera erfassen", systemImage: "doc.viewfinder")
+                    .font(.headline)
+                Text("Erkennt das Etikett automatisch, schneidet zu und begradigt. Erst die Vorderseite, dann optional die Rückseite aufnehmen und mit „Sichern“ abschließen.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.borderedProminent)
+    }
+
     private var intro: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Fotografiere das Etikett bei gutem Licht, möglichst gerade und formatfüllend. Die Rückseite ist optional, liefert aber oft Rebsorten und Terroir.")
+            Text("Tipp: Etikett bei gutem Licht möglichst formatfüllend aufnehmen, die Flasche ruhig halten, bis der Rahmen einrastet. Die Rückseite liefert oft Rebsorten und Terroir.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(structuringHint)
@@ -79,8 +109,10 @@ struct LabelScanView: View {
         return "Texterkennung auf dem Gerät. Ohne API-Key werden die Felder regelbasiert zugeordnet – Jahrgang, Typ und bekannte Rebsorten klappen gut, Name und Produzent bitte prüfen."
     }
 
+    /// Mit Dokumentenscanner ist das der zweite Schritt (dezent), ohne der einzige (prominent).
+    @ViewBuilder
     private var scanButton: some View {
-        Button {
+        let button = Button {
             Task { await viewModel.scan(service: LabelScanService(aiService: aiService), settings: settings) }
         } label: {
             Label("Etikett auslesen", systemImage: "text.viewfinder")
@@ -88,8 +120,13 @@ struct LabelScanView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
         .disabled(!viewModel.hasImages || viewModel.isProcessing)
+
+        if DocumentScannerView.isSupported {
+            button.buttonStyle(.bordered)
+        } else {
+            button.buttonStyle(.borderedProminent)
+        }
     }
 
     private var processingCard: some View {
@@ -122,14 +159,13 @@ struct LabelScanView: View {
 
 // MARK: - Foto-Slot
 
-/// Ein Platzhalter mit Vorschau und den Aktionen Kamera / Fotos / Entfernen.
+/// Ein Platzhalter mit Vorschau, Fotoauswahl aus der Mediathek und Entfernen.
 private struct LabelPhotoSlot: View {
 
     let title: String
     let symbol: String
-    @Binding var image: UIImage?
+    @Binding var photo: LabelScanViewModel.Photo?
 
-    @State private var isShowingCamera = false
     @State private var pickerItem: PhotosPickerItem?
 
     var body: some View {
@@ -137,11 +173,11 @@ private struct LabelPhotoSlot: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color(.secondarySystemGroupedBackground))
-                if let image {
+                if let photo {
                     // Color.clear gibt die Größe vor, das Overlay füllt sie und wird beschnitten.
                     Color.clear
                         .overlay {
-                            Image(uiImage: image)
+                            Image(uiImage: photo.image)
                                 .resizable()
                                 .scaledToFill()
                         }
@@ -158,9 +194,9 @@ private struct LabelPhotoSlot: View {
             }
             .frame(height: 200)
             .overlay(alignment: .topTrailing) {
-                if image != nil {
+                if photo != nil {
                     Button {
-                        image = nil
+                        photo = nil
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
@@ -170,36 +206,31 @@ private struct LabelPhotoSlot: View {
                     .accessibilityLabel("\(title) entfernen")
                 }
             }
-
-            HStack(spacing: 8) {
-                if CameraPicker.isAvailable {
-                    Button {
-                        isShowingCamera = true
-                    } label: {
-                        Image(systemName: "camera")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("\(title) fotografieren")
+            .overlay(alignment: .bottomLeading) {
+                if let photo, photo.isPreCropped {
+                    Label("Zugeschnitten", systemImage: "checkmark.circle.fill")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(8)
                 }
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Image(systemName: "photo.on.rectangle")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("\(title) aus Fotos wählen")
             }
-        }
-        .fullScreenCover(isPresented: $isShowingCamera) {
-            CameraPicker { image = $0 }
-                .ignoresSafeArea()
+
+            PhotosPicker(selection: $pickerItem, matching: .images) {
+                Label(photo == nil ? "Aus Fotos" : "Anderes Foto", systemImage: "photo.on.rectangle")
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("\(title) aus Fotos wählen")
         }
         .onChange(of: pickerItem) { _, item in
             guard let item else { return }
-            Task {
+            Task { @MainActor in
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let loaded = UIImage(data: data) {
-                    image = loaded
+                    photo = LabelScanViewModel.Photo(image: loaded, isPreCropped: false)
                 }
                 pickerItem = nil
             }

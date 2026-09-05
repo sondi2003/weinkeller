@@ -38,11 +38,15 @@ enum LabelImageCropper {
                 .map(\.boundingBox)
 
             let textUnion = textBoxes.reduce(nil as CGRect?) { accumulated, box in accumulated?.union(box) ?? box }
-            let rectangle = detectLabelRectangle(in: image, containing: textBoxes)
+            let rectangle = image.isPreCropped ? nil : detectLabelRectangle(in: image, containing: textBoxes)
 
             var cropped: CIImage
             let strategy: LabelCropResult.Strategy
-            if let rectangle, let textUnion, rectangle.boundingBox.insetBy(dx: -0.03, dy: -0.03).contains(textUnion) {
+            if image.isPreCropped {
+                // Dokumentenscanner hat bereits zugeschnitten und begradigt – nur noch ausrichten und verkleinern.
+                cropped = source
+                strategy = .fullImage
+            } else if let rectangle, let textUnion, rectangle.boundingBox.insetBy(dx: -0.03, dy: -0.03).contains(textUnion) {
                 // Das Rechteck umfasst den ganzen Text → Etikett perspektivisch entzerren.
                 let quad = grown(rectangle, by: 1.06)
                 let filter = CIFilter.perspectiveCorrection()

@@ -140,6 +140,15 @@ private struct ProviderSettingsSection: View {
                     .font(.callout.monospaced())
             }
 
+            if settings.hasAPIKey(for: provider) {
+                Button(role: .destructive) {
+                    apiKey = ""
+                    isKeyVisible = false
+                } label: {
+                    Label("API-Key entfernen", systemImage: "trash")
+                }
+            }
+
             if let keychainError {
                 Text(keychainError)
                     .font(.footnote)
