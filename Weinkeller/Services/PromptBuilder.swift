@@ -16,33 +16,72 @@ enum PromptBuilder {
 
         Regeln:
         1. Empfiehl nur Weine, die im Inventar stehen und deren Bestand größer als 0 ist. \
-        Erfinde keine Weine und ändere keine Namen oder Jahrgänge.
-        2. Gib maximal \(maxRecommendations) Empfehlungen zurück, sortiert nach Eignung \
-        (rank 1 = beste Wahl). Wenn weniger Weine sinnvoll passen, gib weniger zurück – \
-        mindestens aber eine, sofern das Inventar nicht leer ist.
-        3. `wineName` und `vintage` müssen exakt dem Inventar-Eintrag entsprechen, damit die \
-        App die Flasche wiederfindet.
+        Erfinde keine Weine und ändere keine Namen oder Jahrgänge. `wineName` und `vintage` \
+        müssen exakt dem Inventar-Eintrag entsprechen (Felder name und vintage), damit die App \
+        die Flasche wiederfindet.
+        2. Bewerte jede Flasche ehrlich mit `fit`: excellent (klassisches, stimmiges Pairing), \
+        good (passt gut), acceptable (funktioniert, aber nicht ideal), poor (Notlösung, eher nicht). \
+        Sei so ehrlich wie ein guter Sommelier – lieber „acceptable“ als geschönt „good“.
+        3. Gib maximal \(maxRecommendations) Empfehlungen zurück, sortiert nach Eignung \
+        (rank 1 = beste Wahl, jeder Rang nur einmal). Nimm nur Weine auf, die mindestens \
+        acceptable sind. Ist keine Flasche mindestens acceptable, lass `recommendations` leer \
+        und setze `noGoodMatch` auf true. Ist die beste Flasche nur acceptable, setze `noGoodMatch` \
+        ebenfalls auf true, nimm sie aber auf – der Gast will trotzdem etwas trinken.
         4. Begründe jede Empfehlung konkret anhand von Aromen, Säure, Tannin, Körper, Süße \
         und Textur des Gerichts. Nutze dafür auch Rebsorte, Region und Notizen (Terroir, \
-        Vinifikation) aus dem Inventar. Nenne ruhig auch, was nicht perfekt passt.
+        Vinifikation) aus dem Inventar. Nenne auch, was nicht perfekt passt.
         5. Gib zu jeder Empfehlung einen kurzen Serviertipp (Trinktemperatur, Dekantieren, Glas).
-        6. In `generalNote` erklärst du in ein bis drei Sätzen die Gesamtlogik – und falls der \
-        klassische Pairing-Partner im Keller fehlt, sagst du das offen.
-        7. Antworte auf Deutsch, in einem freundlichen, aber fachlich präzisen Ton.
+        6. `shoppingTip`: Nenne immer, was klassisch zu diesem Gericht passen würde (Rebsorte, \
+        Stil, Region) – ein bis zwei Sätze, als Kauftipp für das nächste Mal.
+        7. `generalNote`: In ein bis drei Sätzen die Gesamtlogik. Fehlt der klassische Partner \
+        im Keller, sag das offen.
+        8. Fülle alle Felder mit echtem Inhalt – keine Platzhalter, keine leeren Texte.
+        9. Antworte auf Deutsch, in einem freundlichen, aber fachlich präzisen Ton.
+
+        Nicht fantasieren:
+        - Verwende über die Weine ausschließlich die Angaben aus dem Inventar (Name, Produzent, \
+        Jahrgang, Rebsorte, Region, Typ, Notizen) plus allgemein bekanntes Fachwissen über die \
+        genannte Rebsorte oder Region. Erfinde keine Verkostungsnotizen, Bewertungen, Preise, \
+        Lagerzeiten oder Details zum Weingut, die nicht im Inventar stehen.
+        - Fehlt eine Angabe (z. B. Rebsorte leer), sag das kurz, statt sie zu raten.
+        - Interpretiere in das Gericht nichts hinein, was nicht genannt ist. Bei Mehrdeutigkeit \
+        nimm die übliche Zubereitung an und nenne diese Annahme in einem Halbsatz.
+        - Stelle keine Rückfragen und gib keine Alternativen außerhalb des Inventars, außer im \
+        Feld `shoppingTip`.
+
+        Knapp bleiben:
+        - `reasoning`: höchstens 3 Sätze, ca. 60 Wörter.
+        - `servingTip`: 1 Satz.
+        - `generalNote`: höchstens 2 Sätze.
+        - `shoppingTip`: höchstens 2 Sätze.
+        - Keine Einleitungen, keine Wiederholung des Gerichts, keine Floskeln.
         """
     }
 
     /// Das Gericht plus Inventar als eingebettetes JSON.
-    static func userPrompt(for request: PairingRequest) -> String {
-        """
+    /// - Parameter repairHint: Beim zweiten Versuch nach einer unbrauchbaren Antwort gesetzt.
+    static func userPrompt(for request: PairingRequest, repairHint: String? = nil) -> String {
+        var prompt = """
         Geplantes Gericht: \(request.dish)
 
         Aktuelles Inventar (JSON):
         \(inventoryJSON(request.inventory))
 
-        Bitte wähle die besten Weine aus diesem Inventar für das Gericht aus.
+        Bewerte die Weine aus diesem Inventar für das Gericht und gib deine Empfehlung – \
+        knapp, nur mit den verlangten Feldern, ohne Zusatztext.
         """
+        if let repairHint {
+            prompt += "\n\nWichtig: \(repairHint)"
+        }
+        return prompt
     }
+
+    /// Hinweis für den Wiederholungsversuch, wenn die erste Antwort Platzhalter oder unbekannte Weine enthielt.
+    static let repairHint = """
+        Deine vorherige Antwort war unbrauchbar (Platzhalter, leere Texte oder Weine, die nicht im \
+        Inventar stehen). Fülle jedes Feld mit echtem Inhalt, verwende ausschließlich Weine aus dem \
+        Inventar mit exakt gleichem name und vintage, und begründe konkret.
+        """
 
     /// Inventar als sortiertes, gut lesbares JSON – stabil sortiert, damit der Prompt
     /// bei gleichem Inventar identisch bleibt (hilfreich fürs Debugging und Caching).

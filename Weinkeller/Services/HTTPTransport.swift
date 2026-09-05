@@ -28,6 +28,10 @@ enum AIServiceError: LocalizedError, Sendable {
     case decodingFailed(String)
     /// Der Anbieter hat die Anfrage abgelehnt (Safety-Filter).
     case refused(String?)
+    /// Die Antwort wurde am Token-Limit abgeschnitten.
+    case truncated
+    /// Die Antwort war formal gültig, aber inhaltlich unbrauchbar (Platzhalter, unbekannte Weine) – auch nach Wiederholung.
+    case unusableResponse
     /// Netzwerkfehler (offline, Timeout, …).
     case network(String)
 
@@ -57,6 +61,10 @@ enum AIServiceError: LocalizedError, Sendable {
             return "Die Antwort konnte nicht gelesen werden: \(detail)"
         case .refused(let reason):
             return "Die Anfrage wurde vom Anbieter abgelehnt." + (reason.map { " (\($0))" } ?? "")
+        case .truncated:
+            return "Die Antwort wurde abgeschnitten. Bitte erneut versuchen."
+        case .unusableResponse:
+            return "Die KI hat zweimal keine brauchbare Empfehlung geliefert (Platzhalter oder unbekannte Weine). Bitte erneut versuchen oder das Gericht genauer beschreiben."
         case .network(let detail):
             return "Netzwerkfehler: \(detail)"
         }
@@ -73,6 +81,7 @@ enum AIServiceError: LocalizedError, Sendable {
         case .unknownModel:                        return "Modell unbekannt"
         case .network:                             return "Keine Verbindung"
         case .refused:                             return "Anfrage abgelehnt"
+        case .truncated, .unusableResponse:        return "Unbrauchbare Antwort"
         default:                                   return "Fehler"
         }
     }

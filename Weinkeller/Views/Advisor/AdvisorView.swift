@@ -225,12 +225,15 @@ struct AdvisorView: View {
                 }
             }
 
-            if !response.generalNote.isEmpty {
-                CalloutBox(kind: .info, text: response.generalNote)
-            }
-
             if response.recommendations.isEmpty {
-                CalloutBox(kind: .warning, text: "Es wurde kein passender Wein gefunden.")
+                noMatchCard(response)
+            } else {
+                if !response.generalNote.isEmpty {
+                    CalloutBox(kind: response.noGoodMatch ? .warning : .info, text: response.generalNote)
+                }
+                if response.noGoodMatch, !response.shoppingTip.isEmpty {
+                    shoppingTipRow(response.shoppingTip)
+                }
             }
 
             ForEach(response.sortedRecommendations) { recommendation in
@@ -243,6 +246,42 @@ struct AdvisorView: View {
                 }
             }
         }
+    }
+
+    /// Ehrliche Absage: keine Flasche im Keller passt – mit Begründung und Kauftipp.
+    private func noMatchCard(_ response: PairingResponse) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Keine passende Flasche im Keller", systemImage: "wineglass")
+                .font(.headline)
+            Text(response.generalNote.isEmpty
+                 ? "Zu diesem Gericht passt nichts aus deinem aktuellen Bestand wirklich – da bin ich lieber ehrlich."
+                 : response.generalNote)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            if !response.shoppingTip.isEmpty {
+                shoppingTipRow(response.shoppingTip)
+            }
+        }
+        .cardStyle()
+    }
+
+    /// Was klassisch passen würde – als Kauftipp fürs nächste Mal.
+    private func shoppingTipRow(_ tip: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "cart")
+                .foregroundStyle(Color.accentColor)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Das würde klassisch passen")
+                    .font(.subheadline.weight(.semibold))
+                Text(tip)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(12)
+        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     /// Ordnet eine Empfehlung dem Wein im Keller zu (Name + Jahrgang, Name-Fallback).

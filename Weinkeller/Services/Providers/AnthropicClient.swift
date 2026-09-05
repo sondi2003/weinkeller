@@ -30,14 +30,18 @@ struct AnthropicClient: AIProviderClient {
         apiKey: String,
         model: String
     ) async throws -> String {
+        // Adaptives Thinking zählt zum max_tokens-Budget. Ein zu knappes Budget führt dazu, dass das
+        // Modell das Schema nur noch mit Minimal-Inhalten füllt („placeholder“, "x", 0). Deshalb
+        // großzügiges Limit und moderater Denkaufwand – für ein Wein-Pairing reicht das völlig.
         let body: [String: Any] = [
             "model": model,
-            "max_tokens": 8192,
+            "max_tokens": 16000,
             "system": system,
             "messages": [
                 ["role": "user", "content": user]
             ],
             "output_config": [
+                "effort": "medium",
                 "format": [
                     "type": "json_schema",
                     "schema": schema
@@ -67,6 +71,9 @@ struct AnthropicClient: AIProviderClient {
         // Immer zuerst `stop_reason` prüfen – bei "refusal" ist `content` nicht schema-konform.
         if decoded.stopReason == "refusal" {
             throw AIServiceError.refused(decoded.stopDetails?.explanation ?? decoded.stopDetails?.category)
+        }
+        if decoded.stopReason == "max_tokens" {
+            throw AIServiceError.truncated
         }
 
         let text = decoded.content

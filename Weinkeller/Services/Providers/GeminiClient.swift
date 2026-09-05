@@ -66,6 +66,9 @@ struct GeminiClient: AIProviderClient {
         if candidate.finishReason == "SAFETY" || candidate.finishReason == "PROHIBITED_CONTENT" {
             throw AIServiceError.refused(candidate.finishReason)
         }
+        if candidate.finishReason == "MAX_TOKENS" {
+            throw AIServiceError.truncated
+        }
 
         let text = (candidate.content?.parts ?? [])
             .compactMap(\.text)

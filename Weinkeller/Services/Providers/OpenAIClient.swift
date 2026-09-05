@@ -57,6 +57,9 @@ struct OpenAIClient: AIProviderClient {
         if let refusal = choice.message.refusal, !refusal.isEmpty {
             throw AIServiceError.refused(refusal)
         }
+        if choice.finishReason == "length" {
+            throw AIServiceError.truncated
+        }
         guard let content = choice.message.content, !content.isEmpty else {
             throw AIServiceError.emptyResponse
         }
@@ -72,6 +75,12 @@ struct OpenAIClient: AIProviderClient {
                 let refusal: String?
             }
             let message: Message
+            let finishReason: String?
+
+            enum CodingKeys: String, CodingKey {
+                case message
+                case finishReason = "finish_reason"
+            }
         }
         let choices: [Choice]
     }

@@ -40,6 +40,7 @@ enum PreviewData {
                 rank: 1,
                 wineName: "Cannubi",
                 vintage: 2017,
+                fit: .excellent,
                 reasoning: "Die kräftigen Tannine und die Säure des Nebbiolo schneiden durch das Fett der Bolognese, während Kirsch- und Teernoten die Tomaten und das geschmorte Fleisch aufgreifen.",
                 servingTip: "Eine Stunde dekantieren, bei 17 °C im großen Burgunderglas servieren."
             ),
@@ -47,11 +48,14 @@ enum PreviewData {
                 rank: 2,
                 wineName: "La Pinède",
                 vintage: 2019,
+                fit: .good,
                 reasoning: "Warme Grenache-Frucht mit der Würze von Mourvèdre – passt gut zu Tomate und Hackfleisch, mit etwas weniger Struktur als der Barolo.",
                 servingTip: "Bei 16 °C servieren, 30 Minuten atmen lassen."
             )
         ],
-        generalNote: "Ein Rotwein mit guter Säurestruktur ist die klassische Wahl zur Bolognese."
+        generalNote: "Ein Rotwein mit guter Säurestruktur ist die klassische Wahl zur Bolognese.",
+        noGoodMatch: false,
+        shoppingTip: "Klassisch: ein Sangiovese aus der Toskana (Chianti Classico) oder ein Barbera d'Alba."
     )
 
     private static func makeContainer() -> ModelContainer {

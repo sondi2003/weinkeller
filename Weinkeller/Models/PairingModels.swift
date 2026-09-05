@@ -20,17 +20,66 @@ struct PairingRequest: Sendable {
     }
 }
 
+// MARK: - Passung
+
+/// Wie gut ein Wein zum Gericht passt – ehrlich, wie ein Sommelier es sagen würde.
+enum FitLevel: String, Codable, Sendable, CaseIterable {
+    case excellent
+    case good
+    case acceptable
+    case poor
+
+    var displayName: String {
+        switch self {
+        case .excellent:  return "Perfekt"
+        case .good:       return "Passt gut"
+        case .acceptable: return "Geht"
+        case .poor:       return "Notlösung"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .excellent:  return "star.fill"
+        case .good:       return "hand.thumbsup.fill"
+        case .acceptable: return "checkmark"
+        case .poor:       return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
 // MARK: - Antwort (strukturiert, von allen drei Anbietern identisch geliefert)
 
 /// Die strukturierte Antwort der KI. Alle drei Provider werden über ein
 /// JSON-Schema (siehe `RecommendationSchema`) auf genau dieses Format festgenagelt.
 struct PairingResponse: Codable, Sendable, Equatable {
-    /// Sortiert nach `rank`, bestes Pairing zuerst.
+    /// Sortiert nach `rank`, bestes Pairing zuerst. Darf leer sein, wenn nichts passt.
     var recommendations: [PairingRecommendation]
 
-    /// Allgemeiner Hinweis, z. B. "Zu Raclette passt eigentlich ein Fendant –
-    /// davon ist keiner im Keller, daher die zweitbeste Wahl."
+    /// Allgemeiner Hinweis zur Gesamtlogik.
     var generalNote: String
+
+    /// `true`, wenn keine Flasche im Keller mindestens „geht“ – der Sommelier sagt das offen.
+    var noGoodMatch: Bool
+
+    /// Was klassisch zu diesem Gericht passen würde – als Kauftipp, wenn der Keller nichts hergibt.
+    var shoppingTip: String
+
+    init(recommendations: [PairingRecommendation], generalNote: String, noGoodMatch: Bool = false, shoppingTip: String = "") {
+        self.recommendations = recommendations
+        self.generalNote = generalNote
+        self.noGoodMatch = noGoodMatch
+        self.shoppingTip = shoppingTip
+    }
+
+    /// Tolerant gegenüber fehlenden Feldern, falls ein Modell das Schema nicht vollständig bedient.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        recommendations = try container.decodeIfPresent([PairingRecommendation].self, forKey: .recommendations) ?? []
+        generalNote = try container.decodeIfPresent(String.self, forKey: .generalNote) ?? ""
+        noGoodMatch = try container.decodeIfPresent(Bool.self, forKey: .noGoodMatch) ?? false
+        shoppingTip = try container.decodeIfPresent(String.self, forKey: .shoppingTip) ?? ""
+    }
 
     /// Convenience: Empfehlungen garantiert nach Rang sortiert.
     var sortedRecommendations: [PairingRecommendation] {
@@ -48,6 +97,9 @@ struct PairingRecommendation: Codable, Sendable, Equatable, Identifiable {
     /// Jahrgang des empfohlenen Weins (zur eindeutigen Zuordnung bei Namensdubletten).
     var vintage: Int
 
+    /// Ehrliche Einstufung der Passung.
+    var fit: FitLevel
+
     /// Warum dieser Wein zu dem Gericht passt (2–4 Sätze).
     var reasoning: String
 
@@ -55,6 +107,25 @@ struct PairingRecommendation: Codable, Sendable, Equatable, Identifiable {
     var servingTip: String
 
     var id: String { "\(rank)-\(wineName)-\(vintage)" }
+
+    init(rank: Int, wineName: String, vintage: Int, fit: FitLevel = .good, reasoning: String, servingTip: String) {
+        self.rank = rank
+        self.wineName = wineName
+        self.vintage = vintage
+        self.fit = fit
+        self.reasoning = reasoning
+        self.servingTip = servingTip
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rank = try container.decodeIfPresent(Int.self, forKey: .rank) ?? 0
+        wineName = try container.decodeIfPresent(String.self, forKey: .wineName) ?? ""
+        vintage = try container.decodeIfPresent(Int.self, forKey: .vintage) ?? 0
+        fit = (try? container.decodeIfPresent(FitLevel.self, forKey: .fit)) ?? .acceptable
+        reasoning = try container.decodeIfPresent(String.self, forKey: .reasoning) ?? ""
+        servingTip = try container.decodeIfPresent(String.self, forKey: .servingTip) ?? ""
+    }
 }
 
 // MARK: - JSON-Schema für Structured Output
@@ -71,26 +142,31 @@ enum RecommendationSchema {
             "properties": [
                 "rank": [
                     "type": "integer",
-                    "description": "1 = beste Empfehlung, 2 = zweitbeste, usw."
+                    "description": "1 = beste Empfehlung, 2 = zweitbeste, usw. Jeder Rang nur einmal."
                 ],
                 "wineName": [
                     "type": "string",
-                    "description": "Exakter Name des Weins aus dem Inventar."
+                    "description": "Exakter Name des Weins aus dem Inventar (Feld name)."
                 ],
                 "vintage": [
                     "type": "integer",
-                    "description": "Jahrgang des Weins aus dem Inventar."
+                    "description": "Jahrgang des Weins aus dem Inventar (Feld vintage)."
+                ],
+                "fit": [
+                    "type": "string",
+                    "enum": FitLevel.allCases.map(\.rawValue),
+                    "description": "Ehrliche Passung: excellent, good, acceptable oder poor."
                 ],
                 "reasoning": [
                     "type": "string",
-                    "description": "Begründung auf Deutsch, warum der Wein zum Gericht passt."
+                    "description": "Konkrete Begründung auf Deutsch (2–4 Sätze), warum und wie gut der Wein zum Gericht passt."
                 ],
                 "servingTip": [
                     "type": "string",
                     "description": "Kurzer Serviertipp auf Deutsch (Temperatur, Dekantieren, Glas)."
                 ]
             ],
-            "required": ["rank", "wineName", "vintage", "reasoning", "servingTip"]
+            "required": ["rank", "wineName", "vintage", "fit", "reasoning", "servingTip"]
         ]
 
         var root: [String: Any] = [
@@ -98,15 +174,23 @@ enum RecommendationSchema {
             "properties": [
                 "recommendations": [
                     "type": "array",
-                    "description": "Bis zu drei Empfehlungen, nach Rang sortiert.",
+                    "description": "Bis zu drei Empfehlungen aus dem Inventar, nach Rang sortiert. Leer, wenn keine Flasche mindestens acceptable ist.",
                     "items": recommendation
                 ],
                 "generalNote": [
                     "type": "string",
-                    "description": "Allgemeiner Hinweis auf Deutsch zur Auswahl oder zu fehlenden Alternativen."
+                    "description": "Allgemeiner Hinweis auf Deutsch zur Auswahl (1–3 Sätze)."
+                ],
+                "noGoodMatch": [
+                    "type": "boolean",
+                    "description": "true, wenn keine Flasche im Keller mindestens acceptable passt."
+                ],
+                "shoppingTip": [
+                    "type": "string",
+                    "description": "Was klassisch zu diesem Gericht passen würde (Rebsorte/Stil/Region), als Kauftipp. Immer ausfüllen."
                 ]
             ],
-            "required": ["recommendations", "generalNote"]
+            "required": ["recommendations", "generalNote", "noGoodMatch", "shoppingTip"]
         ]
 
         if includeAdditionalProperties {

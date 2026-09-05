@@ -54,6 +54,9 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Anthropic: Messages API mit `output_config.format`, `stop_reason == "refusal"` prüfen. Beta-Header `server-side-fallback-2026-07-01` + `fallbacks: "default"` sind aktiv.
 - Neue Fehlerfälle in `HTTPTransport.classify` ergänzen und mit realen Fehler-Bodies aller drei Anbieter prüfen; `AIServiceError` braucht `title` und `suggestsSettings`.
 - Aktiver Anbieter = der mit Key (`AISettings.activeProvider`). Kein Provider-Picker im Wein-Berater; dort nur Statusanzeige.
+- **Empfehlungen werden validiert** (`PairingValidator` in `AIService.swift`): unbekannte Weine (kein Match im Inventar), Platzhalter („placeholder“, leere Texte) und doppelte Einträge fliegen raus, Ränge werden neu vergeben. Ist nichts Brauchbares übrig, obwohl das Modell Empfehlungen geliefert hat, folgt genau ein zweiter Versuch mit `PromptBuilder.repairHint`; danach `AIServiceError.unusableResponse`. Rohantworten unbrauchbarer Versuche landen im Log (Subsystem `com.weinkeller.app`, Kategorie `AIService`).
+- **Sommelier-Verhalten**: jede Empfehlung trägt `fit` (excellent/good/acceptable/poor, UI: Perfekt/Passt gut/Geht/Notlösung). `recommendations` darf leer sein, `noGoodMatch` markiert ehrliche Absagen oder Notlösungen, `shoppingTip` nennt immer das klassische Pairing als Kauftipp. Die UI zeigt bei `noGoodMatch` eine Warn-Callout plus Kauftipp, bei leeren Empfehlungen die Karte „Keine passende Flasche im Keller“.
+- **Anthropic `max_tokens`**: adaptives Thinking zählt zum Budget. Mit 8192 kam es zu Minimal-JSON („placeholder“, "x", 0), weil das Modell am Limit nur noch das Schema befüllt. Deshalb 16000 + `output_config.effort: "medium"`; `stop_reason == "max_tokens"` wirft `.truncated`. Analog OpenAI `finish_reason == "length"` und Gemini `MAX_TOKENS`.
 
 ## Etikett-Scan
 

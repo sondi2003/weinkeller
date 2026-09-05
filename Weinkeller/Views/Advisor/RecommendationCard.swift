@@ -36,6 +36,8 @@ struct RecommendationCard: View {
                 }
             }
 
+            fitBadge
+
             Text(recommendation.reasoning)
                 .font(.body)
                 .foregroundStyle(.primary)
@@ -80,6 +82,23 @@ struct RecommendationCard: View {
                     .strokeBorder(Color.accentColor.opacity(0.5), lineWidth: 1.5)
             }
         }
+    }
+
+    /// Ehrliche Einstufung wie beim Sommelier: Perfekt, passt gut, geht, Notlösung.
+    private var fitBadge: some View {
+        let color: Color = switch recommendation.fit {
+        case .excellent:  .green
+        case .good:       .accentColor
+        case .acceptable: .orange
+        case .poor:       .red
+        }
+        return Label(recommendation.fit.displayName, systemImage: recommendation.fit.symbolName)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.12), in: Capsule())
+            .accessibilityLabel("Passung: \(recommendation.fit.displayName)")
     }
 
     private var rankBadge: some View {
