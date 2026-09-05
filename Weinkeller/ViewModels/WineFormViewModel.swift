@@ -30,6 +30,9 @@ final class WineFormViewModel {
     var quantity: Int
     var notes: String
 
+    /// Zugeschnittenes Etikett-Foto (JPEG), wird mit dem Wein gespeichert.
+    var labelImageData: Data?
+
     /// Quelle der letzten Etikett-Erkennung – für den Hinweis im Formular.
     var lastScanSource: LabelExtractionSource?
 
@@ -45,6 +48,7 @@ final class WineFormViewModel {
             type = .red
             quantity = 1
             notes = ""
+            labelImageData = nil
         case .edit(let wine):
             name = wine.name
             producer = wine.producer
@@ -54,6 +58,7 @@ final class WineFormViewModel {
             type = wine.type
             quantity = wine.quantity
             notes = wine.notes
+            labelImageData = wine.labelImageData
         }
     }
 
@@ -78,6 +83,7 @@ final class WineFormViewModel {
         if !extraction.grape.isEmpty { grape = extraction.grape }
         if !extraction.region.isEmpty { region = extraction.region }
         if let wineType = extraction.wineType { type = wineType }
+        if let imageData = scan.labelImageData { labelImageData = imageData }
 
         var extraNotes: [String] = []
         if !extraction.notes.isEmpty { extraNotes.append(extraction.notes) }
@@ -104,7 +110,8 @@ final class WineFormViewModel {
                 region: trimmed(region),
                 type: type,
                 quantity: quantity,
-                notes: trimmed(notes)
+                notes: trimmed(notes),
+                labelImageData: labelImageData
             )
             context.insert(wine)
         case .edit(let wine):
@@ -116,6 +123,7 @@ final class WineFormViewModel {
             wine.type = type
             wine.quantity = max(0, quantity)
             wine.notes = trimmed(notes)
+            wine.labelImageData = labelImageData
         }
     }
 }

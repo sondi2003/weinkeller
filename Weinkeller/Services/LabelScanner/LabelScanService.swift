@@ -10,7 +10,8 @@ struct CloudCredentials: Sendable {
 
 /// Orchestriert die Etikett-Erkennung:
 /// 1. Texterkennung auf dem Gerät (Vision)
-/// 2. Zuordnung zu Feldern – Apple Intelligence, sonst aktiver Cloud-Anbieter, sonst Regeln
+/// 2. Zuschnitt des Vorderseiten-Fotos aufs Etikett
+/// 3. Zuordnung zu Feldern – Apple Intelligence, sonst aktiver Cloud-Anbieter, sonst Regeln
 struct LabelScanService: Sendable {
 
     private static let logger = Logger(subsystem: "com.weinkeller.app", category: "LabelScan")
@@ -20,20 +21,38 @@ struct LabelScanService: Sendable {
         self.aiService = aiService
     }
 
-    /// Erkennt Text in den Bildern und ordnet ihn den Weinfeldern zu.
+    /// Erkennt Text in den Bildern, schneidet die Vorderseite zu und ordnet die Felder zu.
     /// - Parameter cloud: Zugangsdaten des aktiven Anbieters oder `nil`, wenn keiner eingerichtet ist.
-    func scan(
-        images: [(title: String, image: ScanImage)],
-        cloud: CloudCredentials?
-    ) async throws -> LabelScanResult {
-        let text = try await LabelTextRecognizer.recognizeText(in: images)
+    func scan(front: ScanImage?, back: ScanImage?, cloud: CloudCredentials?) async throws -> LabelScanResult {
+        var sections: [(title: String, lines: [RecognizedLine])] = []
+        var labelImageData: Data?
+
+        if let front {
+            let lines = try await LabelTextRecognizer.recognizeLines(in: front)
+            sections.append(("Vorderseite", lines))
+            if let crop = await LabelImageCropper.cropLabel(from: front, textLines: lines) {
+                labelImageData = crop.jpegData
+                Self.logger.info("Etikett-Foto: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
+            }
+        }
+        if let back {
+            let lines = try await LabelTextRecognizer.recognizeLines(in: back)
+            sections.append(("Rückseite", lines))
+        }
+
+        let text = LabelTextRecognizer.combinedText(sections)
         guard !text.isEmpty else { throw LabelScanError.noTextFound }
         Self.logger.info("OCR: \(text.count) Zeichen erkannt")
 
         let (extraction, source) = await structure(text: text, cloud: cloud)
         guard extraction.hasContent else { throw LabelScanError.nothingRecognized(text) }
         Self.logger.info("Zuordnung via \(source.displayName)")
-        return LabelScanResult(extraction: extraction, recognizedText: text, source: source)
+        return LabelScanResult(
+            extraction: extraction,
+            recognizedText: text,
+            source: source,
+            labelImageData: labelImageData
+        )
     }
 
     /// Wählt die beste verfügbare Zuordnung und fällt bei Fehlern eine Stufe zurück.

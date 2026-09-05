@@ -27,6 +27,26 @@ struct WineFormView: View {
                     } label: {
                         Label("Etikett scannen", systemImage: "text.viewfinder")
                     }
+                    if let data = viewModel.labelImageData, let image = UIImage(data: data) {
+                        HStack(spacing: 12) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 56, height: 70)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            Text("Etikett-Foto wird mit dem Wein gespeichert.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button(role: .destructive) {
+                                viewModel.labelImageData = nil
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Etikett-Foto entfernen")
+                        }
+                    }
                     if let source = viewModel.lastScanSource {
                         Label {
                             Text("Felder aus Etikett übernommen – Zuordnung via \(source.displayName). Bitte kurz prüfen.")

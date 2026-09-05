@@ -8,7 +8,7 @@ struct WineRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            WineTypeIcon(type: wine.type, size: 40)
+            LabelThumbnail(wine: wine, size: 40)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(wine.name)

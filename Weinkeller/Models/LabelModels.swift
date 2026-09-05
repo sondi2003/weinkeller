@@ -46,6 +46,8 @@ struct LabelScanResult: Sendable, Identifiable, Equatable {
     let extraction: WineLabelExtraction
     let recognizedText: String
     let source: LabelExtractionSource
+    /// Aufs Etikett zugeschnittenes Foto der Vorderseite (JPEG), falls vorhanden.
+    let labelImageData: Data?
 }
 
 // MARK: - JSON-Schema für die Cloud-Zuordnung

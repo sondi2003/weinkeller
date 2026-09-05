@@ -70,6 +70,11 @@ final class Wine {
     /// Freitext, z. B. Terroir, Vinifikation, "Geschenk von Anna", "bis 2030 trinken".
     var notes: String
 
+    /// Zugeschnittenes Foto des Vorderseiten-Etiketts als JPEG. Liegt dank
+    /// `externalStorage` als Datei neben der Datenbank, nicht in ihr.
+    @Attribute(.externalStorage)
+    var labelImageData: Data? = nil
+
     var createdAt: Date
 
     init(
@@ -81,6 +86,7 @@ final class Wine {
         type: WineType,
         quantity: Int = 1,
         notes: String = "",
+        labelImageData: Data? = nil,
         isArchived: Bool = false,
         createdAt: Date = .now
     ) {
@@ -92,6 +98,7 @@ final class Wine {
         self.type = type
         self.quantity = max(0, quantity)
         self.notes = notes
+        self.labelImageData = labelImageData
         self.isArchived = isArchived
         self.createdAt = createdAt
     }

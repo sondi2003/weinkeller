@@ -32,7 +32,7 @@ struct RecommendationCard: View {
                 Spacer(minLength: 8)
 
                 if let wine {
-                    WineTypeIcon(type: wine.type, size: 36)
+                    LabelThumbnail(wine: wine, size: 52)
                 }
             }
 

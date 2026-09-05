@@ -25,20 +25,15 @@ final class LabelScanViewModel {
         result = nil
         defer { isProcessing = false }
 
-        var images: [(title: String, image: ScanImage)] = []
-        if let front = frontImage, let scan = Self.scanImage(from: front) {
-            images.append(("Vorderseite", scan))
-        }
-        if let back = backImage, let scan = Self.scanImage(from: back) {
-            images.append(("Rückseite", scan))
-        }
+        let front = frontImage.flatMap(Self.scanImage(from:))
+        let back = backImage.flatMap(Self.scanImage(from:))
 
         let cloud: CloudCredentials? = settings.activeProvider.map {
             CloudCredentials(provider: $0, apiKey: settings.apiKey(for: $0), model: settings.model(for: $0))
         }
 
         do {
-            let scanResult = try await service.scan(images: images, cloud: cloud)
+            let scanResult = try await service.scan(front: front, back: back, cloud: cloud)
             result = scanResult
             recognizedText = scanResult.recognizedText
         } catch let error as LabelScanError {

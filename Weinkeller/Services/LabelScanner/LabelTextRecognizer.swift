@@ -10,6 +10,12 @@ struct ScanImage: @unchecked Sendable {
     let orientation: CGImagePropertyOrientation
 }
 
+/// Eine erkannte Textzeile mit ihrer Position (normalisiert, Ursprung unten links – Vision-Konvention).
+struct RecognizedLine: Sendable {
+    let text: String
+    let boundingBox: CGRect
+}
+
 /// Texterkennung auf dem Gerät mit dem Vision-Framework (iOS 13+).
 /// Kein Netzwerk, keine Kosten – das Foto verlässt das iPhone nicht.
 enum LabelTextRecognizer {
@@ -17,20 +23,17 @@ enum LabelTextRecognizer {
     /// Sprachen, in denen Weinetiketten typischerweise beschriftet sind.
     private static let languages = ["fr-FR", "de-DE", "it-IT", "es-ES", "en-US"]
 
-    /// Erkennt den Text aller Bilder und fügt ihn zeilenweise zusammen.
-    /// Bilder werden mit einer Überschrift getrennt, damit die KI Vorder- und Rückseite unterscheiden kann.
-    static func recognizeText(in images: [(title: String, image: ScanImage)]) async throws -> String {
-        var sections: [String] = []
-        for entry in images {
-            let lines = try await recognizeLines(in: entry.image)
-            guard !lines.isEmpty else { continue }
-            sections.append("[\(entry.title)]\n" + lines.joined(separator: "\n"))
-        }
-        return sections.joined(separator: "\n\n")
+    /// Fügt erkannte Zeilen mehrerer Bilder zu einem Text zusammen. Abschnitte werden mit
+    /// einer Überschrift getrennt, damit die KI Vorder- und Rückseite unterscheiden kann.
+    static func combinedText(_ sections: [(title: String, lines: [RecognizedLine])]) -> String {
+        sections
+            .filter { !$0.lines.isEmpty }
+            .map { "[\($0.title)]\n" + $0.lines.map(\.text).joined(separator: "\n") }
+            .joined(separator: "\n\n")
     }
 
     /// Erkennt die Textzeilen eines Bildes, sortiert von oben nach unten.
-    static func recognizeLines(in image: ScanImage) async throws -> [String] {
+    static func recognizeLines(in image: ScanImage) async throws -> [RecognizedLine] {
         try await Task.detached(priority: .userInitiated) {
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
@@ -45,10 +48,12 @@ enum LabelTextRecognizer {
             // Vision liefert Koordinaten mit Ursprung unten links – oben zuerst sortieren.
             return observations
                 .sorted { $0.boundingBox.midY > $1.boundingBox.midY }
-                .compactMap { $0.topCandidates(1).first }
-                .filter { $0.confidence > 0.3 }
-                .map { $0.string.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
+                .compactMap { observation -> RecognizedLine? in
+                    guard let candidate = observation.topCandidates(1).first, candidate.confidence > 0.3 else { return nil }
+                    let text = candidate.string.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { return nil }
+                    return RecognizedLine(text: text, boundingBox: observation.boundingBox)
+                }
         }.value
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Farben pro Weintyp
 
@@ -10,6 +11,38 @@ extension WineType {
         case .white:     return Color(red: 0.80, green: 0.66, blue: 0.24)   // Strohgelb
         case .sparkling: return Color(red: 0.33, green: 0.58, blue: 0.64)   // kühles Petrol
         case .rose:      return Color(red: 0.89, green: 0.45, blue: 0.56)   // Rosé
+        }
+    }
+}
+
+// MARK: - Etikett-Bild
+
+extension Wine {
+    /// Dekodiertes Etikett-Foto, falls eines gespeichert ist.
+    var labelImage: UIImage? {
+        labelImageData.flatMap(UIImage.init(data:))
+    }
+}
+
+/// Kleines Etikett-Vorschaubild für Listen und Cards; fällt auf das Typ-Icon zurück.
+struct LabelThumbnail: View {
+    let wine: Wine
+    var size: CGFloat = 44
+
+    var body: some View {
+        if let image = wine.labelImage {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size, height: size * 1.25)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                )
+                .accessibilityHidden(true)
+        } else {
+            WineTypeIcon(type: wine.type, size: size)
         }
     }
 }

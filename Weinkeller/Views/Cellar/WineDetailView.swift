@@ -50,7 +50,18 @@ struct WineDetailView: View {
 
     private var header: some View {
         VStack(spacing: 12) {
-            WineTypeIcon(type: wine.type, size: 84)
+            if let image = wine.labelImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
+                    .padding(.bottom, 8)
+                    .accessibilityLabel("Etikett von \(wine.name)")
+            } else {
+                WineTypeIcon(type: wine.type, size: 84)
+            }
             if !wine.producer.isEmpty {
                 Text(wine.producer)
                     .font(.subheadline.weight(.semibold))
