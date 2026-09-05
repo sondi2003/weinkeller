@@ -1,6 +1,9 @@
 import SwiftUI
 
-/// Tab 3: Standard-Anbieter, API-Keys (Keychain) und Modellnamen pro Anbieter.
+/// Tab 3: API-Keys (Keychain) und Modellnamen pro Anbieter.
+///
+/// Der Anbieter mit hinterlegtem Key ist automatisch aktiv. Nur wenn mehrere
+/// Keys hinterlegt sind, erscheint eine Auswahl, welcher bevorzugt wird.
 struct SettingsView: View {
 
     @Environment(AISettings.self) private var settings
@@ -10,14 +13,26 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Standard-Anbieter", selection: $settings.selectedProvider) {
-                        ForEach(AIProvider.allCases) { provider in
-                            Label(provider.displayName, systemImage: provider.symbolName)
-                                .tag(provider)
+                    activeProviderRow
+
+                    if settings.hasMultipleProviders {
+                        Picker("Bevorzugter Anbieter", selection: $settings.preferredProvider) {
+                            ForEach(settings.configuredProviders) { provider in
+                                Label(provider.displayName, systemImage: provider.symbolName)
+                                    .tag(provider)
+                            }
                         }
                     }
+                } header: {
+                    Text("Aktiv")
                 } footer: {
-                    Text("Wird im Wein-Berater vorausgewählt und lässt sich dort jederzeit umschalten.")
+                    if settings.hasMultipleProviders {
+                        Text("Du hast mehrere Keys hinterlegt. Der bevorzugte Anbieter wird für Empfehlungen verwendet.")
+                    } else if settings.activeProvider == nil {
+                        Text("Trage unten den API-Key eines Anbieters ein – er wird dann automatisch verwendet.")
+                    } else {
+                        Text("Der Anbieter mit hinterlegtem Key wird automatisch verwendet. Für einen Wechsel einfach den Key beim anderen Anbieter eintragen.")
+                    }
                 }
 
                 ForEach(AIProvider.allCases) { provider in
@@ -37,6 +52,46 @@ struct SettingsView: View {
             .navigationTitle("Einstellungen")
         }
     }
+
+    /// Visuelle Bestätigung: welcher Anbieter und welches Modell gerade aktiv sind.
+    @ViewBuilder
+    private var activeProviderRow: some View {
+        if let provider = settings.activeProvider {
+            HStack(spacing: 12) {
+                Image(systemName: provider.symbolName)
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(provider.displayName)
+                        .font(.body.weight(.semibold))
+                    Text(settings.model(for: provider))
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .accessibilityLabel("Aktiv")
+            }
+            .padding(.vertical, 4)
+        } else {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Kein Anbieter eingerichtet")
+                        .font(.body.weight(.semibold))
+                    Text("Der Wein-Berater braucht einen API-Key.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
 }
 
 // MARK: - Abschnitt pro Anbieter
@@ -50,6 +105,8 @@ private struct ProviderSettingsSection: View {
     @State private var model = ""
     @State private var isKeyVisible = false
     @State private var keychainError: String?
+
+    private var isActive: Bool { settings.activeProvider == provider }
 
     var body: some View {
         Section {
@@ -92,10 +149,14 @@ private struct ProviderSettingsSection: View {
             HStack {
                 Label(provider.displayName, systemImage: provider.symbolName)
                 Spacer()
-                if settings.hasAPIKey(for: provider) {
-                    Image(systemName: "checkmark.circle.fill")
+                if isActive {
+                    Text("Aktiv")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.green)
-                        .accessibilityLabel("Key hinterlegt")
+                } else if settings.hasAPIKey(for: provider) {
+                    Text("Key hinterlegt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         } footer: {

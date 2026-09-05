@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Tab 2: Essens-Stichwort eingeben, Anbieter wählen, Top-3-Empfehlung holen.
+/// Tab 2: Essens-Stichwort eingeben und Top-3-Empfehlung vom aktiven Anbieter holen.
 struct AdvisorView: View {
 
     @Binding var selectedTab: AppTab
@@ -23,13 +23,12 @@ struct AdvisorView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     dishInputCard
-                    providerCard
                     requestButton
 
                     if viewModel.isLoading {
                         loadingCard
-                    } else if let errorMessage = viewModel.errorMessage {
-                        CalloutBox(kind: .error, text: errorMessage)
+                    } else if let error = viewModel.error {
+                        errorCard(error)
                     } else if let response = viewModel.response {
                         resultSection(response)
                     } else {
@@ -40,6 +39,11 @@ struct AdvisorView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Wein-Berater")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ProviderStatusBadge(settings: settings) { selectedTab = .settings }
+                }
+            }
             .scrollDismissesKeyboard(.interactively)
             .sensoryFeedback(.success, trigger: viewModel.response)
             .sensoryFeedback(.decrease, trigger: openedBottleCount)
@@ -88,43 +92,10 @@ struct AdvisorView: View {
         .cardStyle()
     }
 
-    // MARK: Anbieter
-
-    private var providerCard: some View {
-        @Bindable var settings = settings
-        return VStack(alignment: .leading, spacing: 12) {
-            Label("KI-Anbieter", systemImage: "cpu")
-                .font(.headline)
-
-            Picker("Anbieter", selection: $settings.selectedProvider) {
-                ForEach(AIProvider.allCases) { provider in
-                    Text(provider.shortName).tag(provider)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            HStack(spacing: 6) {
-                Image(systemName: settings.isSelectedProviderConfigured ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(settings.isSelectedProviderConfigured ? Color.green : Color.orange)
-                Text(settings.isSelectedProviderConfigured
-                     ? "Modell: \(settings.selectedModel)"
-                     : "Kein API-Key für \(settings.selectedProvider.shortName) hinterlegt.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if !settings.isSelectedProviderConfigured {
-                    Button("Einstellungen") { selectedTab = .settings }
-                        .font(.footnote.weight(.semibold))
-                }
-            }
-        }
-        .cardStyle()
-    }
-
     // MARK: Aktion
 
     private var requestButton: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Button {
                 Task { await request() }
             } label: {
@@ -136,14 +107,32 @@ struct AdvisorView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!viewModel.canRequest(settings: settings, hasInventory: !availableWines.isEmpty))
 
+            hintLine
+        }
+    }
+
+    /// Eine Zeile unter dem Button: entweder was fehlt, oder was gleich passiert.
+    @ViewBuilder
+    private var hintLine: some View {
+        if let provider = settings.activeProvider, let model = settings.activeModel {
             if availableWines.isEmpty {
                 Text("Im Keller liegt gerade keine Flasche mit Bestand.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                Text("\(availableWines.count) \(availableWines.count == 1 ? "Wein" : "Weine") mit Bestand werden berücksichtigt.")
+                Text("\(provider.shortName) · \(model) · \(availableWines.count) \(availableWines.count == 1 ? "Wein" : "Weine") mit Bestand")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Noch kein API-Key hinterlegt.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Einstellungen") { selectedTab = .settings }
+                    .font(.footnote.weight(.semibold))
             }
         }
     }
@@ -163,7 +152,7 @@ struct AdvisorView: View {
         VStack(spacing: 12) {
             ProgressView()
                 .controlSize(.large)
-            Text("\(settings.selectedProvider.shortName) schaut in deinen Keller …")
+            Text("\(settings.activeProvider?.shortName ?? "Die KI") schaut in deinen Keller …")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -188,6 +177,36 @@ struct AdvisorView: View {
         .cardStyle()
     }
 
+    private func errorCard(_ error: AIServiceError) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(error.title, systemImage: "xmark.octagon.fill")
+                .font(.headline)
+                .foregroundStyle(.red)
+            Text(error.localizedDescription)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                if error.suggestsSettings {
+                    Button {
+                        selectedTab = .settings
+                    } label: {
+                        Label("Einstellungen", systemImage: "gearshape")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                Spacer()
+                Button {
+                    Task { await request() }
+                } label: {
+                    Label("Erneut versuchen", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!viewModel.canRequest(settings: settings, hasInventory: !availableWines.isEmpty))
+            }
+        }
+        .cardStyle()
+    }
+
     // MARK: Ergebnis
 
     private func resultSection(_ response: PairingResponse) -> some View {
@@ -202,6 +221,7 @@ struct AdvisorView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Color(.tertiarySystemFill), in: Capsule())
+                        .help(viewModel.resultModel)
                 }
             }
 
@@ -230,6 +250,33 @@ struct AdvisorView: View {
         let name = recommendation.wineName.lowercased()
         return wines.first { $0.name.lowercased() == name && $0.vintage == recommendation.vintage }
             ?? wines.first { $0.name.lowercased() == name }
+    }
+}
+
+// MARK: - Statusanzeige in der Toolbar
+
+/// Zeigt, welcher Anbieter gerade aktiv ist – oder dass keiner eingerichtet ist.
+/// Tippen führt in die Einstellungen.
+struct ProviderStatusBadge: View {
+    let settings: AISettings
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            if let provider = settings.activeProvider {
+                Label(provider.shortName, systemImage: provider.symbolName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+            } else {
+                Label("Kein Anbieter", systemImage: "exclamationmark.triangle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
+        }
+        .accessibilityLabel(
+            settings.activeProvider.map { "Aktiver Anbieter: \($0.displayName), Modell \(settings.model(for: $0))" }
+                ?? "Kein Anbieter eingerichtet"
+        )
     }
 }
 
