@@ -47,8 +47,16 @@ Weinkeller/
 │   ├── KeychainStore   Generic-Password-Wrapper
 │   └── Providers/      OpenAIClient, GeminiClient, AnthropicClient
 ├── ViewModels/     CellarViewModel, WineFormViewModel, PairingViewModel
-├── Views/          Cellar, Advisor, Settings, Components
+├── Views/          Cellar, Advisor, Settings, Components, SplashView
 └── Preview Content/ In-Memory-Beispieldaten für Xcode-Previews
+Config/Info.plist   Launchscreen-Farbe (wird mit generierter Info.plist zusammengeführt)
+Tools/MakeAppIcon.swift  Rendert das App-Icon (hell/dunkel/getönt) in die Assets
+```
+
+App-Icon neu erzeugen, z. B. nach Farbänderungen im Script:
+
+```bash
+swift Tools/MakeAppIcon.swift
 ```
 
 Alle drei Anbieter werden per Structured Output auf dasselbe JSON-Schema festgelegt (`RecommendationSchema`), sodass die Antwort immer als `PairingResponse` dekodierbar ist.
