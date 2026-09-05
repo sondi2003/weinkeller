@@ -16,6 +16,8 @@ enum AIServiceError: LocalizedError, Sendable {
     case rateLimited(AIProvider)
     /// Der Anbieter ist gerade nicht erreichbar (HTTP 5xx).
     case providerUnavailable(AIProvider, status: Int)
+    /// Der eingestellte Modellname ist dem Anbieter unbekannt.
+    case unknownModel(AIProvider)
     /// Die Endpoint-URL konnte nicht gebaut werden (z. B. ungültiger Modellname bei Gemini).
     case invalidURL
     /// Sonstiger Fehlerstatus; `message` ist der (gekürzte) Body.
@@ -43,6 +45,8 @@ enum AIServiceError: LocalizedError, Sendable {
             return "\(provider.shortName) bremst gerade (zu viele Anfragen). Bitte in ein paar Sekunden erneut versuchen."
         case .providerUnavailable(let provider, let status):
             return "\(provider.shortName) ist im Moment nicht erreichbar (HTTP \(status)). Bitte später erneut versuchen."
+        case .unknownModel(let provider):
+            return "\(provider.shortName) kennt das eingestellte Modell nicht. Bitte den Modellnamen in den Einstellungen prüfen oder leer lassen."
         case .invalidURL:
             return "Die Anfrage-URL konnte nicht erstellt werden."
         case .httpError(let status, let message):
@@ -66,6 +70,7 @@ enum AIServiceError: LocalizedError, Sendable {
         case .quotaExceeded:                       return "Guthaben aufgebraucht"
         case .rateLimited:                         return "Zu viele Anfragen"
         case .providerUnavailable:                 return "Anbieter nicht erreichbar"
+        case .unknownModel:                        return "Modell unbekannt"
         case .network:                             return "Keine Verbindung"
         case .refused:                             return "Anfrage abgelehnt"
         default:                                   return "Fehler"
@@ -75,7 +80,7 @@ enum AIServiceError: LocalizedError, Sendable {
     /// Bei diesen Fehlern hilft ein Blick in die Einstellungen.
     var suggestsSettings: Bool {
         switch self {
-        case .noProviderConfigured, .missingAPIKey, .invalidAPIKey, .quotaExceeded:
+        case .noProviderConfigured, .missingAPIKey, .invalidAPIKey, .quotaExceeded, .unknownModel:
             return true
         default:
             return false
@@ -143,6 +148,19 @@ struct HTTPTransport: Sendable {
         ]
         if quotaHints.contains(where: lowered.contains) {
             return .quotaExceeded(provider)
+        }
+
+        // Ungültiger Key: Gemini meldet das mit HTTP 400 statt 401.
+        let keyHints = ["api key not valid", "invalid x-api-key", "incorrect api key", "invalid api key", "authentication_error"]
+        if keyHints.contains(where: lowered.contains) {
+            return .invalidAPIKey(provider)
+        }
+
+        // Unbekannter Modellname (Tippfehler oder nicht freigeschaltet).
+        let modelHints = ["model", "models/"]
+        let missingHints = ["not found", "does not exist", "not_found_error", "unsupported"]
+        if modelHints.contains(where: lowered.contains), missingHints.contains(where: lowered.contains) {
+            return .unknownModel(provider)
         }
 
         switch status {

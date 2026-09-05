@@ -263,16 +263,19 @@ struct ProviderStatusBadge: View {
 
     var body: some View {
         Button(action: onTap) {
-            if let provider = settings.activeProvider {
-                Label(provider.shortName, systemImage: provider.symbolName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-            } else {
-                Label("Kein Anbieter", systemImage: "exclamationmark.triangle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.orange)
+            HStack(spacing: 5) {
+                if let provider = settings.activeProvider {
+                    Image(systemName: provider.symbolName)
+                    Text(provider.shortName)
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text("Kein Anbieter")
+                }
             }
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 4)
         }
+        .tint(settings.activeProvider == nil ? .orange : .accentColor)
         .accessibilityLabel(
             settings.activeProvider.map { "Aktiver Anbieter: \($0.displayName), Modell \(settings.model(for: $0))" }
                 ?? "Kein Anbieter eingerichtet"
