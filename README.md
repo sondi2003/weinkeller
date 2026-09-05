@@ -6,6 +6,7 @@ Privater Weinkeller-Assistent für iPhone und iPad. Verwaltet den Flaschenbestan
 
 - **Weinkeller** – Flaschen mit Name, Jahrgang, Rebsorte/Region, Typ (Rot, Weiß, Schaum, Rosé) und Bestand. Schnell-Abbuchung per Minus-Button, Filter nach Typ, Suche, Archiv. Bei der letzten Flasche fragt die App, ob der Wein archiviert oder gelöscht werden soll.
 - **Wein-Berater** – Essens-Stichwort eingeben (z. B. „Raclette“), die KI liefert bis zu drei Empfehlungen aus dem aktuellen Bestand mit Begründung und Serviertipp. „Flasche öffnen“ bucht direkt ab.
+- **Etikett scannen** – Vorder- und Rückseite fotografieren, die App liest den Text auf dem Gerät aus (Vision) und füllt Name, Produzent, Jahrgang, Rebsorten, Region, Typ und Notizen vor. Die Zuordnung macht Apple Intelligence auf dem Gerät (iOS 26, iPhone 15 Pro und neuer), sonst der aktive KI-Anbieter (es wird nur der erkannte Text gesendet, nie das Foto), sonst eine regelbasierte Erkennung.
 - **Einstellungen** – API-Key und Modellname pro Anbieter. Der Anbieter mit hinterlegtem Key ist automatisch aktiv; bei mehreren Keys lässt sich ein bevorzugter wählen. Keys liegen in der Keychain, nie in UserDefaults.
 
 ## Voraussetzungen
@@ -45,6 +46,7 @@ Weinkeller/
 │   ├── HTTPTransport   URLSession-Layer, Fehler-Klassifikation
 │   ├── PromptBuilder   System- und User-Prompt
 │   ├── KeychainStore   Generic-Password-Wrapper
+│   ├── LabelScanner/   Vision-OCR, Apple-Intelligence-, Cloud- und Regel-Zuordnung
 │   └── Providers/      OpenAIClient, GeminiClient, AnthropicClient
 ├── ViewModels/     CellarViewModel, WineFormViewModel, PairingViewModel
 ├── Views/          Cellar, Advisor, Settings, Components, SplashView

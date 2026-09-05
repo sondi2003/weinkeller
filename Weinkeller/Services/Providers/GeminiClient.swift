@@ -7,6 +7,8 @@ import Foundation
 struct GeminiClient: AIProviderClient {
 
     let provider: AIProvider = .gemini
+    /// Gemini akzeptiert kein `additionalProperties` im Schema.
+    let supportsAdditionalProperties = false
     private let transport: HTTPTransport
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -14,25 +16,31 @@ struct GeminiClient: AIProviderClient {
         self.transport = transport
     }
 
-    func recommend(_ request: PairingRequest, apiKey: String, model: String) async throws -> PairingResponse {
+    func structuredText(
+        system: String,
+        user: String,
+        schemaName: String,
+        schema: [String: Any],
+        apiKey: String,
+        model: String
+    ) async throws -> String {
         guard let url = URL(string: "\(baseURL)/\(model):generateContent") else {
             throw AIServiceError.invalidURL
         }
 
         let body: [String: Any] = [
             "system_instruction": [
-                "parts": [["text": PromptBuilder.systemPrompt(maxRecommendations: request.maxRecommendations)]]
+                "parts": [["text": system]]
             ],
             "contents": [
                 [
                     "role": "user",
-                    "parts": [["text": PromptBuilder.userPrompt(for: request)]]
+                    "parts": [["text": user]]
                 ]
             ],
             "generationConfig": [
                 "responseMimeType": "application/json",
-                // Gemini akzeptiert kein `additionalProperties` – deshalb ohne.
-                "responseSchema": RecommendationSchema.jsonSchema(includeAdditionalProperties: false),
+                "responseSchema": schema,
                 "temperature": 0.4
             ]
         ]
@@ -63,7 +71,7 @@ struct GeminiClient: AIProviderClient {
             .compactMap(\.text)
             .joined()
         guard !text.isEmpty else { throw AIServiceError.emptyResponse }
-        return try PairingResponse.decode(fromModelText: text)
+        return text
     }
 
     // MARK: Antwort-Modell

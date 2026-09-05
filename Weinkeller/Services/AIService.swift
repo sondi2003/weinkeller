@@ -2,16 +2,52 @@ import Foundation
 
 // MARK: - Provider-Schnittstelle
 
-/// Ein Client pro Anbieter. Jeder Client kennt seinen Endpoint, sein Payload-Format
-/// und wie er die Antwort in ein `PairingResponse` verwandelt.
+/// Ein Client pro Anbieter. Jeder Client kennt seinen Endpoint und sein Payload-Format
+/// und liefert Text, der einem JSON-Schema folgt (Structured Output).
 protocol AIProviderClient: Sendable {
     var provider: AIProvider { get }
 
-    func recommend(
-        _ request: PairingRequest,
+    /// Ob das Schema `additionalProperties: false` enthalten darf (Gemini lehnt es ab).
+    var supportsAdditionalProperties: Bool { get }
+
+    /// Schickt System- und User-Prompt und liefert den Antworttext, der `schema` folgt.
+    func structuredText(
+        system: String,
+        user: String,
+        schemaName: String,
+        schema: [String: Any],
         apiKey: String,
         model: String
-    ) async throws -> PairingResponse
+    ) async throws -> String
+}
+
+extension AIProviderClient {
+
+    /// Wein-Empfehlung zu einem Gericht.
+    func recommend(_ request: PairingRequest, apiKey: String, model: String) async throws -> PairingResponse {
+        let text = try await structuredText(
+            system: PromptBuilder.systemPrompt(maxRecommendations: request.maxRecommendations),
+            user: PromptBuilder.userPrompt(for: request),
+            schemaName: "wine_pairing",
+            schema: RecommendationSchema.jsonSchema(includeAdditionalProperties: supportsAdditionalProperties),
+            apiKey: apiKey,
+            model: model
+        )
+        return try PairingResponse.decode(fromModelText: text)
+    }
+
+    /// Etikett-Text zu Feldern zuordnen.
+    func extractLabel(recognizedText: String, apiKey: String, model: String) async throws -> WineLabelExtraction {
+        let text = try await structuredText(
+            system: PromptBuilder.labelSystemPrompt,
+            user: PromptBuilder.labelUserPrompt(recognizedText: recognizedText),
+            schemaName: "wine_label",
+            schema: LabelSchema.jsonSchema(includeAdditionalProperties: supportsAdditionalProperties),
+            apiKey: apiKey,
+            model: model
+        )
+        return try JSONDecoding.decode(WineLabelExtraction.self, fromModelText: text)
+    }
 }
 
 // MARK: - Fassade
@@ -40,13 +76,16 @@ final class AIService: Sendable {
         self.clients = Dictionary(uniqueKeysWithValues: clients.map { ($0.provider, $0) })
     }
 
+    private func client(for provider: AIProvider) -> any AIProviderClient {
+        guard let client = clients[provider] else {
+            preconditionFailure("Kein Client für \(provider) registriert.")
+        }
+        return client
+    }
+
+    // MARK: Wein-Empfehlung
+
     /// Holt eine Top-N-Empfehlung vom gewünschten Anbieter.
-    ///
-    /// - Parameters:
-    ///   - request: Gericht + Inventar.
-    ///   - provider: Welcher Anbieter angesprochen wird.
-    ///   - apiKey: Der Key des Nutzers für genau diesen Anbieter.
-    ///   - model: Modellname, z. B. `provider.defaultModel`.
     func recommend(
         _ request: PairingRequest,
         provider: AIProvider,
@@ -55,9 +94,6 @@ final class AIService: Sendable {
     ) async throws -> PairingResponse {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw AIServiceError.missingAPIKey(provider) }
-        guard let client = clients[provider] else {
-            preconditionFailure("Kein Client für \(provider) registriert.")
-        }
         guard !request.inventory.isEmpty else {
             // Kein Netzwerkaufruf nötig – die KI könnte ohnehin nichts empfehlen.
             return PairingResponse(
@@ -65,7 +101,7 @@ final class AIService: Sendable {
                 generalNote: "Der Weinkeller ist leer. Lege zuerst Flaschen an, damit ich etwas empfehlen kann."
             )
         }
-        return try await client.recommend(request, apiKey: key, model: model)
+        return try await client(for: provider).recommend(request, apiKey: key, model: model)
     }
 
     /// Bequemer Einstieg direkt aus den Einstellungen heraus: verwendet automatisch
@@ -75,8 +111,58 @@ final class AIService: Sendable {
         guard let provider = settings.activeProvider else {
             throw AIServiceError.noProviderConfigured
         }
-        let apiKey = settings.apiKey(for: provider)
-        let model = settings.model(for: provider)
-        return try await recommend(request, provider: provider, apiKey: apiKey, model: model)
+        return try await recommend(
+            request,
+            provider: provider,
+            apiKey: settings.apiKey(for: provider),
+            model: settings.model(for: provider)
+        )
+    }
+
+    // MARK: Etikett-Erkennung
+
+    /// Ordnet OCR-Text den Weinfeldern zu – über den angegebenen Cloud-Anbieter.
+    func extractLabel(
+        recognizedText: String,
+        provider: AIProvider,
+        apiKey: String,
+        model: String
+    ) async throws -> WineLabelExtraction {
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { throw AIServiceError.missingAPIKey(provider) }
+        return try await client(for: provider).extractLabel(recognizedText: recognizedText, apiKey: key, model: model)
+    }
+}
+
+// MARK: - Gemeinsames Decoding strukturierter Antworten
+
+enum JSONDecoding {
+
+    /// Dekodiert den JSON-Text, den ein Anbieter im Structured-Output-Modus liefert.
+    /// Entfernt vorsorglich Markdown-Codefences (```json … ```), falls ein Modell sie doch mitschickt.
+    static func decode<T: Decodable>(_ type: T.Type, fromModelText text: String) throws -> T {
+        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.hasPrefix("```") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard let data = cleaned.data(using: .utf8), !data.isEmpty else {
+            throw AIServiceError.emptyResponse
+        }
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw AIServiceError.decodingFailed(error.localizedDescription)
+        }
+    }
+}
+
+extension PairingResponse {
+    static func decode(fromModelText text: String) throws -> PairingResponse {
+        var response = try JSONDecoding.decode(PairingResponse.self, fromModelText: text)
+        response.recommendations = response.sortedRecommendations
+        return response
     }
 }

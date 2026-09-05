@@ -2,11 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Wird von Xcode mit den generierten Keys zusammengeführt (GENERATE_INFOPLIST_FILE = YES).
-	     Hier nur, was sich nicht über Build-Settings ausdrücken lässt. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Die Kamera wird genutzt, um Weinetiketten zu fotografieren und die Angaben automatisch auszulesen.</string>
 	<key>UILaunchScreen</key>
 	<dict>
-		<!-- System-Launchscreen in App-Farbe, damit der Übergang zum SplashView nahtlos ist. -->
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 	</dict>

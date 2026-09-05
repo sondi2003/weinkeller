@@ -7,6 +7,7 @@ import Foundation
 struct OpenAIClient: AIProviderClient {
 
     let provider: AIProvider = .openAI
+    let supportsAdditionalProperties = true
     private let transport: HTTPTransport
     private let endpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
 
@@ -14,19 +15,26 @@ struct OpenAIClient: AIProviderClient {
         self.transport = transport
     }
 
-    func recommend(_ request: PairingRequest, apiKey: String, model: String) async throws -> PairingResponse {
+    func structuredText(
+        system: String,
+        user: String,
+        schemaName: String,
+        schema: [String: Any],
+        apiKey: String,
+        model: String
+    ) async throws -> String {
         let body: [String: Any] = [
             "model": model,
             "messages": [
-                ["role": "system", "content": PromptBuilder.systemPrompt(maxRecommendations: request.maxRecommendations)],
-                ["role": "user", "content": PromptBuilder.userPrompt(for: request)]
+                ["role": "system", "content": system],
+                ["role": "user", "content": user]
             ],
             "response_format": [
                 "type": "json_schema",
                 "json_schema": [
-                    "name": "wine_pairing",
+                    "name": schemaName,
                     "strict": true,
-                    "schema": RecommendationSchema.jsonSchema(includeAdditionalProperties: true)
+                    "schema": schema
                 ]
             ]
         ]
@@ -52,7 +60,7 @@ struct OpenAIClient: AIProviderClient {
         guard let content = choice.message.content, !content.isEmpty else {
             throw AIServiceError.emptyResponse
         }
-        return try PairingResponse.decode(fromModelText: content)
+        return content
     }
 
     // MARK: Antwort-Modell (nur die Felder, die wir brauchen)
@@ -64,12 +72,6 @@ struct OpenAIClient: AIProviderClient {
                 let refusal: String?
             }
             let message: Message
-            let finishReason: String?
-
-            enum CodingKeys: String, CodingKey {
-                case message
-                case finishReason = "finish_reason"
-            }
         }
         let choices: [Choice]
     }

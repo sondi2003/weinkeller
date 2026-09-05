@@ -6,13 +6,13 @@ import SwiftData
 enum PreviewData {
 
     static let sampleWines: [Wine] = [
-        Wine(name: "Fendant Les Murettes", vintage: 2022, grapeOrRegion: "Chasselas, Wallis", type: .white, quantity: 4),
-        Wine(name: "Barolo Cannubi", vintage: 2017, grapeOrRegion: "Nebbiolo, Piemont", type: .red, quantity: 2, notes: "Ab 2027 trinken, vorher dekantieren."),
-        Wine(name: "Château Margaux", vintage: 2015, grapeOrRegion: "Cabernet Sauvignon, Bordeaux", type: .red, quantity: 1, notes: "Geschenk von Anna"),
-        Wine(name: "Riesling Kabinett", vintage: 2021, grapeOrRegion: "Riesling, Mosel", type: .white, quantity: 0),
-        Wine(name: "Franciacorta Brut", vintage: 2019, grapeOrRegion: "Chardonnay, Lombardei", type: .sparkling, quantity: 3),
-        Wine(name: "Whispering Angel", vintage: 2023, grapeOrRegion: "Grenache, Provence", type: .rose, quantity: 6),
-        Wine(name: "Amarone Classico", vintage: 2012, grapeOrRegion: "Corvina, Venetien", type: .red, quantity: 1, isArchived: true)
+        Wine(name: "Les Murettes", producer: "Fendant", vintage: 2022, grape: "Chasselas", region: "Wallis", type: .white, quantity: 4),
+        Wine(name: "Cannubi", producer: "Barolo", vintage: 2017, grape: "Nebbiolo", region: "Piemont", type: .red, quantity: 2, notes: "Ab 2027 trinken, vorher dekantieren."),
+        Wine(name: "La Pinède", producer: "Domaine La Tour Vieille", vintage: 2019, grape: "Grenache noir, Mourvèdre, Carignan", region: "Collioure", type: .red, quantity: 1, notes: "Schieferterrassen am Mittelmeer, lange Mazeration, Ausbau im Tank."),
+        Wine(name: "Riesling Kabinett", vintage: 2021, grape: "Riesling", region: "Mosel", type: .white, quantity: 0),
+        Wine(name: "Franciacorta Brut", vintage: 2019, grape: "Chardonnay", region: "Lombardei", type: .sparkling, quantity: 3),
+        Wine(name: "Whispering Angel", producer: "Château d'Esclans", vintage: 2023, grape: "Grenache", region: "Provence", type: .rose, quantity: 6),
+        Wine(name: "Amarone Classico", vintage: 2012, grape: "Corvina", region: "Venetien", type: .red, quantity: 1, isArchived: true)
     ]
 
     /// Container mit Beispielweinen.
@@ -38,17 +38,17 @@ enum PreviewData {
         recommendations: [
             PairingRecommendation(
                 rank: 1,
-                wineName: "Barolo Cannubi",
+                wineName: "Cannubi",
                 vintage: 2017,
                 reasoning: "Die kräftigen Tannine und die Säure des Nebbiolo schneiden durch das Fett der Bolognese, während Kirsch- und Teernoten die Tomaten und das geschmorte Fleisch aufgreifen.",
                 servingTip: "Eine Stunde dekantieren, bei 17 °C im großen Burgunderglas servieren."
             ),
             PairingRecommendation(
                 rank: 2,
-                wineName: "Château Margaux",
-                vintage: 2015,
-                reasoning: "Feiner, eleganter Bordeaux mit Cassis und Zedernholz – passt, ist aber fast zu schade für ein Alltagsgericht.",
-                servingTip: "Bei 18 °C servieren, mindestens 45 Minuten atmen lassen."
+                wineName: "La Pinède",
+                vintage: 2019,
+                reasoning: "Warme Grenache-Frucht mit der Würze von Mourvèdre – passt gut zu Tomate und Hackfleisch, mit etwas weniger Struktur als der Barolo.",
+                servingTip: "Bei 16 °C servieren, 30 Minuten atmen lassen."
             )
         ],
         generalNote: "Ein Rotwein mit guter Säurestruktur ist die klassische Wahl zur Bolognese."

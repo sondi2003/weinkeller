@@ -19,7 +19,13 @@ final class CellarViewModel {
 
     // MARK: Sheet- und Dialog-Zustand
 
-    var isShowingAddSheet = false
+    /// Wie ein neuer Wein angelegt wird – manuell oder per Etikett-Scan.
+    enum AddMode: String, Identifiable {
+        case manual, scan
+        var id: String { rawValue }
+    }
+
+    var addMode: AddMode?
     var wineToEdit: Wine?
 
     /// Wird gesetzt, wenn durch „Flasche trinken“ die letzte Flasche abgebucht wurde.
@@ -38,7 +44,9 @@ final class CellarViewModel {
             if let typeFilter, wine.type != typeFilter { return false }
             guard !query.isEmpty else { return true }
             return wine.name.lowercased().contains(query)
-                || wine.grapeOrRegion.lowercased().contains(query)
+                || wine.producer.lowercased().contains(query)
+                || wine.grape.lowercased().contains(query)
+                || wine.region.lowercased().contains(query)
                 || String(wine.vintage).contains(query)
         }
     }

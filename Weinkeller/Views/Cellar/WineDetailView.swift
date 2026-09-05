@@ -51,6 +51,13 @@ struct WineDetailView: View {
     private var header: some View {
         VStack(spacing: 12) {
             WineTypeIcon(type: wine.type, size: 84)
+            if !wine.producer.isEmpty {
+                Text(wine.producer)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(1)
+            }
             Text(wine.name)
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)

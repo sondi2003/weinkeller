@@ -1,9 +1,10 @@
 import Foundation
 
-/// Baut System- und User-Prompt für die Wein-Empfehlung.
-/// Die Texte sind für alle drei Anbieter identisch – nur die Verpackung
-/// (Request-Body) unterscheidet sich und liegt in den jeweiligen Clients.
+/// Baut System- und User-Prompts. Die Texte sind für alle drei Anbieter identisch –
+/// nur die Verpackung (Request-Body) unterscheidet sich und liegt in den jeweiligen Clients.
 enum PromptBuilder {
+
+    // MARK: Wein-Empfehlung
 
     /// Rolle, Regeln und Ausgabeformat. Wird als `system` / `system_instruction` übergeben.
     static func systemPrompt(maxRecommendations: Int) -> String {
@@ -22,7 +23,8 @@ enum PromptBuilder {
         3. `wineName` und `vintage` müssen exakt dem Inventar-Eintrag entsprechen, damit die \
         App die Flasche wiederfindet.
         4. Begründe jede Empfehlung konkret anhand von Aromen, Säure, Tannin, Körper, Süße \
-        und Textur des Gerichts. Nenne dabei ruhig auch, was nicht perfekt passt.
+        und Textur des Gerichts. Nutze dafür auch Rebsorte, Region und Notizen (Terroir, \
+        Vinifikation) aus dem Inventar. Nenne ruhig auch, was nicht perfekt passt.
         5. Gib zu jeder Empfehlung einen kurzen Serviertipp (Trinktemperatur, Dekantieren, Glas).
         6. In `generalNote` erklärst du in ein bis drei Sätzen die Gesamtlogik – und falls der \
         klassische Pairing-Partner im Keller fehlt, sagst du das offen.
@@ -55,5 +57,42 @@ enum PromptBuilder {
             return "[]"
         }
         return text
+    }
+
+    // MARK: Etikett-Erkennung
+
+    /// Anweisungen für die Zuordnung von OCR-Text zu Feldern – identisch für
+    /// Apple Intelligence (auf dem Gerät) und die Cloud-Anbieter.
+    static let labelSystemPrompt = """
+        Du liest Weinetiketten. Du bekommst den per Texterkennung ausgelesenen Text von \
+        Vorder- und Rückseite einer Flasche – oft mit Erkennungsfehlern, Zeilenumbrüchen \
+        an falschen Stellen und in Französisch, Italienisch, Spanisch, Deutsch oder Englisch.
+
+        Ordne den Text den Feldern zu:
+        - name: Name des Weins oder der Cuvée, ohne Produzent (z. B. "La Pinède"). Wenn es \
+        keinen eigenen Namen gibt, nimm die Appellation oder Rebsorte als Name.
+        - producer: Weingut, Domaine, Château, Cantina, Bodega, Weingut …
+        - vintage: Jahrgang als Zahl, 0 wenn keiner erkennbar ist.
+        - grape: Rebsorten kommagetrennt (z. B. "Grenache noir, Mourvèdre, Carignan"). \
+        Nicht raten – nur, was auf dem Etikett steht oder aus der Appellation zwingend folgt.
+        - region: Region oder Appellation (z. B. "Collioure", "Mosel", "Barolo").
+        - type: red, white, sparkling, rose oder unknown. Hinweise: "rouge/red/rosso/tinto" = red, \
+        "blanc/white/bianco/blanco/weiss" = white, "rosé/rosato/rosado" = rose, \
+        "brut/champagne/crémant/prosecco/spumante/sekt/cava/mousseux" = sparkling.
+        - alcoholPercent: Volumenprozent als Zahl, 0 wenn unbekannt.
+        - notes: In ein bis zwei deutschen Sätzen, was für das Pairing wichtig ist: Terroir \
+        (z. B. Schiefer), Vinifikation, Ausbau, Stil. Leer, wenn nichts dazu steht.
+
+        Erfinde nichts. Unbekannte Felder bleiben leer bzw. 0.
+        """
+
+    static func labelUserPrompt(recognizedText: String) -> String {
+        """
+        Erkannter Etikett-Text:
+        ---
+        \(recognizedText)
+        ---
+        Bitte ordne den Text den Feldern zu.
+        """
     }
 }

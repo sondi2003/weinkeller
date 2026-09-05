@@ -194,29 +194,3 @@ struct HTTPTransport: Sendable {
     }
 }
 
-// MARK: - Gemeinsames Decoding der strukturierten Antwort
-
-extension PairingResponse {
-
-    /// Dekodiert den JSON-Text, den ein Anbieter im Structured-Output-Modus liefert.
-    /// Entfernt vorsorglich Markdown-Codefences (```json … ```), falls ein Modell sie doch mitschickt.
-    static func decode(fromModelText text: String) throws -> PairingResponse {
-        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if cleaned.hasPrefix("```") {
-            cleaned = cleaned
-                .replacingOccurrences(of: "```json", with: "")
-                .replacingOccurrences(of: "```", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        guard let data = cleaned.data(using: .utf8), !data.isEmpty else {
-            throw AIServiceError.emptyResponse
-        }
-        do {
-            var response = try JSONDecoder().decode(PairingResponse.self, from: data)
-            response.recommendations = response.sortedRecommendations
-            return response
-        } catch {
-            throw AIServiceError.decodingFailed(error.localizedDescription)
-        }
-    }
-}

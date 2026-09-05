@@ -14,6 +14,7 @@ import Foundation
 struct AnthropicClient: AIProviderClient {
 
     let provider: AIProvider = .anthropic
+    let supportsAdditionalProperties = true
     private let transport: HTTPTransport
     private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
@@ -21,18 +22,25 @@ struct AnthropicClient: AIProviderClient {
         self.transport = transport
     }
 
-    func recommend(_ request: PairingRequest, apiKey: String, model: String) async throws -> PairingResponse {
+    func structuredText(
+        system: String,
+        user: String,
+        schemaName: String,
+        schema: [String: Any],
+        apiKey: String,
+        model: String
+    ) async throws -> String {
         let body: [String: Any] = [
             "model": model,
             "max_tokens": 8192,
-            "system": PromptBuilder.systemPrompt(maxRecommendations: request.maxRecommendations),
+            "system": system,
             "messages": [
-                ["role": "user", "content": PromptBuilder.userPrompt(for: request)]
+                ["role": "user", "content": user]
             ],
             "output_config": [
                 "format": [
                     "type": "json_schema",
-                    "schema": RecommendationSchema.jsonSchema(includeAdditionalProperties: true)
+                    "schema": schema
                 ]
             ],
             "fallbacks": "default"
@@ -66,7 +74,7 @@ struct AnthropicClient: AIProviderClient {
             .compactMap(\.text)
             .joined()
         guard !text.isEmpty else { throw AIServiceError.emptyResponse }
-        return try PairingResponse.decode(fromModelText: text)
+        return text
     }
 
     // MARK: Antwort-Modell

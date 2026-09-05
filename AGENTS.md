@@ -55,6 +55,15 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Neue Fehlerfälle in `HTTPTransport.classify` ergänzen und mit realen Fehler-Bodies aller drei Anbieter prüfen; `AIServiceError` braucht `title` und `suggestsSettings`.
 - Aktiver Anbieter = der mit Key (`AISettings.activeProvider`). Kein Provider-Picker im Wein-Berater; dort nur Statusanzeige.
 
+## Etikett-Scan
+
+- Ablauf in `Services/LabelScanner/`: `LabelTextRecognizer` (Vision-OCR, auf dem Gerät) → `LabelScanService.structure` wählt die Zuordnung: `OnDeviceLabelParser` (Foundation Models, iOS 26 + Apple Intelligence) → aktiver Cloud-Anbieter (`AIService.extractLabel`, nur Text) → `HeuristicLabelParser` (Regeln). Lücken werden mit den Regel-Treffern aufgefüllt (`merge`).
+- Alle Zuordnungen liefern `WineLabelExtraction`; Prompts in `PromptBuilder.labelSystemPrompt`, Schema in `LabelSchema`. Bei Feldänderungen alle vier Stellen anpassen: `WineLabelExtraction`, `LabelSchema`, `GeneratedWineLabel` (Foundation Models) und `WineFormViewModel.apply`.
+- **Simulator**: Apple Intelligence meldet `.available`, die Generierung scheitert aber mit `ModelManagerError 1026` – im Simulator ist das Modell nicht nutzbar. Der On-Device-Pfad ist nur auf einem echten Gerät (iPhone 15 Pro+, Apple Intelligence aktiviert) testbar. Kamera ebenfalls nur auf dem Gerät; im Simulator die Fotoauswahl nutzen (`xcrun simctl addmedia <UDID> foto.jpg`).
+- Diagnose: `Logger(subsystem: "com.weinkeller.app", category: "LabelScan")`. Im Simulator mitlesen: `xcrun simctl spawn <UDID> log stream --level info --predicate 'subsystem == "com.weinkeller.app"'`.
+- OCR und Regel-Parser lassen sich ohne Simulator prüfen: macOS-Harness mit `LabelTextRecognizer` + `HeuristicLabelParser` und Fotos via `CGImageSource` (siehe Tools-Abschnitt oben).
+- `Config/Info.plist`: Xcode überschreibt die Datei gelegentlich mit seiner In-Memory-Kopie, wenn das Projekt offen ist. Nach Änderungen prüfen, ob `NSCameraUsageDescription` noch drin ist.
+
 ## Bekannte Stolperfallen
 
 - `Text("\(intValue)")` lokalisiert Zahlen (Jahrgang wird zu „2'024“). Für Jahrgänge `String(vintage)` verwenden.

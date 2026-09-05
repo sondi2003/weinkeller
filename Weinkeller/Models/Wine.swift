@@ -40,14 +40,22 @@ enum WineType: String, Codable, CaseIterable, Identifiable, Sendable {
 /// Eine Position im Weinkeller: ein bestimmter Wein mit Jahrgang und aktuellem Bestand.
 @Model
 final class Wine {
-    /// Name des Weins bzw. des Weinguts, z. B. "Château Margaux".
+    /// Name des Weins bzw. der Cuvée, z. B. "La Pinède".
     var name: String
 
-    /// Jahrgang, z. B. 2018.
+    /// Produzent, Weingut oder Domaine, z. B. "Domaine La Tour Vieille".
+    var producer: String = ""
+
+    /// Jahrgang, z. B. 2019.
     var vintage: Int
 
-    /// Rebsorte und/oder Region, z. B. "Cabernet Sauvignon, Bordeaux".
-    var grapeOrRegion: String
+    /// Rebsorte(n), z. B. "Grenache noir, Mourvèdre, Carignan".
+    /// Hieß früher `grapeOrRegion`; SwiftData migriert bestehende Daten automatisch.
+    @Attribute(originalName: "grapeOrRegion")
+    var grape: String
+
+    /// Region oder Appellation, z. B. "Collioure".
+    var region: String = ""
 
     /// Rot, Weiß, Schaum oder Rosé.
     var type: WineType
@@ -59,15 +67,17 @@ final class Wine {
     /// in der Kellerliste noch in KI-Empfehlungen auf.
     var isArchived: Bool
 
-    /// Freitext, z. B. "Geschenk von Anna" oder "bis 2030 trinken".
+    /// Freitext, z. B. Terroir, Vinifikation, "Geschenk von Anna", "bis 2030 trinken".
     var notes: String
 
     var createdAt: Date
 
     init(
         name: String,
+        producer: String = "",
         vintage: Int,
-        grapeOrRegion: String,
+        grape: String,
+        region: String = "",
         type: WineType,
         quantity: Int = 1,
         notes: String = "",
@@ -75,8 +85,10 @@ final class Wine {
         createdAt: Date = .now
     ) {
         self.name = name
+        self.producer = producer
         self.vintage = vintage
-        self.grapeOrRegion = grapeOrRegion
+        self.grape = grape
+        self.region = region
         self.type = type
         self.quantity = max(0, quantity)
         self.notes = notes
@@ -100,9 +112,17 @@ final class Wine {
         quantity += 1
     }
 
-    /// Kurzform für Listen: "2018 · Cabernet Sauvignon, Bordeaux".
+    /// Kurzform für Listen: "2019 · Grenache, Mourvèdre · Collioure".
     var subtitle: String {
-        grapeOrRegion.isEmpty ? String(vintage) : "\(vintage) · \(grapeOrRegion)"
+        ([String(vintage), grape, region])
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+    }
+
+    /// Anzeigename inklusive Produzent, falls vorhanden.
+    var fullName: String {
+        producer.isEmpty ? name : "\(producer) – \(name)"
     }
 
     /// Schlanke, `Codable`-Kopie für die Übergabe an den KI-Service.
@@ -110,9 +130,12 @@ final class Wine {
     var inventoryItem: WineInventoryItem {
         WineInventoryItem(
             name: name,
+            producer: producer,
             vintage: vintage,
-            grapeOrRegion: grapeOrRegion,
+            grape: grape,
+            region: region,
             type: type.displayName,
+            notes: String(notes.prefix(300)),
             quantity: quantity
         )
     }
@@ -123,9 +146,13 @@ final class Wine {
 /// Das, was die KI über eine Flasche wissen muss. Wird als JSON in den Prompt eingebettet.
 struct WineInventoryItem: Codable, Hashable, Sendable {
     let name: String
+    let producer: String
     let vintage: Int
-    let grapeOrRegion: String
+    let grape: String
+    let region: String
     /// Anzeigename des Typs ("Rotwein" usw.), damit der Prompt ohne Mapping lesbar bleibt.
     let type: String
+    /// Terroir, Vinifikation, eigene Notizen – hilft der KI beim Pairing.
+    let notes: String
     let quantity: Int
 }

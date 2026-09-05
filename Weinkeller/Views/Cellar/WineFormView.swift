@@ -1,40 +1,75 @@
 import SwiftUI
 import SwiftData
 
-/// Sheet zum Anlegen oder Bearbeiten eines Weins.
+/// Sheet zum Anlegen oder Bearbeiten eines Weins – manuell oder per Etikett-Scan.
 struct WineFormView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: WineFormViewModel
+    @State private var isShowingScanner: Bool
     @FocusState private var focusedField: Field?
 
-    private enum Field { case name, grape, notes }
+    private enum Field { case name, producer, grape, region, notes }
 
-    init(mode: WineFormViewModel.Mode) {
+    /// - Parameter startWithScanner: öffnet sofort den Etikett-Scanner (Plus-Menü „Etikett scannen“).
+    init(mode: WineFormViewModel.Mode, startWithScanner: Bool = false) {
         _viewModel = State(initialValue: WineFormViewModel(mode: mode))
+        _isShowingScanner = State(initialValue: startWithScanner)
     }
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Button {
+                        isShowingScanner = true
+                    } label: {
+                        Label("Etikett scannen", systemImage: "text.viewfinder")
+                    }
+                    if let source = viewModel.lastScanSource {
+                        Label {
+                            Text("Felder aus Etikett übernommen – Zuordnung via \(source.displayName). Bitte kurz prüfen.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        } icon: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                    }
+                }
+
                 Section("Wein") {
-                    TextField("Name / Weingut", text: $viewModel.name)
+                    TextField("Name / Cuvée", text: $viewModel.name)
                         .focused($focusedField, equals: .name)
                         .textInputAutocapitalization(.words)
                         .submitLabel(.next)
-                        .onSubmit { focusedField = .grape }
+                        .onSubmit { focusedField = .producer }
 
-                    TextField("Rebsorte / Region", text: $viewModel.grapeOrRegion)
-                        .focused($focusedField, equals: .grape)
+                    TextField("Produzent / Weingut", text: $viewModel.producer)
+                        .focused($focusedField, equals: .producer)
                         .textInputAutocapitalization(.words)
-                        .submitLabel(.done)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .grape }
 
                     Picker("Jahrgang", selection: $viewModel.vintage) {
                         ForEach(WineFormViewModel.vintageRange.reversed(), id: \.self) { year in
                             Text(String(year)).tag(year)
                         }
                     }
+                }
+
+                Section("Herkunft") {
+                    TextField("Rebsorte(n)", text: $viewModel.grape)
+                        .focused($focusedField, equals: .grape)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .region }
+
+                    TextField("Region / Appellation", text: $viewModel.region)
+                        .focused($focusedField, equals: .region)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.done)
                 }
 
                 Section("Typ") {
@@ -62,8 +97,8 @@ struct WineFormView: View {
                 }
 
                 Section("Notizen") {
-                    TextField("z. B. Geschenk von Anna, bis 2030 trinken", text: $viewModel.notes, axis: .vertical)
-                        .lineLimit(2...5)
+                    TextField("Terroir, Ausbau, „Geschenk von Anna“, „bis 2030 trinken“ …", text: $viewModel.notes, axis: .vertical)
+                        .lineLimit(2...6)
                         .focused($focusedField, equals: .notes)
                 }
             }
@@ -82,8 +117,13 @@ struct WineFormView: View {
                     .disabled(!viewModel.canSave)
                 }
             }
+            .sheet(isPresented: $isShowingScanner) {
+                LabelScanView { result in
+                    viewModel.apply(result)
+                }
+            }
             .onAppear {
-                if case .add = viewModel.mode {
+                if case .add = viewModel.mode, !isShowingScanner {
                     focusedField = .name
                 }
             }
@@ -94,9 +134,11 @@ struct WineFormView: View {
 #Preview("Neu") {
     WineFormView(mode: .add)
         .modelContainer(PreviewData.container)
+        .environment(AISettings(defaults: PreviewData.defaults))
 }
 
 #Preview("Bearbeiten") {
     WineFormView(mode: .edit(PreviewData.sampleWines[0]))
         .modelContainer(PreviewData.container)
+        .environment(AISettings(defaults: PreviewData.defaults))
 }

@@ -20,8 +20,8 @@ struct CellarView: View {
             .navigationTitle("Weinkeller")
             .toolbar { toolbarContent }
             .searchable(text: $viewModel.searchText, prompt: "Name, Rebsorte, Region, Jahrgang")
-            .sheet(isPresented: $viewModel.isShowingAddSheet) {
-                WineFormView(mode: .add)
+            .sheet(item: $viewModel.addMode) { mode in
+                WineFormView(mode: .add, startWithScanner: mode == .scan)
             }
             .sheet(item: $viewModel.wineToEdit) { wine in
                 WineFormView(mode: .edit(wine))
@@ -169,12 +169,21 @@ struct CellarView: View {
         } description: {
             Text("Lege deine erste Flasche an, damit der Wein-Berater etwas empfehlen kann.")
         } actions: {
-            Button {
-                viewModel.isShowingAddSheet = true
-            } label: {
-                Label("Wein hinzufügen", systemImage: "plus")
+            VStack(spacing: 10) {
+                Button {
+                    viewModel.addMode = .scan
+                } label: {
+                    Label("Etikett scannen", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    viewModel.addMode = .manual
+                } label: {
+                    Label("Manuell eingeben", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.borderedProminent)
         }
     }
 
@@ -192,8 +201,17 @@ struct CellarView: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                viewModel.isShowingAddSheet = true
+            Menu {
+                Button {
+                    viewModel.addMode = .scan
+                } label: {
+                    Label("Etikett scannen", systemImage: "text.viewfinder")
+                }
+                Button {
+                    viewModel.addMode = .manual
+                } label: {
+                    Label("Manuell eingeben", systemImage: "square.and.pencil")
+                }
             } label: {
                 Image(systemName: "plus")
             }
