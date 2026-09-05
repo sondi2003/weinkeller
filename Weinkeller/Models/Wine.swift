@@ -102,7 +102,7 @@ final class Wine {
 
     /// Kurzform für Listen: "2018 · Cabernet Sauvignon, Bordeaux".
     var subtitle: String {
-        "\(vintage) · \(grapeOrRegion)"
+        grapeOrRegion.isEmpty ? String(vintage) : "\(vintage) · \(grapeOrRegion)"
     }
 
     /// Schlanke, `Codable`-Kopie für die Übergabe an den KI-Service.
