@@ -21,6 +21,9 @@ struct WineFormView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let existing = viewModel.visibleDuplicate {
+                    duplicateSection(existing)
+                }
                 Section {
                     Button {
                         isShowingScanner = true
@@ -177,14 +180,76 @@ struct WineFormView: View {
             .sheet(isPresented: $isShowingScanner) {
                 LabelScanView { result in
                     viewModel.apply(result)
+                    // Direkt nach dem Scan prüfen – das ist der Moment, in dem man es
+                    // wissen will, nicht erst beim Sichern.
+                    viewModel.checkForDuplicates(in: context)
                 }
             }
+            .onChange(of: viewModel.name) { _, _ in viewModel.checkForDuplicates(in: context) }
+            .onChange(of: viewModel.producer) { _, _ in viewModel.checkForDuplicates(in: context) }
+            .onChange(of: viewModel.vintage) { _, _ in viewModel.checkForDuplicates(in: context) }
             .onAppear {
                 if case .add = viewModel.mode, !isShowingScanner {
                     focusedField = .name
                 }
             }
         }
+    }
+
+    /// Hinweis auf eine Flasche, die es schon gibt.
+    ///
+    /// Steht ganz oben und nicht erst beim Sichern: Nach dem Scan ist der Moment, in dem
+    /// die Frage „hatte ich den schon?“ aufkommt. Archivierte und leere Einträge zählen
+    /// ausdrücklich mit – dort weiss man es nämlich nicht mehr auswendig.
+    @ViewBuilder
+    private func duplicateSection(_ existing: Wine) -> some View {
+        Section {
+            HStack(spacing: 12) {
+                LabelThumbnail(wine: existing, size: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(existing.name)
+                        .font(.body.weight(.semibold))
+                        .lineLimit(1)
+                    Text(existing.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Text(stateText(existing))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(existing.isArchived ? .orange : .secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 2)
+
+            Button {
+                viewModel.addToExisting(existing, in: context)
+                dismiss()
+            } label: {
+                Label(
+                    existing.isArchived ? "Aus dem Archiv holen und aufstocken" : "Bestand erhöhen",
+                    systemImage: existing.isArchived ? "tray.and.arrow.up" : "plus.circle"
+                )
+            }
+
+            Button("Trotzdem neu anlegen") {
+                viewModel.ignoresDuplicates = true
+            }
+            .foregroundStyle(.secondary)
+        } header: {
+            Label("Diesen Wein hast du schon", systemImage: "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+        } footer: {
+            Text(existing.isArchived
+                 ? "Der Eintrag liegt im Archiv. „Aufstocken“ holt ihn zurück und zählt deine Flaschen dazu."
+                 : "„Bestand erhöhen“ zählt deine Flaschen zum bestehenden Eintrag, statt einen zweiten anzulegen.")
+        }
+    }
+
+    private func stateText(_ wine: Wine) -> String {
+        if wine.isArchived { return "Im Archiv" }
+        if wine.isOutOfStock { return "Keine Flasche mehr im Keller" }
+        return wine.quantity == 1 ? "1 Flasche im Keller" : "\(wine.quantity) Flaschen im Keller"
     }
 
     /// Eine Zeile pro Etikettseite – nur sichtbar, wenn ein Foto vorliegt.

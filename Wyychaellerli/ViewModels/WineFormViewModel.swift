@@ -45,6 +45,17 @@ final class WineFormViewModel {
     /// Quelle der letzten Etikett-Erkennung – für den Hinweis im Formular.
     var lastScanSource: LabelExtractionSource?
 
+    /// Flaschen, die es offenbar schon gibt – auch archivierte und leere.
+    /// Wird beim Tippen und direkt nach dem Scan neu bestimmt.
+    var duplicates: [DuplicateFinder.Match] = []
+    /// Nach „Trotzdem neu anlegen“ soll der Hinweis nicht wieder aufpoppen.
+    var ignoresDuplicates = false
+
+    var visibleDuplicate: Wine? {
+        guard case .add = mode, !ignoresDuplicates else { return nil }
+        return duplicates.first?.wine
+    }
+
     init(mode: Mode) {
         self.mode = mode
         switch mode {
@@ -141,6 +152,31 @@ final class WineFormViewModel {
             .components(separatedBy: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    /// Sucht nach einer Flasche, die es schon gibt. Läuft bei jeder Änderung an Name,
+    /// Produzent oder Jahrgang – der Keller ist klein genug, dass das nichts kostet.
+    func checkForDuplicates(in context: NSManagedObjectContext) {
+        guard case .add = mode else { duplicates = []; return }
+        let candidate = DuplicateFinder.Candidate(
+            name: trimmedName,
+            producer: producer.trimmingCharacters(in: .whitespacesAndNewlines),
+            vintage: vintage
+        )
+        duplicates = DuplicateFinder.findDuplicates(of: candidate, in: context)
+    }
+
+    /// Bucht auf die bestehende Flasche statt einen zweiten Eintrag anzulegen.
+    ///
+    /// Holt sie dabei aus dem Archiv zurück: Wer nachkauft, will den Wein wieder im Keller
+    /// sehen und nicht im Archiv suchen müssen.
+    func addToExisting(_ wine: Wine, in context: NSManagedObjectContext) {
+        wine.quantity += Int64(max(1, quantity))
+        wine.isArchived = false
+        // Fehlende Etikettfotos aus dem frischen Scan ergänzen – nie vorhandene ersetzen.
+        if wine.labelImageData == nil, let labelImageData { wine.labelImageData = labelImageData }
+        if wine.backLabelImageData == nil, let backLabelImageData { wine.backLabelImageData = backLabelImageData }
+        context.saveChanges()
     }
 
     /// Schreibt das Formular in den Context (neu anlegen oder aktualisieren).

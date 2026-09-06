@@ -135,6 +135,16 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Ablauf im Berater: erst der lokale Abgleich. Treffer → Anzeige ohne KI-Anfrage, dazu der Knopf „Zusätzlich die KI fragen“ (`forceAI: true`). Kein Treffer → normale KI-Anfrage. Der Knopf „Empfehlung holen“ ist deshalb **auch ohne API-Key aktiv**; `canRequest` darf keinen Provider verlangen.
 - Die Etikett-Empfehlungen gehen als `labelPairings` auch ins Inventar-JSON an die KI, die sie laut Prompt positiv gewichten soll.
 
+## Doppelte Flaschen
+
+- `DuplicateFinder` (Services) vergleicht Name, Produzent und Jahrgang. Bewusst ohne UI und mit einem eigenen `Candidate`-Typ, damit sich die Regel am Mac gegen echte Fälle prüfen lässt – gegen zwölf Fälle verifiziert.
+- **Die Suche schliesst Archiv und leere Einträge ausdrücklich ein.** Kein Filter auf `isArchived` oder `quantity`. Genau dort liegt der Nutzen: Bei einem archivierten Wein weiss man nicht mehr auswendig, dass man ihn schon hatte.
+- Regel: Bei zwei bekannten Jahrgängen müssen diese **gleich** sein, sonst kein Treffer – ein anderer Jahrgang ist ein anderer Wein. Namensähnlichkeit ab 0,85 (ohne Jahrgang strenger, 0,93). Produzent wird nur geprüft, wenn er auf beiden Seiten bekannt ist (Schwelle 0,6), sonst verhinderte ein beim Scannen fehlender Produzent den Treffer.
+- Ähnlichkeit über normalisierten Levenshtein-Abstand; normalisiert heisst kleingeschrieben, ohne Akzente, ohne Satz- und Leerzeichen. Gemessene Abstände: „La Pinede“ ↔ „La Pinède“ = 1,00 (trifft), „Chianti Classico“ ↔ „Chianti Classico Riserva“ = 0,68 und „Barolo“ ↔ „Barolo Riserva“ = 0,46 (treffen nicht). Der Abstand zu den Schwellen ist damit komfortabel.
+- **Zeitpunkt**: Der Hinweis erscheint sofort beim Tippen und direkt nach dem Scan, ganz oben im Formular – nicht erst beim Sichern. Nach dem Scan kommt die Frage „hatte ich den schon?“ auf, dort muss die Antwort stehen.
+- „Bestand erhöhen“ bucht auf den bestehenden Eintrag, holt ihn bei Bedarf aus dem Archiv (`isArchived = false`) und ergänzt **fehlende** Etikettfotos aus dem frischen Scan, ersetzt aber nie vorhandene. „Trotzdem neu anlegen“ setzt `ignoresDuplicates` und blendet den Hinweis für diesen Vorgang aus.
+- Nur im Modus `.add`. Beim Bearbeiten wäre der eigene Eintrag der Treffer.
+
 ## Bewertungen
 
 - **Eigene Entität `Rating`, nicht Felder am Wein.** In einem geteilten Keller bewerten beide Seiten unabhängig, oft gleichzeitig auf verschiedenen Geräten. Als Felder am Wein würde die zweite Bewertung die erste überschreiben, sobald CloudKit zusammenführt. Eine Bewertung je Person und Wein, nicht je Flasche.
