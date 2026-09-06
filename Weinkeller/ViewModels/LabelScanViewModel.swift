@@ -25,17 +25,29 @@ final class LabelScanViewModel {
 
     var hasImages: Bool { front != nil || back != nil }
 
-    /// Seiten aus dem Dokumentenscanner übernehmen: erste = Vorderseite, zweite = Rückseite.
-    /// Ist die Vorderseite schon belegt, füllt eine einzelne Seite die Rückseite.
-    func applyScannedPages(_ pages: [UIImage]) {
+    /// Welche Seite gerade erfasst wird.
+    enum Side: String, Identifiable {
+        case front, back
+        var id: String { rawValue }
+        var title: String { self == .front ? "Vorderseite" : "Rückseite" }
+    }
+
+    /// Seiten aus dem Dokumentenscanner übernehmen.
+    ///
+    /// Die erste Aufnahme geht an die angetippte Seite. Nimmt jemand in einem Durchgang
+    /// gleich beide Seiten auf, füllt die zweite Aufnahme die andere Seite, sofern sie leer ist.
+    func applyScannedPages(_ pages: [UIImage], to side: Side) {
         guard !pages.isEmpty else { return }
-        if pages.count >= 2 {
-            front = Photo(image: pages[0], isPreCropped: true)
-            back = Photo(image: pages[1], isPreCropped: true)
-        } else if front == nil {
-            front = Photo(image: pages[0], isPreCropped: true)
-        } else {
-            back = Photo(image: pages[0], isPreCropped: true)
+        let first = Photo(image: pages[0], isPreCropped: true)
+        switch side {
+        case .front: front = first
+        case .back:  back = first
+        }
+        guard pages.count >= 2 else { return }
+        let second = Photo(image: pages[1], isPreCropped: true)
+        switch side {
+        case .front: if back == nil { back = second }
+        case .back:  if front == nil { front = second }
         }
     }
 

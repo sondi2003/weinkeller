@@ -32,7 +32,8 @@ enum OnDeviceLabelParser {
             type: label.type,
             alcoholPercent: label.alcoholPercent,
             notes: label.notes,
-            foodPairings: label.foodPairings
+            foodPairings: label.foodPairings,
+            foodPairingSource: label.foodPairingSource
         )
     }
 }
@@ -70,5 +71,8 @@ struct GeneratedWineLabel {
 
     @Guide(description: "Speiseempfehlungen vom Etikett, ins Deutsche übersetzt, kurze Begriffe. Leeres Array, wenn nichts dazu auf dem Etikett steht.")
     var foodPairings: [String]
+
+    @Guide(description: "Der wörtlich aus dem erkannten Text kopierte Abschnitt, auf dem die Speiseempfehlung beruht. Leer, wenn es keine gibt.")
+    var foodPairingSource: String
 }
 #endif

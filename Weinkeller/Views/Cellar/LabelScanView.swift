@@ -1,5 +1,5 @@
-import SwiftUI
 import PhotosUI
+import SwiftUI
 
 /// Sheet: Etikett vorne und hinten erfassen, Text erkennen, Felder zuordnen.
 /// Liefert das Ergebnis über `onResult` an das Formular zurück.
@@ -11,20 +11,27 @@ struct LabelScanView: View {
     @Environment(AISettings.self) private var settings
     @Environment(\.aiService) private var aiService
     @State private var viewModel = LabelScanViewModel()
-    @State private var isShowingDocumentScanner = false
+    /// Welche Seite gerade mit der Kamera erfasst wird.
+    @State private var scanningSide: LabelScanViewModel.Side?
     @State private var isShowingRecognizedText = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    if DocumentScannerView.isSupported {
-                        scannerButton
-                    }
-
-                    HStack(spacing: 12) {
-                        LabelPhotoSlot(title: "Vorderseite", symbol: "tag", photo: $viewModel.front)
-                        LabelPhotoSlot(title: "Rückseite", symbol: "text.alignleft", photo: $viewModel.back)
+                    HStack(alignment: .top, spacing: 12) {
+                        LabelPhotoSlot(
+                            side: .front,
+                            symbol: "tag",
+                            photo: $viewModel.front,
+                            onScan: { scanningSide = .front }
+                        )
+                        LabelPhotoSlot(
+                            side: .back,
+                            symbol: "text.alignleft",
+                            photo: $viewModel.back,
+                            onScan: { scanningSide = .back }
+                        )
                     }
 
                     intro
@@ -47,10 +54,10 @@ struct LabelScanView: View {
                     Button("Abbrechen") { dismiss() }
                 }
             }
-            .fullScreenCover(isPresented: $isShowingDocumentScanner) {
+            .fullScreenCover(item: $scanningSide) { side in
                 DocumentScannerView { pages in
-                    viewModel.applyScannedPages(pages)
-                    isShowingDocumentScanner = false
+                    viewModel.applyScannedPages(pages, to: side)
+                    scanningSide = nil
                 }
                 .ignoresSafeArea()
             }
@@ -65,28 +72,9 @@ struct LabelScanView: View {
 
     // MARK: Bausteine
 
-    /// Der Hauptweg: Apples Dokumentenscanner erkennt das Etikett live, schneidet zu und begradigt.
-    private var scannerButton: some View {
-        Button {
-            isShowingDocumentScanner = true
-        } label: {
-            VStack(spacing: 6) {
-                Label("Etikett mit Kamera erfassen", systemImage: "doc.viewfinder")
-                    .font(.headline)
-                Text("Erkennt das Etikett automatisch, schneidet zu und begradigt. Erst die Vorderseite, dann optional die Rückseite aufnehmen und mit „Sichern“ abschließen.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-        }
-        .buttonStyle(.borderedProminent)
-    }
-
     private var intro: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Tipp: Etikett bei gutem Licht möglichst formatfüllend aufnehmen, die Flasche ruhig halten, bis der Rahmen einrastet. Die Rückseite liefert oft Rebsorten und Terroir.")
+            Text("Tippe auf eine Seite, um sie mit der Kamera zu erfassen. Der Rahmen rastet auf dem Etikett ein, schneidet zu und begradigt. Bei dunklen Etiketten hilft seitliches Licht statt Blitz.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(structuringHint)
@@ -109,10 +97,8 @@ struct LabelScanView: View {
         return "Texterkennung auf dem Gerät. Ohne API-Key werden die Felder regelbasiert zugeordnet – Jahrgang, Typ und bekannte Rebsorten klappen gut, Name und Produzent bitte prüfen."
     }
 
-    /// Mit Dokumentenscanner ist das der zweite Schritt (dezent), ohne der einzige (prominent).
-    @ViewBuilder
     private var scanButton: some View {
-        let button = Button {
+        Button {
             Task { await viewModel.scan(service: LabelScanService(aiService: aiService), settings: settings) }
         } label: {
             Label("Etikett auslesen", systemImage: "text.viewfinder")
@@ -120,13 +106,8 @@ struct LabelScanView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
         }
+        .buttonStyle(.borderedProminent)
         .disabled(!viewModel.hasImages || viewModel.isProcessing)
-
-        if DocumentScannerView.isSupported {
-            button.buttonStyle(.bordered)
-        } else {
-            button.buttonStyle(.borderedProminent)
-        }
     }
 
     private var processingCard: some View {
@@ -159,40 +140,61 @@ struct LabelScanView: View {
 
 // MARK: - Foto-Slot
 
-/// Ein Platzhalter mit Vorschau, Fotoauswahl aus der Mediathek und Entfernen.
+/// Eine Etikettseite: grosse Fläche zum Scannen, darunter die Fotoauswahl als Alternative.
 private struct LabelPhotoSlot: View {
 
-    let title: String
+    let side: LabelScanViewModel.Side
     let symbol: String
     @Binding var photo: LabelScanViewModel.Photo?
+    let onScan: () -> Void
 
     @State private var pickerItem: PhotosPickerItem?
 
+    private var canScan: Bool { DocumentScannerView.isSupported }
+
     var body: some View {
         VStack(spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-                if let photo {
-                    // Color.clear gibt die Größe vor, das Overlay füllt sie und wird beschnitten.
-                    Color.clear
-                        .overlay {
-                            Image(uiImage: photo.image)
-                                .resizable()
-                                .scaledToFill()
+            Button(action: onScan) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                    if let photo {
+                        // Color.clear gibt die Größe vor, das Overlay füllt sie und wird beschnitten.
+                        Color.clear
+                            .overlay {
+                                Image(uiImage: photo.image)
+                                    .resizable()
+                                    .scaledToFill()
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    } else {
+                        VStack(spacing: 8) {
+                            Image(systemName: canScan ? "camera.viewfinder" : symbol)
+                                .font(.title)
+                                .foregroundStyle(canScan ? Color.accentColor : Color.secondary)
+                            Text(side.title)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                            if canScan {
+                                Text("Tippen zum Scannen")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: symbol)
-                            .font(.title)
-                            .foregroundStyle(.secondary)
-                        Text(title)
-                            .font(.subheadline.weight(.medium))
                     }
                 }
+                .frame(height: 200)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            photo == nil ? Color.accentColor.opacity(0.35) : Color.clear,
+                            style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                        )
+                }
             }
-            .frame(height: 200)
+            .buttonStyle(.plain)
+            .disabled(!canScan)
+            .accessibilityLabel(photo == nil ? "\(side.title) scannen" : "\(side.title) erneut scannen")
             .overlay(alignment: .topTrailing) {
                 if photo != nil {
                     Button {
@@ -203,7 +205,7 @@ private struct LabelPhotoSlot: View {
                             .foregroundStyle(.white, .black.opacity(0.55))
                     }
                     .padding(8)
-                    .accessibilityLabel("\(title) entfernen")
+                    .accessibilityLabel("\(side.title) entfernen")
                 }
             }
             .overlay(alignment: .bottomLeading) {
@@ -217,16 +219,13 @@ private struct LabelPhotoSlot: View {
                 }
             }
 
-            // Titel außerhalb des Picker-Closures bilden: darin ist `photo` nicht erreichbar,
-            // ohne die Nebenläufigkeitsprüfung zu verletzen.
-            let pickerTitle = photo == nil ? "Aus Fotos" : "Anderes Foto"
             PhotosPicker(selection: $pickerItem, matching: .images) {
-                Label(pickerTitle, systemImage: "photo.on.rectangle")
-                    .font(.subheadline)
+                Label("Aus Fotos", systemImage: "photo.on.rectangle")
+                    .font(.footnote)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .accessibilityLabel("\(title) aus Fotos wählen")
+            .accessibilityLabel("\(side.title) aus Fotos wählen")
         }
         .onChange(of: pickerItem) { _, item in
             guard let item else { return }

@@ -16,6 +16,10 @@ struct WineLabelExtraction: Codable, Sendable, Equatable {
     var notes: String = ""
     /// Speiseempfehlungen vom Etikett, auf Deutsch übersetzt.
     var foodPairings: [String] = []
+    /// Der wörtliche Textabschnitt vom Etikett, auf dem die Empfehlung beruht.
+    /// Dient als Beleg: Lässt er sich im erkannten Text nicht wiederfinden, werden
+    /// die Empfehlungen verworfen.
+    var foodPairingSource: String = ""
 
     /// Typ als App-Enum, falls erkannt.
     var wineType: WineType? {
@@ -76,9 +80,13 @@ enum LabelSchema {
                     "type": "array",
                     "description": "Speiseempfehlungen, die auf dem Etikett stehen, ins Deutsche übersetzt. Je Eintrag ein kurzer Begriff, z. B. \"Gegrilltes Fleisch\". Leeres Array, wenn das Etikett nichts dazu sagt.",
                     "items": ["type": "string"]
+                ],
+                "foodPairingSource": [
+                    "type": "string",
+                    "description": "Der wörtlich aus dem erkannten Text kopierte Abschnitt, auf dem foodPairings beruht – unübersetzt, genau wie im Text. Leer, wenn es keine Speiseempfehlung gibt."
                 ]
             ],
-            "required": ["name", "producer", "vintage", "grape", "region", "country", "type", "alcoholPercent", "notes", "foodPairings"]
+            "required": ["name", "producer", "vintage", "grape", "region", "country", "type", "alcoholPercent", "notes", "foodPairings", "foodPairingSource"]
         ]
         if includeAdditionalProperties {
             schema["additionalProperties"] = false

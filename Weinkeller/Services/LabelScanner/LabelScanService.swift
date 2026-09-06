@@ -44,7 +44,9 @@ struct LabelScanService: Sendable {
         guard !text.isEmpty else { throw LabelScanError.noTextFound }
         Self.logger.info("OCR: \(text.count) Zeichen erkannt")
 
-        let (extraction, source) = await structure(text: text, cloud: cloud)
+        var (extraction, source) = await structure(text: text, cloud: cloud)
+        // Speiseempfehlungen nur übernehmen, wenn sie im Etikett-Text belegt sind.
+        extraction = Self.verifyingFoodPairings(extraction, against: text)
         guard extraction.hasContent else { throw LabelScanError.nothingRecognized(text) }
         Self.logger.info("Zuordnung via \(source.displayName)")
         return LabelScanResult(
@@ -96,6 +98,39 @@ struct LabelScanService: Sendable {
         return (heuristic, .heuristic)
     }
 
+    /// Verwirft Speiseempfehlungen, für die es im erkannten Text keinen Beleg gibt.
+    ///
+    /// Ein Modell neigt dazu, aus Rebsorte und Region eine Empfehlung abzuleiten. Die App
+    /// behauptet aber „laut Etikett“, also muss das Etikett es auch hergeben. Als Beleg
+    /// dient der wörtlich kopierte Abschnitt; er muss sich im erkannten Text wiederfinden.
+    static func verifyingFoodPairings(_ extraction: WineLabelExtraction, against recognizedText: String) -> WineLabelExtraction {
+        guard !extraction.foodPairings.isEmpty else { return extraction }
+        var checked = extraction
+        guard isSupported(extraction.foodPairingSource, by: recognizedText) else {
+            Self.logger.info("Speiseempfehlung ohne Beleg im Etikett-Text verworfen: \(extraction.foodPairings.joined(separator: ", "))")
+            checked.foodPairings = []
+            checked.foodPairingSource = ""
+            return checked
+        }
+        return checked
+    }
+
+    /// Der Beleg gilt, wenn genügend seiner Wörter im erkannten Text vorkommen.
+    /// Eine exakte Übereinstimmung wäre zu streng, weil die Texterkennung Buchstaben verdreht.
+    private static func isSupported(_ source: String, by recognizedText: String) -> Bool {
+        let haystack = normalized(recognizedText)
+        let words = normalized(source)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count >= 4 }
+        guard words.count >= 2 else { return false }
+        let found = words.filter { haystack.contains($0) }.count
+        return Double(found) / Double(words.count) >= 0.6
+    }
+
+    private static func normalized(_ value: String) -> String {
+        value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "de"))
+    }
+
     /// Füllt Lücken der KI-Zuordnung mit den regelbasierten Treffern (z. B. Jahrgang, Alkohol).
     private func merge(_ primary: WineLabelExtraction, with fallback: WineLabelExtraction) -> WineLabelExtraction {
         var merged = primary
@@ -106,6 +141,7 @@ struct LabelScanService: Sendable {
         if merged.region.isEmpty { merged.region = fallback.region }
         if merged.country.isEmpty { merged.country = fallback.country }
         if merged.foodPairings.isEmpty { merged.foodPairings = fallback.foodPairings }
+        if merged.foodPairingSource.isEmpty { merged.foodPairingSource = fallback.foodPairingSource }
         return merged
     }
 }

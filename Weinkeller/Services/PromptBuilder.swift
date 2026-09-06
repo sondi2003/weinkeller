@@ -131,6 +131,9 @@ enum PromptBuilder {
         Übersetze sie ins Deutsche und gib kurze Begriffe zurück, einen pro Eintrag, \
         z. B. ["Gegrilltes Fleisch", "Hartkäse"]. Steht nichts dazu auf dem Etikett, gib ein \
         leeres Array zurück – leite nichts aus Rebsorte oder Region ab.
+        - foodPairingSource: Kopiere den Abschnitt, auf dem foodPairings beruht, wörtlich \
+        aus dem erkannten Text – unübersetzt und unverändert. Gibt es keine Empfehlung auf \
+        dem Etikett, lass das Feld leer und foodPairings ebenfalls.
 
         Erfinde nichts. Unbekannte Felder bleiben leer bzw. 0.
         """
