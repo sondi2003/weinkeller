@@ -36,6 +36,11 @@ final class WineFormViewModel {
     var labelImageData: Data?
     /// Dasselbe für die Rückseite.
     var backLabelImageData: Data?
+    /// Empfohlene Trinkjahre; 0 heisst „keine Angabe“.
+    var drinkFrom: Int
+    var drinkTo: Int
+    /// Merkt sich, ob die Spanne vom Etikett stammt oder geschätzt wurde.
+    var drinkWindowFromLabel: Bool
 
     /// Quelle der letzten Etikett-Erkennung – für den Hinweis im Formular.
     var lastScanSource: LabelExtractionSource?
@@ -56,6 +61,9 @@ final class WineFormViewModel {
             foodPairings = ""
             labelImageData = nil
             backLabelImageData = nil
+            drinkFrom = 0
+            drinkTo = 0
+            drinkWindowFromLabel = false
         case .edit(let wine):
             name = wine.name
             producer = wine.producer
@@ -69,7 +77,17 @@ final class WineFormViewModel {
             foodPairings = wine.foodPairings.joined(separator: ", ")
             labelImageData = wine.labelImageData
             backLabelImageData = wine.backLabelImageData
+            drinkFrom = Int(wine.drinkFrom)
+            drinkTo = Int(wine.drinkTo)
+            drinkWindowFromLabel = wine.drinkWindowFromLabel
         }
+    }
+
+    /// Auswahl für die Trinkreife: rückwirkend, weil ältere Flaschen ihr Fenster schon
+    /// hinter sich haben können, und weit nach vorne für lagerfähige Weine.
+    static var drinkYearRange: [Int] {
+        let current = Calendar.current.component(.year, from: .now)
+        return Array((current - 30)...(current + 40))
     }
 
     /// Sinnvolle Jahrgangsspanne für den Picker.
@@ -96,6 +114,11 @@ final class WineFormViewModel {
         if let wineType = extraction.wineType { type = wineType }
         if let imageData = scan.labelImageData { labelImageData = imageData }
         if let backImageData = scan.backLabelImageData { backLabelImageData = backImageData }
+        if extraction.drinkFrom > 0, extraction.drinkTo >= extraction.drinkFrom {
+            drinkFrom = extraction.drinkFrom
+            drinkTo = extraction.drinkTo
+            drinkWindowFromLabel = extraction.drinkWindowFromLabel
+        }
         if !extraction.foodPairings.isEmpty {
             foodPairings = extraction.foodPairings.joined(separator: ", ")
         }
@@ -139,7 +162,10 @@ final class WineFormViewModel {
                 notes: trimmed(notes),
                 foodPairings: pairingList,
                 labelImageData: labelImageData,
-                backLabelImageData: backLabelImageData
+                backLabelImageData: backLabelImageData,
+                drinkFrom: drinkFrom,
+                drinkTo: drinkTo,
+                drinkWindowFromLabel: drinkWindowFromLabel
             )
         case .edit(let wine):
             wine.name = trimmedName
@@ -154,6 +180,9 @@ final class WineFormViewModel {
             wine.foodPairings = pairingList
             wine.labelImageData = labelImageData
             wine.backLabelImageData = backLabelImageData
+            wine.drinkFrom = Int64(max(0, drinkFrom))
+            wine.drinkTo = Int64(max(0, drinkTo))
+            wine.drinkWindowFromLabel = drinkWindowFromLabel
         }
         context.saveChanges()
     }

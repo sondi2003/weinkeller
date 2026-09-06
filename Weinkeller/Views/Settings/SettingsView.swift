@@ -7,11 +7,29 @@ import SwiftUI
 struct SettingsView: View {
 
     @Environment(AISettings.self) private var settings
+    @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
 
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
             Form {
+                Section {
+                    Picker("Erscheinungsbild", selection: $appearance) {
+                        ForEach(AppearanceSetting.allCases) { option in
+                            Label(option.title, systemImage: option.symbolName)
+                                .tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                } header: {
+                    Text("Darstellung")
+                } footer: {
+                    Text(appearance == .system
+                         ? "Die App folgt der Einstellung von iOS."
+                         : "Die App bleibt \(appearance.title.lowercased()), unabhängig vom System.")
+                }
+
                 Section {
                     activeProviderRow
 
@@ -37,8 +55,18 @@ struct SettingsView: View {
 
                 CellarSharingSection()
 
-                ForEach(AIProvider.allCases) { provider in
-                    ProviderSettingsSection(provider: provider)
+                Section {
+                    ForEach(AIProvider.allCases) { provider in
+                        NavigationLink {
+                            ProviderSettingsView(provider: provider)
+                        } label: {
+                            providerRow(provider)
+                        }
+                    }
+                } header: {
+                    Text("Anbieter")
+                } footer: {
+                    Text("API-Keys werden ausschließlich in der Keychain dieses Geräts gespeichert und nur an den jeweiligen Anbieter gesendet.")
                 }
 
                 Section {
@@ -57,17 +85,32 @@ struct SettingsView: View {
                     Text("Siri")
                 }
 
-                Section {
-                    Label {
-                        Text("API-Keys werden ausschließlich in der Keychain dieses Geräts gespeichert und nur an den jeweiligen Anbieter gesendet.")
-                    } icon: {
-                        Image(systemName: "lock.shield")
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                }
             }
             .navigationTitle("Einstellungen")
+        }
+    }
+
+    /// Kompakte Zeile pro Anbieter: Name, Zustand und ein Tipp führt zu den Details.
+    private func providerRow(_ provider: AIProvider) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: provider.symbolName)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 26)
+            Text(provider.displayName)
+            Spacer()
+            if settings.activeProvider == provider {
+                Text("Aktiv")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+            } else if settings.hasAPIKey(for: provider) {
+                Text("Key hinterlegt")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Kein Key")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 
@@ -112,9 +155,16 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Abschnitt pro Anbieter
+// MARK: - Eigene Seite pro Anbieter
 
-private struct ProviderSettingsSection: View {
+/// Key und Modellnamen eines Anbieters.
+///
+/// Bewusst eine eigene Seite statt dreier Abschnitte untereinander: Mit drei Anbietern
+/// war die Einstellungsseite so lang, dass Erscheinungsbild, Freigabe und Siri nach unten
+/// gedrückt wurden. Aufklappbare Abschnitte wären eine Alternative, aber im `Form` sind
+/// sie fummelig und verbergen den Zustand; eine Zeile mit Zustand plus Detailseite ist
+/// das übliche iOS-Muster.
+struct ProviderSettingsView: View {
 
     let provider: AIProvider
 
@@ -128,76 +178,82 @@ private struct ProviderSettingsSection: View {
     private var isActive: Bool { settings.activeProvider == provider }
 
     var body: some View {
-        Section {
-            HStack {
-                Group {
-                    if isKeyVisible {
-                        TextField("API-Key", text: $apiKey)
-                    } else {
-                        SecureField("API-Key", text: $apiKey)
+        Form {
+            Section {
+                HStack {
+                    Group {
+                        if isKeyVisible {
+                            TextField("API-Key", text: $apiKey)
+                        } else {
+                            SecureField("API-Key", text: $apiKey)
+                        }
+                    }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.callout.monospaced())
+
+                    Button {
+                        isKeyVisible.toggle()
+                    } label: {
+                        Image(systemName: isKeyVisible ? "eye.slash" : "eye")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(isKeyVisible ? "Key verbergen" : "Key anzeigen")
+                }
+
+                if settings.hasAPIKey(for: provider) {
+                    Button(role: .destructive) {
+                        apiKey = ""
+                        isKeyVisible = false
+                    } label: {
+                        Label("API-Key entfernen", systemImage: "trash")
                     }
                 }
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .font(.callout.monospaced())
 
-                Button {
-                    isKeyVisible.toggle()
-                } label: {
-                    Image(systemName: isKeyVisible ? "eye.slash" : "eye")
-                        .foregroundStyle(.secondary)
+                if let keychainError {
+                    Text(keychainError)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
                 }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(isKeyVisible ? "Key verbergen" : "Key anzeigen")
+            } header: {
+                Text("Zugang")
+            } footer: {
+                Text(provider.apiKeyHint)
             }
 
-            LabeledContent("Modell") {
-                TextField(provider.defaultModel, text: $model)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .multilineTextAlignment(.trailing)
-                    .font(.callout.monospaced())
-            }
-
-            LabeledContent("Modell für Siri") {
-                TextField(provider.defaultFastModel, text: $fastModel)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .multilineTextAlignment(.trailing)
-                    .font(.callout.monospaced())
-            }
-
-            if settings.hasAPIKey(for: provider) {
-                Button(role: .destructive) {
-                    apiKey = ""
-                    isKeyVisible = false
-                } label: {
-                    Label("API-Key entfernen", systemImage: "trash")
+            Section {
+                LabeledContent("Empfehlungen") {
+                    TextField(provider.defaultModel, text: $model)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .multilineTextAlignment(.trailing)
+                        .font(.callout.monospaced())
                 }
+
+                LabeledContent("Siri") {
+                    TextField(provider.defaultFastModel, text: $fastModel)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .multilineTextAlignment(.trailing)
+                        .font(.callout.monospaced())
+                }
+            } header: {
+                Text("Modelle")
+            } footer: {
+                Text("Leer lassen, um die Vorgaben zu verwenden. Für Siri wird ein schnelleres Modell genutzt, weil Siri nicht lange wartet.")
             }
 
-            if let keychainError {
-                Text(keychainError)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-        } header: {
-            HStack {
-                Label(provider.displayName, systemImage: provider.symbolName)
-                Spacer()
-                if isActive {
-                    Text("Aktiv")
-                        .font(.caption.weight(.semibold))
+            if isActive {
+                Section {
+                    Label("Dieser Anbieter ist aktiv.", systemImage: "checkmark.circle.fill")
+                        .font(.footnote)
                         .foregroundStyle(.green)
-                } else if settings.hasAPIKey(for: provider) {
-                    Text("Key hinterlegt")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
-        } footer: {
-            Text(provider.apiKeyHint)
         }
+        .navigationTitle(provider.displayName)
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             apiKey = settings.apiKey(for: provider)
             model = settings.customModel(for: provider)

@@ -78,6 +78,12 @@ final class Wine: NSManagedObject, Identifiable {
     /// Zugeschnittenes Foto des Rückseiten-Etiketts als JPEG – dort stehen Terroir,
     /// Vinifikation und Speiseempfehlungen, die man später nachlesen will.
     @NSManaged var backLabelImageData: Data?
+    /// Erstes und letztes empfohlenes Trinkjahr; 0 heisst „nicht bekannt“.
+    @NSManaged var drinkFrom: Int64
+    @NSManaged var drinkTo: Int64
+    /// `true`, wenn die Trinkreife wirklich auf dem Etikett stand, `false` bei einer Schätzung.
+    /// Die Anzeige muss den Unterschied nennen, sonst wirkt eine Schätzung wie eine Tatsache.
+    @NSManaged var drinkWindowFromLabel: Bool
     @NSManaged var createdAt: Date?
     @NSManaged var cellar: Cellar?
 
@@ -111,6 +117,9 @@ final class Wine: NSManagedObject, Identifiable {
         foodPairings: [String] = [],
         labelImageData: Data? = nil,
         backLabelImageData: Data? = nil,
+        drinkFrom: Int = 0,
+        drinkTo: Int = 0,
+        drinkWindowFromLabel: Bool = false,
         isArchived: Bool = false,
         createdAt: Date = .now
     ) -> Wine {
@@ -134,6 +143,9 @@ final class Wine: NSManagedObject, Identifiable {
         wine.foodPairings = foodPairings
         wine.labelImageData = labelImageData
         wine.backLabelImageData = backLabelImageData
+        wine.drinkFrom = Int64(max(0, drinkFrom))
+        wine.drinkTo = Int64(max(0, drinkTo))
+        wine.drinkWindowFromLabel = drinkWindowFromLabel
         wine.isArchived = isArchived
         wine.createdAt = createdAt
         wine.geocodedQuery = ""
@@ -169,6 +181,73 @@ final class Wine: NSManagedObject, Identifiable {
     var quantityValue: Int {
         get { Int(quantity) }
         set { quantity = Int64(max(0, newValue)) }
+    }
+
+    // MARK: Trinkreife
+
+    /// Spanne der empfohlenen Trinkjahre, sofern bekannt.
+    var drinkWindow: ClosedRange<Int>? {
+        let from = Int(drinkFrom)
+        let to = Int(drinkTo)
+        guard from > 0, to > 0, from <= to else { return nil }
+        return from...to
+    }
+
+    /// Wo die Flasche in ihrer Spanne steht.
+    enum Maturity {
+        /// Noch keine Angabe vorhanden.
+        case unknown
+        /// Sollte noch liegen bleiben.
+        case tooYoung
+        /// Mitten im besten Fenster.
+        case ready
+        /// Letztes Jahr der Spanne – jetzt trinken.
+        case drinkSoon
+        /// Spanne überschritten.
+        case pastPeak
+
+        var title: String {
+            switch self {
+            case .unknown:   return ""
+            case .tooYoung:  return "Noch zu jung"
+            case .ready:     return "Trinkreif"
+            case .drinkSoon: return "Bald trinken"
+            case .pastPeak:  return "Über dem Höhepunkt"
+            }
+        }
+
+        var symbolName: String {
+            switch self {
+            case .unknown:   return ""
+            case .tooYoung:  return "hourglass"
+            case .ready:     return "checkmark.seal"
+            case .drinkSoon: return "clock.badge.exclamationmark"
+            case .pastPeak:  return "exclamationmark.triangle"
+            }
+        }
+    }
+
+    /// Reifezustand bezogen auf das laufende Jahr.
+    var maturity: Maturity {
+        guard let window = drinkWindow else { return .unknown }
+        let year = Calendar.current.component(.year, from: .now)
+        if year < window.lowerBound { return .tooYoung }
+        if year > window.upperBound { return .pastPeak }
+        return year == window.upperBound ? .drinkSoon : .ready
+    }
+
+    /// `true`, wenn die Flasche dran ist oder es schon länger wäre – für den Filter.
+    var needsDrinkingSoon: Bool {
+        switch maturity {
+        case .drinkSoon, .pastPeak: return true
+        default: return false
+        }
+    }
+
+    /// Kurzform für Anzeige und Prompt, z. B. "2022–2028". Leer, wenn nichts bekannt ist.
+    var drinkWindowText: String {
+        guard let window = drinkWindow else { return "" }
+        return "\(window.lowerBound)–\(window.upperBound)"
     }
 
     // MARK: Bestands-Management
@@ -248,6 +327,7 @@ final class Wine: NSManagedObject, Identifiable {
             type: type.displayName,
             notes: String(notes.prefix(300)),
             labelPairings: foodPairings,
+            drinkWindow: drinkWindowText,
             quantity: Int(quantity)
         )
     }
@@ -268,5 +348,8 @@ struct WineInventoryItem: Codable, Hashable, Sendable {
     let notes: String
     /// Speiseempfehlungen laut Etikett.
     let labelPairings: [String]
+    /// Empfohlene Trinkjahre als "2022–2028"; leer, wenn nichts bekannt ist.
+    /// Der Berater soll eine Flasche bevorzugen, die jetzt dran ist.
+    let drinkWindow: String
     let quantity: Int
 }

@@ -15,12 +15,16 @@ struct WeinkellerApp: App {
     /// Der KI-Service ist zustandslos und kann geteilt werden.
     private let aiService = AIService()
 
+    /// Hell, dunkel oder dem System folgen. Gilt für die ganze App.
+    @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(settings)
                 .environment(\.aiService, aiService)
                 .environment(\.managedObjectContext, persistence.viewContext)
+                .preferredColorScheme(appearance.colorScheme)
                 .task {
                     // Einmalige Übernahme aus der früheren SwiftData-Ablage.
                     LegacyImporter.importIfNeeded(into: persistence.viewContext)

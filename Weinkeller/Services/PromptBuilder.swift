@@ -33,6 +33,10 @@ enum PromptBuilder {
         `labelPairings` eine Speiseempfehlung des Produzenten, die zum Gericht passt, gewichte \
         das positiv und erwähne es kurz.
         5. Gib zu jeder Empfehlung einen kurzen Serviertipp (Trinktemperatur, Dekantieren, Glas).
+        5a. Steht bei einer Flasche ein `drinkWindow`, berücksichtige es: Eine Flasche, deren \
+        Spanne dieses Jahr endet oder schon überschritten ist, bekommt bei sonst gleicher \
+        Eignung den Vorzug – sag in einem Halbsatz, dass sie dran ist. Eine deutlich zu junge \
+        Flasche nur empfehlen, wenn nichts Besseres da ist, und dann mit Hinweis.
         6. `shoppingTip`: Nenne immer, was klassisch zu diesem Gericht passen würde (Rebsorte, \
         Stil, Region) – ein bis zwei Sätze, als Kauftipp für das nächste Mal.
         7. `generalNote`: In ein bis drei Sätzen die Gesamtlogik. Fehlt der klassische Partner \
@@ -139,6 +143,13 @@ enum PromptBuilder {
         - foodPairingSource: Kopiere den Abschnitt, auf dem foodPairings beruht, wörtlich \
         aus dem erkannten Text – unübersetzt und unverändert. Gibt es keine Empfehlung auf \
         dem Etikett, lass das Feld leer und foodPairings ebenfalls.
+        - drinkFrom / drinkTo: Spanne der Jahre, in denen der Wein am besten getrunken wird. \
+        Steht sie auf dem Etikett („à boire entre 2024 et 2030“, „Trinkreife ab 2026“), \
+        übernimm sie und setze drinkWindowFromLabel auf true. Sonst schätze sie aus Jahrgang, \
+        Rebsorte, Region und Ausbau nach allgemein anerkanntem Fachwissen und setze \
+        drinkWindowFromLabel auf false. Ohne erkennbaren Jahrgang beide Felder auf 0. \
+        Bleib bei einer nüchternen, üblichen Spanne und erfinde keine Genauigkeit, die es \
+        nicht gibt; im Zweifel lieber etwas weiter fassen.
 
         Erfinde nichts. Unbekannte Felder bleiben leer bzw. 0.
         """

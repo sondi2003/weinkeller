@@ -46,6 +46,8 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - App-Icon: `swift Tools/MakeAppIcon.swift` rendert die drei Varianten (hell, dunkel, getönt) per CoreGraphics nach `Assets.xcassets/AppIcon.appiconset`. Design-Änderungen im Script machen, nicht in den PNGs. Keine SF Symbols im App-Icon (Lizenz).
 - Startbildschirm: System-Launchscreen in `LaunchBackground` (Bordeaux), danach `SplashView` als Overlay in `ContentView` für `SplashView.displayDuration`. `accessibilityReduceMotion` wird respektiert.
 - Neue Ansichten bekommen eine `#Preview` mit `PreviewData`.
+- **Erscheinungsbild**: `AppearanceSetting` (System / Hell / Dunkel) liegt in `UserDefaults` unter `AppearanceSetting.storageKey` und wird in `WeinkellerApp` mit `.preferredColorScheme` auf die ganze App gelegt. Bewusst eine Geräte-Einstellung, nicht in iCloud – am iPhone dunkel und am iPad hell soll möglich sein.
+- **Feste Farben brauchen eine Dunkelvariante.** Systemfarben (`Color(.systemGroupedBackground)`, `.secondary`, Materialien) passen sich selbst an, `Color(red:green:blue:)` nicht. Die Weintyp-Farben liefen deshalb im Dunkelmodus ins Leere, Bordeaux war praktisch unlesbar. `Color.adaptive(light:dark:)` in `Theme.swift` baut aus zwei Tönen eine mitlaufende Farbe; jede neue feste Farbe gehört dort hinein. Die Akzentfarbe hat ihre Dunkelvariante bereits im Asset-Katalog.
 - Schema-Änderungen brauchen Migrationsüberlegungen, da bestehende Installationen Daten haben. Neue Attribute immer mit Standardwert (CloudKit-Pflicht).
 - **Weintypen** (`WineType` in `Models/Wine.swift`): `red`, `white`, `sparkling`, `rose`, `mulled` (Glühwein und verwandte Winter-Heißgetränke). Der Rohwert steht als String am `Wine`, ein neuer Fall braucht deshalb keine Migration. Ein neuer Typ ist an fünf Stellen nachzuziehen: `displayName` und `symbolName` (Wine.swift), `color` (Theme.swift), `LabelSchema` (enum-Liste), `PromptBuilder.labelSystemPrompt`, `GeneratedWineLabel` (`@Guide`) und `HeuristicLabelParser.typeKeywords`. Bei den Stichwörtern zählt die **Reihenfolge**: Glühwein steht vor den Farbbegriffen, weil solche Etiketten fast immer zusätzlich „Rotwein“ oder „vin rouge“ nennen.
 
@@ -125,6 +127,14 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Der lokale Abgleich muss **sichtbar** sein. `PairingViewModel.labelCheckOutcome` unterscheidet `matched`, `noMatch` und `nothingStored`; der Berater zeigt daraus eine Zeile „Zuerst ohne KI gesucht“. Ohne diese Rückmeldung wirkt der Fallback auf die KI wie ein übersprungener Schritt (genau so ist es dem Nutzer im Test aufgefallen).
 - Ablauf im Berater: erst der lokale Abgleich. Treffer → Anzeige ohne KI-Anfrage, dazu der Knopf „Zusätzlich die KI fragen“ (`forceAI: true`). Kein Treffer → normale KI-Anfrage. Der Knopf „Empfehlung holen“ ist deshalb **auch ohne API-Key aktiv**; `canRequest` darf keinen Provider verlangen.
 - Die Etikett-Empfehlungen gehen als `labelPairings` auch ins Inventar-JSON an die KI, die sie laut Prompt positiv gewichten soll.
+
+## Trinkreife
+
+- `Wine.drinkFrom` / `drinkTo` (Jahre, 0 = unbekannt) und `drinkWindowFromLabel`. Daraus leiten sich `drinkWindow`, `maturity` (`tooYoung`, `ready`, `drinkSoon`, `pastPeak`, `unknown`) und `needsDrinkingSoon` ab. Regel: kleiner als `from` = zu jung, grösser als `to` = überschritten, gleich `to` = bald trinken, sonst reif.
+- **Schätzung als Schätzung kennzeichnen.** Auf dem Etikett steht die Trinkreife selten; das Modell leitet sie meist aus Jahrgang, Rebsorte und Region ab. Die Detailseite schreibt deshalb entweder „laut Etikett“ oder „geschätzt“ – wie beim Speiseempfehlungs-Beleg gilt: Eine Ableitung darf nie wie eine Etikettangabe aussehen. `drinkWindowFromLabel` transportiert das durch alle drei Zuordnungswege.
+- In der Liste erscheint nur `drinkSoon` und `pastPeak` als Hinweis. „Trinkreif“ und „zu jung“ stünden bei fast jeder Flasche und wären Rauschen.
+- Filter „Nur was dran ist“ liegt im Toolbar-Menü neben dem Archiv, nicht bei den Typ-Chips: Typ und Reife sind zwei verschiedene Achsen, gemischte Chips wären missverständlich. Das Menü-Symbol wechselt, sobald irgendein Filter aktiv ist (`CellarViewModel.isFiltering`).
+- Das Fenster geht als `drinkWindow` ins Inventar-JSON. Der Berater soll bei sonst gleicher Eignung die Flasche bevorzugen, die dran ist (Regel 5a im System-Prompt).
 
 ## Herkunftskarte
 

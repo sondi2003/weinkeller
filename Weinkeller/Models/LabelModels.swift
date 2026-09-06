@@ -16,6 +16,11 @@ struct WineLabelExtraction: Codable, Sendable, Equatable {
     var notes: String = ""
     /// Speiseempfehlungen vom Etikett, auf Deutsch übersetzt.
     var foodPairings: [String] = []
+    /// Empfohlene Trinkjahre. 0 heisst „nicht bestimmbar“.
+    var drinkFrom: Int = 0
+    var drinkTo: Int = 0
+    /// `true`, wenn die Spanne wirklich auf dem Etikett stand, `false` bei einer Schätzung.
+    var drinkWindowFromLabel: Bool = false
     /// Der wörtliche Textabschnitt vom Etikett, auf dem die Empfehlung beruht.
     /// Dient als Beleg: Lässt er sich im erkannten Text nicht wiederfinden, werden
     /// die Empfehlungen verworfen.
@@ -83,12 +88,15 @@ enum LabelSchema {
                     "description": "Speiseempfehlungen, die auf dem Etikett stehen, ins Deutsche übersetzt. Je Eintrag ein kurzer Begriff, z. B. \"Gegrilltes Fleisch\". Leeres Array, wenn das Etikett nichts dazu sagt.",
                     "items": ["type": "string"]
                 ],
+                "drinkFrom": ["type": "integer", "description": "Erstes empfohlenes Trinkjahr als vierstellige Zahl, 0 wenn nicht bestimmbar."],
+                "drinkTo": ["type": "integer", "description": "Letztes empfohlenes Trinkjahr als vierstellige Zahl, 0 wenn nicht bestimmbar."],
+                "drinkWindowFromLabel": ["type": "boolean", "description": "true nur, wenn die Trinkreife ausdrücklich auf dem Etikett steht. Bei einer Einschätzung aus Rebsorte, Region und Jahrgang false."],
                 "foodPairingSource": [
                     "type": "string",
                     "description": "Der wörtlich aus dem erkannten Text kopierte Abschnitt, auf dem foodPairings beruht – unübersetzt, genau wie im Text. Leer, wenn es keine Speiseempfehlung gibt."
                 ]
             ],
-            "required": ["name", "producer", "vintage", "grape", "region", "country", "type", "alcoholPercent", "notes", "foodPairings", "foodPairingSource"]
+            "required": ["name", "producer", "vintage", "grape", "region", "country", "type", "alcoholPercent", "notes", "foodPairings", "foodPairingSource", "drinkFrom", "drinkTo", "drinkWindowFromLabel"]
         ]
         if includeAdditionalProperties {
             schema["additionalProperties"] = false

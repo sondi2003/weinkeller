@@ -16,6 +16,11 @@ final class CellarViewModel {
     var typeFilter: WineType?
     var searchText = ""
     var showArchived = false
+    /// Zeigt nur Flaschen, deren Trinkfenster dieses Jahr endet oder schon vorbei ist.
+    var showOnlyDrinkSoon = false
+
+    /// Für das Symbol in der Toolbar: Ist gerade irgendein Filter aktiv?
+    var isFiltering: Bool { showArchived || showOnlyDrinkSoon }
 
     // MARK: Sheet- und Dialog-Zustand
 
@@ -41,6 +46,7 @@ final class CellarViewModel {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return wines.filter { wine in
             guard wine.isArchived == showArchived else { return false }
+            if showOnlyDrinkSoon, !wine.needsDrinkingSoon { return false }
             if let typeFilter, wine.type != typeFilter { return false }
             guard !query.isEmpty else { return true }
             return wine.name.lowercased().contains(query)

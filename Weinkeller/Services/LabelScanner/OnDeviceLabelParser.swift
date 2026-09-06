@@ -33,6 +33,9 @@ enum OnDeviceLabelParser {
             alcoholPercent: label.alcoholPercent,
             notes: label.notes,
             foodPairings: label.foodPairings,
+            drinkFrom: label.drinkFrom,
+            drinkTo: label.drinkTo,
+            drinkWindowFromLabel: label.drinkWindowFromLabel,
             foodPairingSource: label.foodPairingSource
         )
     }
@@ -74,5 +77,14 @@ struct GeneratedWineLabel {
 
     @Guide(description: "Der wörtlich aus dem erkannten Text kopierte Abschnitt, auf dem die Speiseempfehlung beruht. Leer, wenn es keine gibt.")
     var foodPairingSource: String
+
+    @Guide(description: "Erstes empfohlenes Trinkjahr als vierstellige Zahl, 0 wenn nicht bestimmbar")
+    var drinkFrom: Int
+
+    @Guide(description: "Letztes empfohlenes Trinkjahr als vierstellige Zahl, 0 wenn nicht bestimmbar")
+    var drinkTo: Int
+
+    @Guide(description: "true nur, wenn die Trinkreife ausdrücklich auf dem Etikett steht; bei eigener Einschätzung false")
+    var drinkWindowFromLabel: Bool
 }
 #endif

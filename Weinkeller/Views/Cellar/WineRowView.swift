@@ -18,6 +18,14 @@ struct WineRowView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                // Nur die beiden Zustände, die zum Handeln auffordern. „Trinkreif“ und
+                // „zu jung“ stünden bei fast jeder Flasche und wären dann nur Rauschen.
+                if wine.needsDrinkingSoon {
+                    Label(wine.maturity.title, systemImage: wine.maturity.symbolName)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(wine.maturity == .pastPeak ? .red : .orange)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)

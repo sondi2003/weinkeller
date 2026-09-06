@@ -117,6 +117,34 @@ struct WineFormView: View {
                 }
 
                 Section {
+                    Picker("Ab", selection: $viewModel.drinkFrom) {
+                        Text("keine Angabe").tag(0)
+                        ForEach(WineFormViewModel.drinkYearRange, id: \.self) { year in
+                            Text(String(year)).tag(year)
+                        }
+                    }
+                    Picker("Bis", selection: $viewModel.drinkTo) {
+                        Text("keine Angabe").tag(0)
+                        ForEach(WineFormViewModel.drinkYearRange, id: \.self) { year in
+                            Text(String(year)).tag(year)
+                        }
+                    }
+                } header: {
+                    Text("Trinkreife")
+                } footer: {
+                    if viewModel.drinkFrom > 0 && viewModel.drinkTo > 0 && viewModel.drinkTo < viewModel.drinkFrom {
+                        Text("„Bis“ liegt vor „Ab“ – die Angabe wird nicht verwendet.")
+                            .foregroundStyle(.red)
+                    } else if viewModel.drinkWindowFromLabel {
+                        Text("Diese Spanne stand auf dem Etikett.")
+                    } else if viewModel.drinkFrom > 0 || viewModel.drinkTo > 0 {
+                        Text("Geschätzt aus Rebsorte, Region und Jahrgang. Du kannst sie jederzeit anpassen.")
+                    } else {
+                        Text("Wann der Wein am besten getrunken wird. Der Berater bevorzugt Flaschen, die dran sind.")
+                    }
+                }
+
+                Section {
                     TextField("z. B. Gegrilltes Fleisch, Hartkäse", text: $viewModel.foodPairings, axis: .vertical)
                         .lineLimit(1...3)
                 } header: {

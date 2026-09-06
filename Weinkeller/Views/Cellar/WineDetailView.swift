@@ -88,9 +88,38 @@ struct WineDetailView: View {
                 .padding(.vertical, 4)
                 .background(wine.type.color.opacity(0.15), in: Capsule())
                 .foregroundStyle(wine.type.color)
+            maturityRow
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
+    }
+
+    /// Trinkreife samt Spanne. Nennt ausdrücklich, ob die Angabe vom Etikett stammt
+    /// oder geschätzt ist – sonst liest sich eine Schätzung wie eine Tatsache.
+    @ViewBuilder
+    private var maturityRow: some View {
+        if !wine.drinkWindowText.isEmpty {
+            VStack(spacing: 2) {
+                Label(wine.maturity.title, systemImage: wine.maturity.symbolName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(maturityColor)
+                Text(wine.drinkWindowFromLabel
+                     ? "Trinkreife \(wine.drinkWindowText) laut Etikett"
+                     : "Trinkreife \(wine.drinkWindowText), geschätzt")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    private var maturityColor: Color {
+        switch wine.maturity {
+        case .drinkSoon: return .orange
+        case .pastPeak:  return .red
+        case .ready:     return .green
+        default:         return .secondary
+        }
     }
 
     // MARK: Bestand

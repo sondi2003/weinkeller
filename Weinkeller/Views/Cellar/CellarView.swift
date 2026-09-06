@@ -202,8 +202,11 @@ struct CellarView: View {
                 Toggle(isOn: $viewModel.showArchived) {
                     Label("Archiv anzeigen", systemImage: "archivebox")
                 }
+                Toggle(isOn: $viewModel.showOnlyDrinkSoon) {
+                    Label("Nur was dran ist", systemImage: "clock.badge.exclamationmark")
+                }
             } label: {
-                Image(systemName: viewModel.showArchived ? "archivebox.fill" : "ellipsis.circle")
+                Image(systemName: viewModel.isFiltering ? "line.3.horizontal.decrease.circle.fill" : "ellipsis.circle")
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
