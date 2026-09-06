@@ -8,11 +8,10 @@ import ImageIO
 @MainActor
 final class LabelScanViewModel {
 
-    /// Ein Etikettfoto samt Herkunft.
+    /// Ein Etikettfoto – immer das volle, ungeschnittene Bild.
+    /// Den Zuschnitt aufs Etikett macht `LabelImageCropper`, der dafür das ganze Bild braucht.
     struct Photo {
         let image: UIImage
-        /// Vom Dokumentenscanner bereits zugeschnitten und begradigt.
-        let isPreCropped: Bool
     }
 
     var front: Photo?
@@ -32,22 +31,13 @@ final class LabelScanViewModel {
         var title: String { self == .front ? "Vorderseite" : "Rückseite" }
     }
 
-    /// Seiten aus dem Dokumentenscanner übernehmen.
-    ///
-    /// Die erste Aufnahme geht an die angetippte Seite. Nimmt jemand in einem Durchgang
-    /// gleich beide Seiten auf, füllt die zweite Aufnahme die andere Seite, sofern sie leer ist.
-    func applyScannedPages(_ pages: [UIImage], to side: Side) {
-        guard !pages.isEmpty else { return }
-        let first = Photo(image: pages[0], isPreCropped: true)
+    /// Aufnahme der angetippten Seite übernehmen.
+    func applyPhoto(_ image: UIImage?, to side: Side) {
+        guard let image else { return }
+        let photo = Photo(image: image)
         switch side {
-        case .front: front = first
-        case .back:  back = first
-        }
-        guard pages.count >= 2 else { return }
-        let second = Photo(image: pages[1], isPreCropped: true)
-        switch side {
-        case .front: if back == nil { back = second }
-        case .back:  if front == nil { front = second }
+        case .front: front = photo
+        case .back:  back = photo
         }
     }
 
@@ -85,8 +75,7 @@ final class LabelScanViewModel {
         guard let cgImage = resized.cgImage else { return nil }
         return ScanImage(
             cgImage: cgImage,
-            orientation: CGImagePropertyOrientation(resized.imageOrientation),
-            isPreCropped: photo.isPreCropped
+            orientation: CGImagePropertyOrientation(resized.imageOrientation)
         )
     }
 }

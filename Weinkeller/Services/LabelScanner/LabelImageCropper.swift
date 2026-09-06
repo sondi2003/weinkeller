@@ -7,7 +7,7 @@ import Vision
 
 /// Ergebnis des Zuschnitts – mit Diagnose, welche Strategie gegriffen hat.
 struct LabelCropResult: Sendable {
-    enum Strategy: String, Sendable { case rectangle, textBounds, fullImage }
+    enum Strategy: String, Sendable { case document, rectangle, textBounds, fullImage }
     let jpegData: Data
     let strategy: Strategy
     /// Drehung in Grad (0, 90, 180, 270), die angewendet wurde, damit der Text lesbar liegt.
@@ -16,10 +16,12 @@ struct LabelCropResult: Sendable {
 
 /// Schneidet ein Flaschenfoto aufs Etikett zu und dreht es so, dass der Text lesbar ist.
 ///
-/// 1. Rechteck-Erkennung (Vision): Wenn ein erkanntes Rechteck den Großteil des Textes enthält,
-///    wird es perspektivisch entzerrt – das Etikett erscheint dann frontal und gerade.
-/// 2. Sonst: Umriss aller Textzeilen plus Rand.
-/// 3. Sonst: das ganze Bild.
+/// 1. Dokument-Segmentierung (Vision, ML-basiert): findet die Etikettenkante auch auf
+///    dunklem, gewölbtem Glas. Das Ergebnis wird perspektivisch entzerrt.
+/// 2. Sonst Rechteck-Erkennung: Wenn ein erkanntes Rechteck den Großteil des Textes enthält.
+/// 3. Sonst: Umriss aller Textzeilen plus Rand – aber nur, wenn das Bild nicht ohnehin
+///    schon fast nur aus Etikett besteht.
+/// 4. Sonst: das ganze Bild.
 /// Danach wird geprüft, in welcher Drehung die Texterkennung am besten liest (Querformat-Fotos).
 ///
 /// Bewusst ohne UIKit, damit sich der Zuschnitt auch am Mac testen lässt.
@@ -27,6 +29,10 @@ enum LabelImageCropper {
 
     /// Längste Kante des gespeicherten Bilds – reicht für Detailseite und Miniaturen.
     private static let maxDimension: CGFloat = 1200
+
+    /// Ab diesem Flächenanteil gilt ein Textumriss als „das Bild ist schon das Etikett“.
+    /// Gemessen: volle Flaschenfotos 9–13 %, bereits zugeschnittene Etiketten 72–88 %.
+    private static let croppedAlreadyThreshold: CGFloat = 0.55
 
     static func cropLabel(from image: ScanImage, textLines: [RecognizedLine]) async -> LabelCropResult? {
         await Task.detached(priority: .userInitiated) {
@@ -38,31 +44,27 @@ enum LabelImageCropper {
                 .map(\.boundingBox)
 
             let textUnion = textBoxes.reduce(nil as CGRect?) { accumulated, box in accumulated?.union(box) ?? box }
-            let rectangle = image.isPreCropped ? nil : detectLabelRectangle(in: image, containing: textBoxes)
+            let document = detectLabelDocument(in: image, containing: textBoxes)
+            let rectangle = document == nil ? detectLabelRectangle(in: image, containing: textBoxes) : nil
 
             var cropped: CIImage
             let strategy: LabelCropResult.Strategy
-            if image.isPreCropped {
-                // Dokumentenscanner hat bereits zugeschnitten und begradigt – nur noch ausrichten und verkleinern.
-                cropped = source
-                strategy = .fullImage
+            if let document {
+                // Etikettenkante gefunden → frontal entzerren. Nur wenig wachsen lassen,
+                // die Segmentierung liegt bereits genau auf der Kante.
+                cropped = perspectiveCorrected(source, quad: grown(document, by: 1.02), extent: extent)
+                strategy = .document
             } else if let rectangle, let textUnion, rectangle.boundingBox.insetBy(dx: -0.03, dy: -0.03).contains(textUnion) {
                 // Das Rechteck umfasst den ganzen Text → Etikett perspektivisch entzerren.
-                let quad = grown(rectangle, by: 1.06)
-                let filter = CIFilter.perspectiveCorrection()
-                filter.inputImage = source
-                filter.topLeft = point(quad.topLeft, in: extent)
-                filter.topRight = point(quad.topRight, in: extent)
-                filter.bottomLeft = point(quad.bottomLeft, in: extent)
-                filter.bottomRight = point(quad.bottomRight, in: extent)
-                cropped = filter.outputImage ?? source
+                cropped = perspectiveCorrected(source, quad: grown(rectangle, by: 1.06), extent: extent)
                 strategy = .rectangle
-            } else if let textUnion {
+            } else if let textUnion, textUnion.width * textUnion.height < croppedAlreadyThreshold {
                 // Gerader Zuschnitt: Text plus erkanntes Rechteck (falls vorhanden) plus Rand.
                 let area = rectangle.map { $0.boundingBox.union(textUnion) } ?? textUnion
                 cropped = source.cropped(to: expanded(area, by: 0.05, in: extent))
                 strategy = .textBounds
             } else {
+                // Das Bild ist bereits im Wesentlichen das Etikett – nichts wegschneiden.
                 cropped = source
                 strategy = .fullImage
             }
@@ -71,7 +73,7 @@ enum LabelImageCropper {
             cropped = cropped.transformed(by: CGAffineTransform(translationX: -cropped.extent.minX, y: -cropped.extent.minY))
 
             let context = CIContext()
-            let rotation = bestRotation(for: cropped, textBoxes: textBoxes, sourceExtent: extent, context: context)
+            let rotation = uprightRotation(for: cropped, context: context)
             let upright = rotated(cropped, degrees: rotation)
             let scaled = downscaled(upright)
 
@@ -84,10 +86,49 @@ enum LabelImageCropper {
         }.value
     }
 
-    // MARK: Rechteck-Erkennung
+    // MARK: Etikettenkante
 
     private struct Quad {
         let topLeft: CGPoint, topRight: CGPoint, bottomLeft: CGPoint, bottomRight: CGPoint
+    }
+
+    /// Apples ML-Dokumentsegmentierung – dieselbe Technik, die auch den Dokumentenscanner
+    /// speist, hier aber auf das volle Foto angewendet und mit eigenen Prüfungen abgesichert.
+    ///
+    /// Sie findet die Etikettenkante auch dann, wenn Etikett und Flasche beide dunkel sind:
+    /// gemessen an den Referenzfotos bis hinunter zu EV −2 mit Konfidenz ≥ 0,90.
+    ///
+    /// Zwei Prüfungen halten Fehltreffer ab:
+    /// - **Fläche**: Deckt das Viereck fast das ganze Bild, ist nichts gefunden worden
+    ///   (das passiert bei bereits zugeschnittenen Bildern). Dann lieber nicht schneiden.
+    /// - **Text**: Das Viereck muss den Großteil der erkannten Zeilen enthalten, sonst
+    ///   wurde etwas anderes gefunden – ein Buch, ein Tisch, ein Blatt Papier daneben.
+    private static func detectLabelDocument(in image: ScanImage, containing textBoxes: [CGRect]) -> VNRectangleObservation? {
+        guard !textBoxes.isEmpty else { return nil }
+
+        let request = VNDetectDocumentSegmentationRequest()
+        let handler = VNImageRequestHandler(cgImage: image.cgImage, orientation: image.orientation, options: [:])
+        guard (try? handler.perform([request])) != nil, let observation = request.results?.first else {
+            return nil
+        }
+
+        let box = observation.boundingBox
+        guard box.width * box.height < 0.88 else { return nil }
+
+        let centers = textBoxes.map { CGPoint(x: $0.midX, y: $0.midY) }
+        let covered = centers.filter { box.insetBy(dx: -0.02, dy: -0.02).contains($0) }.count
+        guard Double(covered) >= Double(centers.count) * 0.7 else { return nil }
+        return observation
+    }
+
+    private static func perspectiveCorrected(_ source: CIImage, quad: Quad, extent: CGRect) -> CIImage {
+        let filter = CIFilter.perspectiveCorrection()
+        filter.inputImage = source
+        filter.topLeft = point(quad.topLeft, in: extent)
+        filter.topRight = point(quad.topRight, in: extent)
+        filter.bottomLeft = point(quad.bottomLeft, in: extent)
+        filter.bottomRight = point(quad.bottomRight, in: extent)
+        return filter.outputImage ?? source
     }
 
     /// Liefert das Rechteck, das die meisten Textzeilen enthält – sofern es mindestens die Hälfte davon abdeckt.
@@ -138,41 +179,41 @@ enum LabelImageCropper {
 
     // MARK: Ausrichtung
 
-    /// Prüft, ob das Etikett um 90° gedreht liegt (Querformat-Foto), und liefert die nötige Drehung.
+    /// Liefert die Drehung, die den Text aufrecht stellt – gemessen, nicht geraten.
     ///
-    /// Entscheidung über die Geometrie: Aufrechte Textzeilen sind breiter als hoch. Stehen die
-    /// erkannten Zeilen mehrheitlich hochkant, wird gedreht – und nur die Richtung (90° oder 270°)
-    /// wird per Lesbarkeit bestimmt. 180° wird bewusst nicht geprüft: Fotos sind praktisch nie
-    /// kopfstehend, und kopfstehender Text wird von der Erkennung gern als „sicherer“ Unsinn gelesen.
-    private static func bestRotation(for image: CIImage, textBoxes: [CGRect], sourceExtent: CGRect, context: CIContext) -> Int {
-        guard !textBoxes.isEmpty else { return 0 }
-        // Normalisierte Boxen in Pixel-Seitenverhältnisse umrechnen.
-        let ratios = textBoxes.map { ($0.height * sourceExtent.height) / max($0.width * sourceExtent.width, 1) }.sorted()
-        let medianRatio = ratios[ratios.count / 2]
-        guard medianRatio > 1.2 else { return 0 }
-
-        // Für die Richtungsprüfung reicht eine kleine Version.
+    /// `VNRecognizedTextObservation` erbt von `VNRectangleObservation` und gibt das **gedrehte**
+    /// Viereck der Zeile zurück. Die Strecke von `bottomLeft` nach `bottomRight` ist damit die
+    /// Leserichtung: 0° = aufrecht, 90° = von unten nach oben, 180° = kopfstehend.
+    ///
+    /// Der frühere Weg verglich stattdessen die „Lesbarkeit“ zweier Drehungen (Zeichen × Konfidenz).
+    /// Das trägt nicht: An den Referenzbildern liegen alle vier Drehungen dicht beieinander, und
+    /// die Sprachkorrektur macht aus kopfstehendem Text plausibel aussehende Wörter. Gemessen an
+    /// einem kopfstehenden Ergebnis gewann dort die falsche Richtung.
+    private static func uprightRotation(for image: CIImage, context: CIContext) -> Int {
+        // Für die Winkelmessung reicht eine kleine Version.
         let probe = downscaled(image, maxDimension: 700)
-        var scores: [Int: Double] = [:]
-        for degrees in [90, 270] {
-            let candidate = rotated(probe, degrees: degrees)
-            guard let cgImage = context.createCGImage(candidate, from: candidate.extent) else { continue }
-            scores[degrees] = readabilityScore(of: cgImage)
-        }
-        return scores.max { $0.value < $1.value }?.key ?? 0
-    }
+        guard let cgImage = context.createCGImage(probe, from: probe.extent) else { return 0 }
 
-    /// Summe aus Zeichenzahl × Konfidenz aller erkannten Zeilen.
-    private static func readabilityScore(of cgImage: CGImage) -> Double {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
         let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up, options: [:])
         guard (try? handler.perform([request])) != nil else { return 0 }
-        return (request.results ?? []).reduce(0.0) { score, observation in
-            guard let candidate = observation.topCandidates(1).first else { return score }
-            return score + Double(candidate.string.count) * Double(candidate.confidence)
+
+        // Jede Zeile stimmt für eine Vierteldrehung ab; die Mehrheit gewinnt.
+        var votes: [Int: Int] = [:]
+        for observation in request.results ?? [] {
+            guard let candidate = observation.topCandidates(1).first,
+                  candidate.string.filter(\.isLetter).count >= 3 else { continue }
+            let dx = observation.bottomRight.x - observation.bottomLeft.x
+            let dy = observation.bottomRight.y - observation.bottomLeft.y
+            let degrees = Double(atan2(dy, dx)) * 180 / .pi
+            let quarter = ((Int((degrees / 90).rounded()) % 4) + 4) % 4
+            votes[quarter, default: 0] += 1
         }
+        guard let quarter = votes.max(by: { $0.value < $1.value })?.key else { return 0 }
+        // Gegenrichtung anwenden, damit die Zeilen waagrecht liegen.
+        return (360 - quarter * 90) % 360
     }
 
     // MARK: Bildoperationen

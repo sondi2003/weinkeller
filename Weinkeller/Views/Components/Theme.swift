@@ -11,6 +11,7 @@ extension WineType {
         case .white:     return Color(red: 0.80, green: 0.66, blue: 0.24)   // Strohgelb
         case .sparkling: return Color(red: 0.33, green: 0.58, blue: 0.64)   // kühles Petrol
         case .rose:      return Color(red: 0.89, green: 0.45, blue: 0.56)   // Rosé
+        case .mulled:    return Color(red: 0.78, green: 0.36, blue: 0.13)   // Zimt-Orange
         }
     }
 }

@@ -11,8 +11,6 @@ import Vision
 struct ScanImage: @unchecked Sendable {
     let cgImage: CGImage
     let orientation: CGImagePropertyOrientation
-    /// `true`, wenn das Bild bereits vom Dokumentenscanner zugeschnitten und begradigt wurde.
-    var isPreCropped: Bool = false
 }
 
 /// Eine erkannte Textzeile mit ihrer Position (normalisiert, Ursprung unten links – Vision-Konvention).

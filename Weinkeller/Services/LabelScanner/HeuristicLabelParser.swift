@@ -44,7 +44,10 @@ enum HeuristicLabelParser {
         return 0
     }
 
+    /// Reihenfolge zählt: Ein Glühwein-Etikett nennt fast immer auch „Rotwein“ oder „vin rouge“,
+    /// deshalb muss Glühwein vor den Farbbegriffen geprüft werden.
     private static let typeKeywords: [(keywords: [String], type: String)] = [
+        (["glühwein", "gluhwein", "gluehwein", "glueh wein", "vin chaud", "mulled wine", "glögg", "glogg", "punsch", "winterwein"], "mulled"),
         (["brut", "champagne", "crémant", "cremant", "prosecco", "spumante", "sekt", "cava", "mousseux", "franciacorta", "extra dry"], "sparkling"),
         (["rosé", "rose ", "rosato", "rosado"], "rose"),
         (["rouge", "red wine", "vin rouge", "rosso", "tinto", "rotwein"], "red"),

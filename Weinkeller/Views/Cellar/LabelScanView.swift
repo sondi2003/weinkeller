@@ -55,8 +55,8 @@ struct LabelScanView: View {
                 }
             }
             .fullScreenCover(item: $scanningSide) { side in
-                DocumentScannerView { pages in
-                    viewModel.applyScannedPages(pages, to: side)
+                CameraCaptureView { image in
+                    viewModel.applyPhoto(image, to: side)
                     scanningSide = nil
                 }
                 .ignoresSafeArea()
@@ -74,7 +74,7 @@ struct LabelScanView: View {
 
     private var intro: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Tippe auf eine Seite, um sie mit der Kamera zu erfassen. Der Rahmen rastet auf dem Etikett ein, schneidet zu und begradigt. Bei dunklen Etiketten hilft seitliches Licht statt Blitz.")
+            Text("Tippe auf eine Seite, um sie mit der Kamera zu erfassen. Fotografiere die Flasche einfach ganz – die App sucht die Etikettenkante selbst, schneidet zu und begradigt. Kein Ausrichten nötig.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(structuringHint)
@@ -150,7 +150,7 @@ private struct LabelPhotoSlot: View {
 
     @State private var pickerItem: PhotosPickerItem?
 
-    private var canScan: Bool { DocumentScannerView.isSupported }
+    private var canScan: Bool { CameraCaptureView.isSupported }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -209,8 +209,8 @@ private struct LabelPhotoSlot: View {
                 }
             }
             .overlay(alignment: .bottomLeading) {
-                if let photo, photo.isPreCropped {
-                    Label("Zugeschnitten", systemImage: "checkmark.circle.fill")
+                if photo != nil {
+                    Label("Etikett wird beim Auslesen zugeschnitten", systemImage: "crop")
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -232,7 +232,7 @@ private struct LabelPhotoSlot: View {
             Task { @MainActor in
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let loaded = UIImage(data: data) {
-                    photo = LabelScanViewModel.Photo(image: loaded, isPreCropped: false)
+                    photo = LabelScanViewModel.Photo(image: loaded)
                 }
                 pickerItem = nil
             }

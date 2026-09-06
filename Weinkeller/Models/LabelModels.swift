@@ -10,7 +10,7 @@ struct WineLabelExtraction: Codable, Sendable, Equatable {
     var grape: String = ""
     var region: String = ""
     var country: String = ""
-    /// Rohwert: "red", "white", "sparkling", "rose" oder "unknown".
+    /// Rohwert: "red", "white", "sparkling", "rose", "mulled" oder "unknown".
     var type: String = "unknown"
     var alcoholPercent: Double = 0
     var notes: String = ""
@@ -73,7 +73,7 @@ enum LabelSchema {
                 "grape": ["type": "string", "description": "Rebsorten, kommagetrennt, in Originalschreibweise. Leer, wenn unbekannt."],
                 "region": ["type": "string", "description": "Region oder Appellation, z. B. \"Collioure\". Leer, wenn unbekannt."],
                 "country": ["type": "string", "description": "Herkunftsland auf Deutsch, z. B. \"Frankreich\". Auch ableiten, wenn nur die Appellation genannt ist. Leer, wenn unklar."],
-                "type": ["type": "string", "enum": ["red", "white", "sparkling", "rose", "unknown"], "description": "Weintyp."],
+                "type": ["type": "string", "enum": ["red", "white", "sparkling", "rose", "mulled", "unknown"], "description": "Weintyp. \"mulled\" für Glühwein und verwandte Winter-Heißgetränke."],
                 "alcoholPercent": ["type": "number", "description": "Alkoholgehalt in Volumenprozent, 0 wenn unbekannt."],
                 "notes": ["type": "string", "description": "Kurze deutsche Notiz zu Terroir, Vinifikation und Ausbau (max. 2 Sätze). Leer, wenn nichts dazu auf dem Etikett steht."],
                 "foodPairings": [

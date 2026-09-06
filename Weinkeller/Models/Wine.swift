@@ -12,6 +12,8 @@ enum WineType: String, Codable, CaseIterable, Identifiable, Sendable {
     case white = "white"
     case sparkling = "sparkling"
     case rose = "rose"
+    /// Glühwein und verwandte Winter-Heißgetränke (Punsch, vin chaud, glögg).
+    case mulled = "mulled"
 
     var id: String { rawValue }
 
@@ -22,6 +24,7 @@ enum WineType: String, Codable, CaseIterable, Identifiable, Sendable {
         case .white:     return "Weißwein"
         case .sparkling: return "Schaumwein"
         case .rose:      return "Rosé"
+        case .mulled:    return "Glühwein"
         }
     }
 
@@ -32,6 +35,7 @@ enum WineType: String, Codable, CaseIterable, Identifiable, Sendable {
         case .white:     return "wineglass"
         case .sparkling: return "bubbles.and.sparkles"
         case .rose:      return "drop.fill"
+        case .mulled:    return "mug.fill"
         }
     }
 }
