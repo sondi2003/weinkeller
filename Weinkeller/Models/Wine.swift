@@ -75,6 +75,9 @@ final class Wine: NSManagedObject, Identifiable {
     @NSManaged var notes: String
     /// Zugeschnittenes Foto des Vorderseiten-Etiketts als JPEG.
     @NSManaged var labelImageData: Data?
+    /// Zugeschnittenes Foto des Rückseiten-Etiketts als JPEG – dort stehen Terroir,
+    /// Vinifikation und Speiseempfehlungen, die man später nachlesen will.
+    @NSManaged var backLabelImageData: Data?
     @NSManaged var createdAt: Date?
     @NSManaged var cellar: Cellar?
 
@@ -107,6 +110,7 @@ final class Wine: NSManagedObject, Identifiable {
         notes: String = "",
         foodPairings: [String] = [],
         labelImageData: Data? = nil,
+        backLabelImageData: Data? = nil,
         isArchived: Bool = false,
         createdAt: Date = .now
     ) -> Wine {
@@ -129,6 +133,7 @@ final class Wine: NSManagedObject, Identifiable {
         wine.notes = notes
         wine.foodPairings = foodPairings
         wine.labelImageData = labelImageData
+        wine.backLabelImageData = backLabelImageData
         wine.isArchived = isArchived
         wine.createdAt = createdAt
         wine.geocodedQuery = ""

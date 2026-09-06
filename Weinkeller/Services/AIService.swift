@@ -67,6 +67,42 @@ extension AIProviderClient {
         )
         return try JSONDecoding.decode(WineLabelExtraction.self, fromModelText: text)
     }
+
+    /// Übersetzt einen kurzen Etikett-Text ins Deutsche. Wird nur aufgerufen, wenn die
+    /// Spracherkennung sicher ist, dass der Text nicht deutsch ist.
+    func translateToGerman(_ text: String, apiKey: String, model: String) async throws -> String {
+        let answer = try await structuredText(
+            system: PromptBuilder.translationSystemPrompt,
+            user: PromptBuilder.translationUserPrompt(text: text),
+            schemaName: "translation",
+            schema: TranslationSchema.jsonSchema(includeAdditionalProperties: supportsAdditionalProperties),
+            speed: .fast,
+            apiKey: apiKey,
+            model: model
+        )
+        return try JSONDecoding.decode(TranslationResult.self, fromModelText: answer).german
+    }
+}
+
+/// Antwort der Übersetzungsanfrage.
+struct TranslationResult: Codable, Sendable {
+    let german: String
+}
+
+enum TranslationSchema {
+    static func jsonSchema(includeAdditionalProperties: Bool) -> [String: Any] {
+        var schema: [String: Any] = [
+            "type": "object",
+            "properties": [
+                "german": ["type": "string", "description": "Der Text auf Deutsch, ohne Zusätze."]
+            ],
+            "required": ["german"]
+        ]
+        if includeAdditionalProperties {
+            schema["additionalProperties"] = false
+        }
+        return schema
+    }
 }
 
 // MARK: - Fassade
@@ -171,6 +207,18 @@ final class AIService: Sendable {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw AIServiceError.missingAPIKey(provider) }
         return try await client(for: provider).extractLabel(recognizedText: recognizedText, apiKey: key, model: model)
+    }
+
+    /// Übersetzt eine fremdsprachige Etikett-Notiz ins Deutsche.
+    func translateToGerman(
+        _ text: String,
+        provider: AIProvider,
+        apiKey: String,
+        model: String
+    ) async throws -> String {
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { throw AIServiceError.missingAPIKey(provider) }
+        return try await client(for: provider).translateToGerman(text, apiKey: key, model: model)
     }
 }
 

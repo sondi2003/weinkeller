@@ -32,8 +32,10 @@ final class WineFormViewModel {
     var notes: String
     /// Kommagetrennt im Formular, als Liste am Wein.
     var foodPairings: String
-    /// Zugeschnittenes Etikett-Foto (JPEG), wird mit dem Wein gespeichert.
+    /// Zugeschnittenes Etikett-Foto der Vorderseite (JPEG), wird mit dem Wein gespeichert.
     var labelImageData: Data?
+    /// Dasselbe für die Rückseite.
+    var backLabelImageData: Data?
 
     /// Quelle der letzten Etikett-Erkennung – für den Hinweis im Formular.
     var lastScanSource: LabelExtractionSource?
@@ -53,6 +55,7 @@ final class WineFormViewModel {
             notes = ""
             foodPairings = ""
             labelImageData = nil
+            backLabelImageData = nil
         case .edit(let wine):
             name = wine.name
             producer = wine.producer
@@ -65,6 +68,7 @@ final class WineFormViewModel {
             notes = wine.notes
             foodPairings = wine.foodPairings.joined(separator: ", ")
             labelImageData = wine.labelImageData
+            backLabelImageData = wine.backLabelImageData
         }
     }
 
@@ -91,6 +95,7 @@ final class WineFormViewModel {
         if !extraction.country.isEmpty { country = extraction.country }
         if let wineType = extraction.wineType { type = wineType }
         if let imageData = scan.labelImageData { labelImageData = imageData }
+        if let backImageData = scan.backLabelImageData { backLabelImageData = backImageData }
         if !extraction.foodPairings.isEmpty {
             foodPairings = extraction.foodPairings.joined(separator: ", ")
         }
@@ -133,7 +138,8 @@ final class WineFormViewModel {
                 quantity: quantity,
                 notes: trimmed(notes),
                 foodPairings: pairingList,
-                labelImageData: labelImageData
+                labelImageData: labelImageData,
+                backLabelImageData: backLabelImageData
             )
         case .edit(let wine):
             wine.name = trimmedName
@@ -147,6 +153,7 @@ final class WineFormViewModel {
             wine.notes = trimmed(notes)
             wine.foodPairings = pairingList
             wine.labelImageData = labelImageData
+            wine.backLabelImageData = backLabelImageData
         }
         context.saveChanges()
     }

@@ -23,6 +23,11 @@ extension Wine {
     var labelImage: UIImage? {
         labelImageData.flatMap(UIImage.init(data:))
     }
+
+    /// Dekodiertes Rückseiten-Etikett, falls eines gespeichert ist.
+    var backLabelImage: UIImage? {
+        backLabelImageData.flatMap(UIImage.init(data:))
+    }
 }
 
 /// Kleines Etikett-Vorschaubild für Listen und Cards; fällt auf das Typ-Icon zurück.

@@ -27,26 +27,16 @@ struct WineFormView: View {
                     } label: {
                         Label("Etikett scannen", systemImage: "text.viewfinder")
                     }
-                    if let data = viewModel.labelImageData, let image = UIImage(data: data) {
-                        HStack(spacing: 12) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 56, height: 70)
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            Text("Etikett-Foto wird mit dem Wein gespeichert.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Button(role: .destructive) {
-                                viewModel.labelImageData = nil
-                            } label: {
-                                Image(systemName: "trash")
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("Etikett-Foto entfernen")
-                        }
-                    }
+                    labelPhotoRow(
+                        title: "Vorderseite",
+                        data: viewModel.labelImageData,
+                        remove: { viewModel.labelImageData = nil }
+                    )
+                    labelPhotoRow(
+                        title: "Rückseite",
+                        data: viewModel.backLabelImageData,
+                        remove: { viewModel.backLabelImageData = nil }
+                    )
                     if let source = viewModel.lastScanSource {
                         Label {
                             Text("Felder aus Etikett übernommen – Zuordnung via \(source.displayName). Bitte kurz prüfen.")
@@ -165,6 +155,33 @@ struct WineFormView: View {
                 if case .add = viewModel.mode, !isShowingScanner {
                     focusedField = .name
                 }
+            }
+        }
+    }
+
+    /// Eine Zeile pro Etikettseite – nur sichtbar, wenn ein Foto vorliegt.
+    @ViewBuilder
+    private func labelPhotoRow(title: String, data: Data?, remove: @escaping () -> Void) -> some View {
+        if let data, let image = UIImage(data: data) {
+            HStack(spacing: 12) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 56, height: 70)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+                    Text("Wird mit dem Wein gespeichert.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(role: .destructive, action: remove) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Foto \(title) entfernen")
             }
         }
     }

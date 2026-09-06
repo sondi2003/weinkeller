@@ -55,6 +55,8 @@ struct LabelScanResult: Sendable, Identifiable, Equatable {
     let source: LabelExtractionSource
     /// Aufs Etikett zugeschnittenes Foto der Vorderseite (JPEG), falls vorhanden.
     let labelImageData: Data?
+    /// Dasselbe für die Rückseite – dort steht der Text, den man später nachlesen will.
+    let backLabelImageData: Data?
 }
 
 // MARK: - JSON-Schema für die Cloud-Zuordnung
@@ -75,7 +77,7 @@ enum LabelSchema {
                 "country": ["type": "string", "description": "Herkunftsland auf Deutsch, z. B. \"Frankreich\". Auch ableiten, wenn nur die Appellation genannt ist. Leer, wenn unklar."],
                 "type": ["type": "string", "enum": ["red", "white", "sparkling", "rose", "mulled", "unknown"], "description": "Weintyp. \"mulled\" für Glühwein und verwandte Winter-Heißgetränke."],
                 "alcoholPercent": ["type": "number", "description": "Alkoholgehalt in Volumenprozent, 0 wenn unbekannt."],
-                "notes": ["type": "string", "description": "Kurze deutsche Notiz zu Terroir, Vinifikation und Ausbau (max. 2 Sätze). Leer, wenn nichts dazu auf dem Etikett steht."],
+                "notes": ["type": "string", "description": "Kurze Notiz zu Terroir, Vinifikation und Ausbau (max. 2 Sätze), zwingend auf Deutsch – fremdsprachigen Etikett-Text übersetzen, nicht kopieren. Leer, wenn nichts dazu auf dem Etikett steht."],
                 "foodPairings": [
                     "type": "array",
                     "description": "Speiseempfehlungen, die auf dem Etikett stehen, ins Deutsche übersetzt. Je Eintrag ein kurzer Begriff, z. B. \"Gegrilltes Fleisch\". Leeres Array, wenn das Etikett nichts dazu sagt.",

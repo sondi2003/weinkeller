@@ -66,7 +66,7 @@ struct GeneratedWineLabel {
     @Guide(description: "Alkoholgehalt in Volumenprozent, 0 wenn unbekannt")
     var alcoholPercent: Double
 
-    @Guide(description: "Ein bis zwei deutsche Sätze zu Terroir, Vinifikation und Ausbau, leer wenn nichts dazu steht")
+    @Guide(description: "Ein bis zwei Sätze zu Terroir, Vinifikation und Ausbau, zwingend auf Deutsch – fremdsprachigen Etikett-Text übersetzen, nicht kopieren. Leer, wenn nichts dazu steht.")
     var notes: String
 
     @Guide(description: "Speiseempfehlungen vom Etikett, ins Deutsche übersetzt, kurze Begriffe. Leeres Array, wenn nichts dazu auf dem Etikett steht.")

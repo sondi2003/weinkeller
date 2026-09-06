@@ -53,19 +53,21 @@ struct WineDetailView: View {
 
     // MARK: Kopf
 
+    /// Vorhandene Etikettseiten in fester Reihenfolge.
+    private var labelPages: [LabelPage] {
+        var pages: [LabelPage] = []
+        if let image = wine.labelImage { pages.append(LabelPage(title: "Vorderseite", image: image)) }
+        if let image = wine.backLabelImage { pages.append(LabelPage(title: "Rückseite", image: image)) }
+        return pages
+    }
+
     private var header: some View {
         VStack(spacing: 12) {
-            if let image = wine.labelImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 320)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
-                    .padding(.bottom, 8)
-                    .accessibilityLabel("Etikett von \(wine.name)")
-            } else {
+            if labelPages.isEmpty {
                 WineTypeIcon(type: wine.type, size: 84)
+            } else {
+                LabelPager(pages: labelPages, wineName: wine.name)
+                    .padding(.bottom, 8)
             }
             if !wine.producer.isEmpty {
                 Text(wine.producer)

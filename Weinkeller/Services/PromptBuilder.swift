@@ -126,8 +126,11 @@ enum PromptBuilder {
         "Glühwein/vin chaud/mulled wine/glögg/Punsch" = mulled. Glühwein geht vor: Steht \
         „Glühwein“ auf dem Etikett, ist der Typ mulled, auch wenn zusätzlich „Rotwein“ dasteht.
         - alcoholPercent: Volumenprozent als Zahl, 0 wenn unbekannt.
-        - notes: In ein bis zwei deutschen Sätzen, was für das Pairing wichtig ist: Terroir \
-        (z. B. Schiefer), Vinifikation, Ausbau, Stil. Leer, wenn nichts dazu steht.
+        - notes: In ein bis zwei Sätzen, was für das Pairing wichtig ist: Terroir \
+        (z. B. Schiefer), Vinifikation, Ausbau, Stil. Leer, wenn nichts dazu steht. \
+        **Zwingend auf Deutsch**, auch wenn das Etikett französisch, italienisch, spanisch \
+        oder englisch ist – übersetze den Inhalt, kopiere ihn nicht. Eigennamen \
+        (Weingut, Lage, Rebsorte, Appellation) bleiben dabei unverändert.
         - foodPairings: Nur Speiseempfehlungen, die tatsächlich auf dem Etikett stehen \
         (z. B. „Accompagne les viandes grillées“, „Ottimo con carni rosse“, „Passt zu Wild“). \
         Übersetze sie ins Deutsche und gib kurze Begriffe zurück, einen pro Eintrag, \
@@ -139,6 +142,31 @@ enum PromptBuilder {
 
         Erfinde nichts. Unbekannte Felder bleiben leer bzw. 0.
         """
+
+    // MARK: Übersetzung
+
+    static let translationSystemPrompt = """
+        Du übersetzt kurze Texte von Weinetiketten ins Deutsche.
+
+        Regeln:
+        - Gib nur die Übersetzung zurück, keine Erklärung, keine Anführungszeichen.
+        - Eigennamen bleiben unverändert: Weingut, Lage, Rebsorte, Appellation, Ortsnamen.
+        - Fachbegriffe deutsch, wo es einen gebräuchlichen gibt (schistes = Schiefer, \
+        élevage en fût = Ausbau im Fass).
+        - Länge und Aufbau beibehalten, nichts ergänzen und nichts weglassen.
+        - Ist der Text bereits deutsch, gib ihn unverändert zurück.
+        """
+
+    static func translationUserPrompt(text: String) -> String {
+        """
+        Übersetze ins Deutsche:
+        ---
+        \(text)
+        ---
+        """
+    }
+
+    // MARK: Etikett-Erkennung (Fortsetzung)
 
     static func labelUserPrompt(recognizedText: String) -> String {
         """

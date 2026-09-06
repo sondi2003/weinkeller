@@ -26,18 +26,23 @@ struct LabelScanService: Sendable {
     func scan(front: ScanImage?, back: ScanImage?, cloud: CloudCredentials?) async throws -> LabelScanResult {
         var sections: [(title: String, lines: [RecognizedLine])] = []
         var labelImageData: Data?
+        var backLabelImageData: Data?
 
         if let front {
             let lines = try await LabelTextRecognizer.recognizeLines(in: front)
             sections.append(("Vorderseite", lines))
             if let crop = await LabelImageCropper.cropLabel(from: front, textLines: lines) {
                 labelImageData = crop.jpegData
-                Self.logger.info("Etikett-Foto: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
+                Self.logger.info("Etikett vorne: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
             }
         }
         if let back {
             let lines = try await LabelTextRecognizer.recognizeLines(in: back)
             sections.append(("Rückseite", lines))
+            if let crop = await LabelImageCropper.cropLabel(from: back, textLines: lines) {
+                backLabelImageData = crop.jpegData
+                Self.logger.info("Etikett hinten: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
+            }
         }
 
         let text = LabelTextRecognizer.combinedText(sections)
@@ -47,13 +52,22 @@ struct LabelScanService: Sendable {
         var (extraction, source) = await structure(text: text, cloud: cloud)
         // Speiseempfehlungen nur übernehmen, wenn sie im Etikett-Text belegt sind.
         extraction = Self.verifyingFoodPairings(extraction, against: text)
+        // Die Modelle übernehmen den Rückseitentext gern in der Originalsprache.
+        if !extraction.notes.isEmpty {
+            extraction.notes = await LabelNotesTranslator.germanized(
+                extraction.notes,
+                aiService: aiService,
+                cloud: cloud
+            )
+        }
         guard extraction.hasContent else { throw LabelScanError.nothingRecognized(text) }
         Self.logger.info("Zuordnung via \(source.displayName)")
         return LabelScanResult(
             extraction: extraction,
             recognizedText: text,
             source: source,
-            labelImageData: labelImageData
+            labelImageData: labelImageData,
+            backLabelImageData: backLabelImageData
         )
     }
 

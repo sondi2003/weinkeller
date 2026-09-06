@@ -227,6 +227,7 @@ final class PersistenceController: @unchecked Sendable {
             attribute("notes", .stringAttributeType, default: ""),
             attribute("foodPairingsRaw", .stringAttributeType, default: ""),
             binaryAttribute("labelImageData"),
+            binaryAttribute("backLabelImageData"),
             attribute("latitude", .doubleAttributeType, default: 0.0),
             attribute("longitude", .doubleAttributeType, default: 0.0),
             attribute("geocodedQuery", .stringAttributeType, default: ""),
