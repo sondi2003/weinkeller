@@ -28,6 +28,7 @@ enum OnDeviceLabelParser {
             vintage: label.vintage,
             grape: label.grape,
             region: label.region,
+            country: label.country,
             type: label.type,
             alcoholPercent: label.alcoholPercent,
             notes: label.notes
@@ -53,6 +54,9 @@ struct GeneratedWineLabel {
 
     @Guide(description: "Region oder Appellation, leer wenn unbekannt")
     var region: String
+
+    @Guide(description: "Herkunftsland auf Deutsch, z. B. Frankreich. Leer wenn unklar.")
+    var country: String
 
     @Guide(description: "Weintyp: genau einer von red, white, sparkling, rose, unknown")
     var type: String

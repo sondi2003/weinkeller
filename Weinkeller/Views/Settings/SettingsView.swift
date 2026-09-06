@@ -41,6 +41,22 @@ struct SettingsView: View {
 
                 Section {
                     Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("„Hey Siri, Wein-Berater in Weinkeller“")
+                                .font(.footnote.weight(.semibold))
+                            Text("Siri fragt danach, was es zu essen gibt, und liest die Empfehlung vor. Der App-Name muss im Satz vorkommen, das verlangt Apple. Für Siri wird das schnellere Modell verwendet.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "mic")
+                    }
+                } header: {
+                    Text("Siri")
+                }
+
+                Section {
+                    Label {
                         Text("API-Keys werden ausschließlich in der Keychain dieses Geräts gespeichert und nur an den jeweiligen Anbieter gesendet.")
                     } icon: {
                         Image(systemName: "lock.shield")
@@ -103,6 +119,7 @@ private struct ProviderSettingsSection: View {
     @Environment(AISettings.self) private var settings
     @State private var apiKey = ""
     @State private var model = ""
+    @State private var fastModel = ""
     @State private var isKeyVisible = false
     @State private var keychainError: String?
 
@@ -134,6 +151,14 @@ private struct ProviderSettingsSection: View {
 
             LabeledContent("Modell") {
                 TextField(provider.defaultModel, text: $model)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .multilineTextAlignment(.trailing)
+                    .font(.callout.monospaced())
+            }
+
+            LabeledContent("Modell für Siri") {
+                TextField(provider.defaultFastModel, text: $fastModel)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .multilineTextAlignment(.trailing)
@@ -174,6 +199,7 @@ private struct ProviderSettingsSection: View {
         .onAppear {
             apiKey = settings.apiKey(for: provider)
             model = settings.customModel(for: provider)
+            fastModel = settings.customFastModel(for: provider)
         }
         .onChange(of: apiKey) { _, newValue in
             do {
@@ -185,6 +211,9 @@ private struct ProviderSettingsSection: View {
         }
         .onChange(of: model) { _, newValue in
             settings.setCustomModel(newValue, for: provider)
+        }
+        .onChange(of: fastModel) { _, newValue in
+            settings.setCustomFastModel(newValue, for: provider)
         }
     }
 }

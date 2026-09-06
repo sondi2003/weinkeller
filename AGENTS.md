@@ -69,6 +69,25 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - OCR und Regel-Parser lassen sich ohne Simulator prüfen: macOS-Harness mit `LabelTextRecognizer` + `HeuristicLabelParser` und Fotos via `CGImageSource` (siehe Tools-Abschnitt oben).
 - `Config/Info.plist`: Xcode überschreibt die Datei gelegentlich mit seiner In-Memory-Kopie, wenn das Projekt offen ist. Nach Änderungen prüfen, ob `NSCameraUsageDescription` noch drin ist.
 
+## Herkunftskarte
+
+- `Services/RegionGeocoder.swift` löst „Region, Land“ über `CLGeocoder` auf. Kein API-Key, keine Standortfreigabe (Forward Geocoding braucht keine). Ergebnis wird am Wein gespeichert (`latitude`, `longitude`, `geocodedQuery`, `geocodedPlaceName`, `geocodePrecision`).
+- **Regionsnamen sind mehrdeutig** – gemessen: „Mosel, Deutschland“ liefert einen Ortsteil von Zwickau in Sachsen, „Wallis, Schweiz“ einen Weiler im Aargau. Deshalb prüft `RegionGeocoder.matches` jeden Treffer gegen `locality` / `subAdministrativeArea` / `administrativeArea`. `name` allein zählt nur bei Treffern ohne `locality` (reine Verwaltungsgebiete wie Piemont). Passt nichts, wird auf Landesebene zurückgefallen: Karte ohne Stecknadel plus Hinweis „Region nicht genau gefunden“. Lieber ungenau als falsch.
+- Die Prüfregel ist ohne CoreLocation testbar (`matches(locality:subAdministrativeArea:administrativeArea:name:region:)`) und gegen echte Geocoder-Antworten verifiziert.
+- Nicht versuchen, den Treffer mit Zusätzen wie „Weinregion X“ zu verbessern: gemessen liefert das fast immer `kCLErrorDomain error 8` (kein Treffer).
+- `.task` niemals an eine potenziell leere `Group` hängen – an einer EmptyView läuft sie nicht. In `WineOriginMapView` sorgt ein `Color.clear`-Zweig dafür, dass immer ein View-Knoten existiert.
+- Das Land steht als eigenes Feld am Wein (`Wine.country`), wird vom Etikett mitgelesen (KI und regelbasiert über „Product of France“ und Verwandte) und ist im Formular editierbar.
+
+## Siri / App Intents
+
+- `Intents/WinePairingIntent.swift` ist der Siri-Befehl, `Intents/WeinkellerShortcuts.swift` meldet ihn beim System an, `Intents/PairingSnippet.swift` ist die Karte unter der Sprachantwort.
+- Apple verlangt, dass **jeder** Siri-Satz `\(.applicationName)` enthält. Ein freier Satz wie „Siri, welcher Wein passt zu Lasagne“ ist nicht möglich; das Gericht erfragt Siri über `requestValueDialog` am `@Parameter`.
+- **Der Rückgabetyp von `perform()` muss an allen `return`-Stellen identisch sein.** Hilfsfunktionen mit `some IntentResult & ...` erzeugen je eigene opake Typen und brechen den Build. Deshalb sammelt `perform` alles in einer internen `Ausgabe`-Struktur und hat genau eine Rückgabe.
+- Siri nutzt `AISpeed.fast`: schnelleres Modell (`AISettings.fastModel(for:)`), bei Anthropic zusätzlich `effort: "low"`, und **kein** zweiter Reparaturversuch. Der Keller-Tab bleibt bei `.quality`.
+- App und Intent teilen sich `SharedModelContainer.shared`. Nicht zwei Container anlegen, sonst sieht Siri einen leeren Keller.
+- Testen ohne Gerät: App einmal starten (registriert die Intents), dann Kurzbefehle-App im Simulator öffnen, dort erscheint „Wein empfehlen“ unter „Weinkeller“. Metadaten prüfen: `Metadata.appintents/extract.actionsdata` im gebauten `.app`.
+- CarPlay braucht keine eigene Arbeit und ist als eigene App auch nicht erlaubt (Weinkeller passt in keine zugelassene CarPlay-Kategorie). Siri im Auto nutzt denselben Intent.
+
 ## Bekannte Stolperfallen
 
 - `Text("\(intValue)")` lokalisiert Zahlen (Jahrgang wird zu „2'024“). Für Jahrgänge `String(vintage)` verwenden.

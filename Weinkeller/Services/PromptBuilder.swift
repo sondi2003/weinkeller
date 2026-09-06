@@ -115,6 +115,9 @@ enum PromptBuilder {
         - grape: Rebsorten kommagetrennt (z. B. "Grenache noir, Mourvèdre, Carignan"). \
         Nicht raten – nur, was auf dem Etikett steht oder aus der Appellation zwingend folgt.
         - region: Region oder Appellation (z. B. "Collioure", "Mosel", "Barolo").
+        - country: Herkunftsland auf Deutsch (z. B. "Frankreich", "Deutschland", "Italien"). \
+        Steht es nicht auf dem Etikett, leite es aus der Appellation ab, sofern diese eindeutig \
+        ist – „Collioure“ ist Frankreich, „Mosel“ ist Deutschland. Sonst leer lassen.
         - type: red, white, sparkling, rose oder unknown. Hinweise: "rouge/red/rosso/tinto" = red, \
         "blanc/white/bianco/blanco/weiss" = white, "rosé/rosato/rosado" = rose, \
         "brut/champagne/crémant/prosecco/spumante/sekt/cava/mousseux" = sparkling.

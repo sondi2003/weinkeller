@@ -57,6 +57,10 @@ final class Wine {
     /// Region oder Appellation, z. B. "Collioure".
     var region: String = ""
 
+    /// Herkunftsland, z. B. "Frankreich". Macht die Kartensuche eindeutig
+    /// („Mosel“ allein landet sonst in Frankreich statt in Deutschland).
+    var country: String = ""
+
     /// Rot, Weiß, Schaum oder Rosé.
     var type: WineType
 
@@ -75,6 +79,21 @@ final class Wine {
     @Attribute(.externalStorage)
     var labelImageData: Data? = nil
 
+    // MARK: Herkunft auf der Karte
+
+    /// Koordinaten der Region, einmalig per Geocoding ermittelt.
+    var latitude: Double? = nil
+    var longitude: Double? = nil
+
+    /// Welche Region zuletzt nachgeschlagen wurde – erkennt spätere Änderungen.
+    var geocodedQuery: String? = nil
+
+    /// Aufgelöster Ortsname mit Land, z. B. „Collioure, Frankreich“.
+    var geocodedPlaceName: String? = nil
+
+    /// „place“ = Region gefunden (Stecknadel), „country“ = nur das Land gesichert.
+    var geocodePrecision: String? = nil
+
     var createdAt: Date
 
     init(
@@ -83,6 +102,7 @@ final class Wine {
         vintage: Int,
         grape: String,
         region: String = "",
+        country: String = "",
         type: WineType,
         quantity: Int = 1,
         notes: String = "",
@@ -95,6 +115,7 @@ final class Wine {
         self.vintage = vintage
         self.grape = grape
         self.region = region
+        self.country = country
         self.type = type
         self.quantity = max(0, quantity)
         self.notes = notes
@@ -121,7 +142,7 @@ final class Wine {
 
     /// Kurzform für Listen: "2019 · Grenache, Mourvèdre · Collioure".
     var subtitle: String {
-        ([String(vintage), grape, region])
+        ([String(vintage), grape, region.isEmpty ? country : region])
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
@@ -132,6 +153,27 @@ final class Wine {
         producer.isEmpty ? name : "\(producer) – \(name)"
     }
 
+    /// `true`, wenn zur aktuellen Region schon ein Nachschlagen stattgefunden hat.
+    /// Ein fehlender `geocodePrecision` bedeutet: noch nie oder mit älterer Logik gesucht.
+    var needsGeocoding: Bool {
+        geocodePrecision == nil || geocodedQuery != RegionGeocoder.query(region: region, country: country)
+    }
+
+    /// Übernimmt ein Geocoding-Ergebnis (oder merkt sich den erfolglosen Versuch).
+    func applyGeocode(_ result: GeocodedRegion?, for query: String) {
+        geocodedQuery = query
+        latitude = result?.latitude
+        longitude = result?.longitude
+        geocodedPlaceName = result?.placeName
+        // „none“ merkt sich den erfolglosen Versuch, damit nicht bei jedem Öffnen neu gesucht wird.
+        geocodePrecision = result?.precision.rawValue ?? "none"
+    }
+
+    /// `true`, wenn die Region selbst gefunden wurde und eine Stecknadel gerechtfertigt ist.
+    var hasPreciseOrigin: Bool {
+        geocodePrecision == GeocodedRegion.Precision.place.rawValue
+    }
+
     /// Schlanke, `Codable`-Kopie für die Übergabe an den KI-Service.
     /// SwiftData-Objekte selbst sind nicht `Sendable` und gehören nicht ins Netzwerk-Layer.
     var inventoryItem: WineInventoryItem {
@@ -140,7 +182,7 @@ final class Wine {
             producer: producer,
             vintage: vintage,
             grape: grape,
-            region: region,
+            region: ([region, country].filter { !$0.isEmpty }).joined(separator: ", "),
             type: type.displayName,
             notes: String(notes.prefix(300)),
             quantity: quantity

@@ -34,6 +34,16 @@ enum AIProvider: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
+    /// Schnelleres Modell für Siri-Anfragen. Siri wartet nicht lange, deshalb zählt hier
+    /// Antwortzeit mehr als die letzte Nuance in der Begründung.
+    var defaultFastModel: String {
+        switch self {
+        case .openAI:    return "gpt-5-mini"
+        case .gemini:    return "gemini-2.5-flash"
+        case .anthropic: return "claude-sonnet-5"
+        }
+    }
+
     /// Hilfetext für das API-Key-Feld.
     var apiKeyHint: String {
         switch self {

@@ -104,6 +104,7 @@ struct LabelScanService: Sendable {
         if merged.wineType == nil, fallback.wineType != nil { merged.type = fallback.type }
         if merged.grape.isEmpty { merged.grape = fallback.grape }
         if merged.region.isEmpty { merged.region = fallback.region }
+        if merged.country.isEmpty { merged.country = fallback.country }
         return merged
     }
 }

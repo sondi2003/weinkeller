@@ -5,9 +5,11 @@ Privater Weinkeller-Assistent für iPhone und iPad. Verwaltet den Flaschenbestan
 ## Funktionen
 
 - **Weinkeller** – Flaschen mit Name, Jahrgang, Rebsorte/Region, Typ (Rot, Weiß, Schaum, Rosé) und Bestand. Schnell-Abbuchung per Minus-Button, Filter nach Typ, Suche, Archiv. Bei der letzten Flasche fragt die App, ob der Wein archiviert oder gelöscht werden soll.
+- **Herkunftskarte** – Die Detailseite zeigt einen Kartenausschnitt mit Stecknadel auf der Weinregion, ermittelt aus Region und Land des Etiketts. Ist die Region nicht eindeutig auffindbar, zeigt die Karte nur das Land statt einer falschen Nadel. Ein Tipp öffnet Apple Karten.
 - **Wein-Berater** – Essens-Stichwort eingeben (z. B. „Raclette“), die KI liefert bis zu drei Empfehlungen aus dem aktuellen Bestand mit ehrlicher Passung (Perfekt, passt gut, geht, Notlösung), Begründung und Serviertipp. Passt nichts wirklich, sagt sie das offen und nennt, was klassisch passen würde, als Kauftipp. „Flasche öffnen“ bucht direkt ab. Antworten werden auf Plausibilität geprüft (nur Weine aus dem Keller, keine Platzhalter) und bei Bedarf einmal automatisch wiederholt.
 - **Etikett scannen** – Die Kamera erkennt das Etikett live, löst automatisch aus, schneidet zu und begradigt (Apples Dokumentenscanner). Alternativ Fotos aus der Mediathek wählen. Die App liest den Text auf dem Gerät aus (Vision) und füllt Name, Produzent, Jahrgang, Rebsorten, Region, Typ und Notizen vor. Die Zuordnung macht Apple Intelligence auf dem Gerät (iOS 26, iPhone 15 Pro und neuer), sonst der aktive KI-Anbieter (es wird nur der erkannte Text gesendet, nie das Foto), sonst eine regelbasierte Erkennung. Das Vorderseiten-Foto wird automatisch aufs Etikett zugeschnitten und beim Wein gespeichert – sichtbar auf der Detailseite, in der Liste und in den Empfehlungen, damit die Flasche im Regal schnell gefunden ist.
-- **Einstellungen** – API-Key und Modellname pro Anbieter, Keys lassen sich jederzeit wieder entfernen. Der Anbieter mit hinterlegtem Key ist automatisch aktiv; bei mehreren Keys lässt sich ein bevorzugter wählen. Keys liegen in der Keychain, nie in UserDefaults.
+- **Siri** – „Hey Siri, Wein-Berater in Weinkeller“. Siri fragt nach dem Essen, liest die Empfehlung vor und zeigt eine Karte mit Etikett. Funktioniert auch über CarPlay und in der Kurzbefehle-App. Für Siri wird ein schnelleres Modell verwendet, da Siri nicht lange wartet.
+- **Einstellungen** – API-Key und Modellname pro Anbieter, dazu ein eigenes Modell für Siri. Keys lassen sich jederzeit wieder entfernen. Der Anbieter mit hinterlegtem Key ist automatisch aktiv; bei mehreren Keys lässt sich ein bevorzugter wählen. Keys liegen in der Keychain, nie in UserDefaults.
 
 ## Voraussetzungen
 
@@ -38,7 +40,8 @@ MVVM mit SwiftUI, SwiftData und `@Observable`.
 
 ```
 Weinkeller/
-├── App/            WeinkellerApp – ModelContainer, Settings und AIService im Environment
+├── App/            WeinkellerApp und SharedModelContainer (von App und Siri genutzt)
+├── Intents/        Siri-Befehl, Kurzbefehl-Anmeldung, Ergebniskarte
 ├── Models/         Wine (SwiftData), PairingRequest/PairingResponse, JSON-Schema
 ├── Services/
 │   ├── AIService       Fassade: wählt den Client zum aktiven Anbieter

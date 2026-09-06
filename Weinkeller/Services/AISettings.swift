@@ -18,6 +18,7 @@ final class AISettings {
     private enum Keys {
         static let preferredProvider = "ai.preferredProvider"
         static func model(for provider: AIProvider) -> String { "ai.model.\(provider.rawValue)" }
+        static func fastModel(for provider: AIProvider) -> String { "ai.fastModel.\(provider.rawValue)" }
     }
 
     private let defaults: UserDefaults
@@ -34,6 +35,9 @@ final class AISettings {
     /// Modellnamen pro Anbieter; leer = `provider.defaultModel`.
     private(set) var models: [AIProvider: String] = [:]
 
+    /// Schnelle Modelle für Siri; leer = `provider.defaultFastModel`.
+    private(set) var fastModels: [AIProvider: String] = [:]
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -44,6 +48,7 @@ final class AISettings {
         for provider in AIProvider.allCases {
             apiKeys[provider] = KeychainStore.string(for: provider.rawValue) ?? ""
             models[provider] = defaults.string(forKey: Keys.model(for: provider)) ?? ""
+            fastModels[provider] = defaults.string(forKey: Keys.fastModel(for: provider)) ?? ""
         }
     }
 
@@ -81,6 +86,29 @@ final class AISettings {
         defaults.set(model, forKey: Keys.model(for: provider))
     }
 
+    /// Das Modell für Siri-Anfragen (Nutzer-Eingabe oder Standard).
+    func fastModel(for provider: AIProvider) -> String {
+        let custom = (fastModels[provider] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return custom.isEmpty ? provider.defaultFastModel : custom
+    }
+
+    func customFastModel(for provider: AIProvider) -> String {
+        fastModels[provider] ?? ""
+    }
+
+    func setCustomFastModel(_ model: String, for provider: AIProvider) {
+        fastModels[provider] = model
+        defaults.set(model, forKey: Keys.fastModel(for: provider))
+    }
+
+    /// Modell passend zur gewünschten Geschwindigkeit.
+    func model(for provider: AIProvider, speed: AISpeed) -> String {
+        switch speed {
+        case .quality: return model(for: provider)
+        case .fast:    return fastModel(for: provider)
+        }
+    }
+
     // MARK: Aktiver Anbieter
 
     /// Alle Anbieter mit hinterlegtem Key, in der Reihenfolge von `AIProvider.allCases`.
@@ -101,6 +129,11 @@ final class AISettings {
     /// Modell des aktiven Anbieters.
     var activeModel: String? {
         activeProvider.map { model(for: $0) }
+    }
+
+    /// Modell, das Siri verwenden würde.
+    var activeFastModel: String? {
+        activeProvider.map { fastModel(for: $0) }
     }
 
     /// `true`, wenn der Nutzer zwischen mehreren konfigurierten Anbietern wählen kann.

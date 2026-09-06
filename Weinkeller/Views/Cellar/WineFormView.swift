@@ -10,7 +10,7 @@ struct WineFormView: View {
     @State private var isShowingScanner: Bool
     @FocusState private var focusedField: Field?
 
-    private enum Field { case name, producer, grape, region, notes }
+    private enum Field { case name, producer, grape, region, country, notes }
 
     /// - Parameter startWithScanner: öffnet sofort den Etikett-Scanner (Plus-Menü „Etikett scannen“).
     init(mode: WineFormViewModel.Mode, startWithScanner: Bool = false) {
@@ -79,7 +79,7 @@ struct WineFormView: View {
                     }
                 }
 
-                Section("Herkunft") {
+                Section {
                     TextField("Rebsorte(n)", text: $viewModel.grape)
                         .focused($focusedField, equals: .grape)
                         .textInputAutocapitalization(.words)
@@ -89,7 +89,17 @@ struct WineFormView: View {
                     TextField("Region / Appellation", text: $viewModel.region)
                         .focused($focusedField, equals: .region)
                         .textInputAutocapitalization(.words)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .country }
+
+                    TextField("Land", text: $viewModel.country)
+                        .focused($focusedField, equals: .country)
+                        .textInputAutocapitalization(.words)
                         .submitLabel(.done)
+                } header: {
+                    Text("Herkunft")
+                } footer: {
+                    Text("Das Land macht die Karte auf der Detailseite eindeutig.")
                 }
 
                 Section("Typ") {

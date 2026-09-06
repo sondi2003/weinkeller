@@ -27,6 +27,7 @@ struct AnthropicClient: AIProviderClient {
         user: String,
         schemaName: String,
         schema: [String: Any],
+        speed: AISpeed,
         apiKey: String,
         model: String
     ) async throws -> String {
@@ -41,7 +42,8 @@ struct AnthropicClient: AIProviderClient {
                 ["role": "user", "content": user]
             ],
             "output_config": [
-                "effort": "medium",
+                // Für Siri weniger Denkaufwand, damit die Antwort schnell kommt.
+                "effort": speed == .fast ? "low" : "medium",
                 "format": [
                     "type": "json_schema",
                     "schema": schema

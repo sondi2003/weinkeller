@@ -9,6 +9,7 @@ struct WineLabelExtraction: Codable, Sendable, Equatable {
     var vintage: Int = 0
     var grape: String = ""
     var region: String = ""
+    var country: String = ""
     /// Rohwert: "red", "white", "sparkling", "rose" oder "unknown".
     var type: String = "unknown"
     var alcoholPercent: Double = 0
@@ -21,7 +22,7 @@ struct WineLabelExtraction: Codable, Sendable, Equatable {
 
     /// `true`, wenn wenigstens ein Kernfeld gefüllt ist.
     var hasContent: Bool {
-        !name.isEmpty || !producer.isEmpty || vintage > 0 || !grape.isEmpty || !region.isEmpty
+        !name.isEmpty || !producer.isEmpty || vintage > 0 || !grape.isEmpty || !region.isEmpty || !country.isEmpty
     }
 }
 
@@ -65,11 +66,12 @@ enum LabelSchema {
                 "vintage": ["type": "integer", "description": "Jahrgang als vierstellige Zahl, 0 wenn nicht auf dem Etikett."],
                 "grape": ["type": "string", "description": "Rebsorten, kommagetrennt, in Originalschreibweise. Leer, wenn unbekannt."],
                 "region": ["type": "string", "description": "Region oder Appellation, z. B. \"Collioure\". Leer, wenn unbekannt."],
+                "country": ["type": "string", "description": "Herkunftsland auf Deutsch, z. B. \"Frankreich\". Auch ableiten, wenn nur die Appellation genannt ist. Leer, wenn unklar."],
                 "type": ["type": "string", "enum": ["red", "white", "sparkling", "rose", "unknown"], "description": "Weintyp."],
                 "alcoholPercent": ["type": "number", "description": "Alkoholgehalt in Volumenprozent, 0 wenn unbekannt."],
                 "notes": ["type": "string", "description": "Kurze deutsche Notiz zu Terroir, Vinifikation und Ausbau (max. 2 Sätze). Leer, wenn nichts dazu auf dem Etikett steht."]
             ],
-            "required": ["name", "producer", "vintage", "grape", "region", "type", "alcoholPercent", "notes"]
+            "required": ["name", "producer", "vintage", "grape", "region", "country", "type", "alcoholPercent", "notes"]
         ]
         if includeAdditionalProperties {
             schema["additionalProperties"] = false

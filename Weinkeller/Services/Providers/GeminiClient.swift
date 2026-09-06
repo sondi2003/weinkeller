@@ -21,9 +21,11 @@ struct GeminiClient: AIProviderClient {
         user: String,
         schemaName: String,
         schema: [String: Any],
+        speed: AISpeed,
         apiKey: String,
         model: String
     ) async throws -> String {
+        // Tempo steuert bei Gemini die Modellwahl, die der Aufrufer trifft – kein Body-Unterschied.
         guard let url = URL(string: "\(baseURL)/\(model):generateContent") else {
             throw AIServiceError.invalidURL
         }

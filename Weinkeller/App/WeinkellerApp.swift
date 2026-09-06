@@ -4,17 +4,6 @@ import SwiftData
 @main
 struct WeinkellerApp: App {
 
-    /// Ein gemeinsamer Container für die ganze App.
-    private let modelContainer: ModelContainer = {
-        let schema = Schema([Wine.self])
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        do {
-            return try ModelContainer(for: schema, configurations: [configuration])
-        } catch {
-            fatalError("ModelContainer konnte nicht erstellt werden: \(error)")
-        }
-    }()
-
     /// Einstellungen (Provider, Modelle, Keys) – einmal pro App-Lebenszyklus.
     @State private var settings = AISettings()
 
@@ -27,7 +16,8 @@ struct WeinkellerApp: App {
                 .environment(settings)
                 .environment(\.aiService, aiService)
         }
-        .modelContainer(modelContainer)
+        // Derselbe Container, den auch die Siri-Intents verwenden.
+        .modelContainer(SharedModelContainer.shared)
     }
 }
 

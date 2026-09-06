@@ -20,9 +20,11 @@ struct OpenAIClient: AIProviderClient {
         user: String,
         schemaName: String,
         schema: [String: Any],
+        speed: AISpeed,
         apiKey: String,
         model: String
     ) async throws -> String {
+        // Tempo steuert bei OpenAI die Modellwahl, die der Aufrufer trifft – kein Body-Unterschied.
         let body: [String: Any] = [
             "model": model,
             "messages": [

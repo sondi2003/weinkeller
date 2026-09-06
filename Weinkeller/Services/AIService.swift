@@ -1,6 +1,15 @@
 import Foundation
 import OSLog
 
+// MARK: - Geschwindigkeit
+
+/// Wie viel Zeit die Anfrage kosten darf.
+/// `fast` wird für Siri verwendet: kleineres Modell, weniger Denkaufwand.
+enum AISpeed: Sendable {
+    case quality
+    case fast
+}
+
 // MARK: - Provider-Schnittstelle
 
 /// Ein Client pro Anbieter. Jeder Client kennt seinen Endpoint und sein Payload-Format
@@ -17,6 +26,7 @@ protocol AIProviderClient: Sendable {
         user: String,
         schemaName: String,
         schema: [String: Any],
+        speed: AISpeed,
         apiKey: String,
         model: String
     ) async throws -> String
@@ -25,12 +35,19 @@ protocol AIProviderClient: Sendable {
 extension AIProviderClient {
 
     /// Wein-Empfehlung zu einem Gericht – roh, noch nicht validiert.
-    func recommend(_ request: PairingRequest, repairHint: String? = nil, apiKey: String, model: String) async throws -> (PairingResponse, rawText: String) {
+    func recommend(
+        _ request: PairingRequest,
+        repairHint: String? = nil,
+        speed: AISpeed = .quality,
+        apiKey: String,
+        model: String
+    ) async throws -> (PairingResponse, rawText: String) {
         let text = try await structuredText(
             system: PromptBuilder.systemPrompt(maxRecommendations: request.maxRecommendations),
             user: PromptBuilder.userPrompt(for: request, repairHint: repairHint),
             schemaName: "wine_pairing",
             schema: RecommendationSchema.jsonSchema(includeAdditionalProperties: supportsAdditionalProperties),
+            speed: speed,
             apiKey: apiKey,
             model: model
         )
@@ -44,6 +61,7 @@ extension AIProviderClient {
             user: PromptBuilder.labelUserPrompt(recognizedText: recognizedText),
             schemaName: "wine_label",
             schema: LabelSchema.jsonSchema(includeAdditionalProperties: supportsAdditionalProperties),
+            speed: .quality,
             apiKey: apiKey,
             model: model
         )
@@ -93,7 +111,8 @@ final class AIService: Sendable {
         _ request: PairingRequest,
         provider: AIProvider,
         apiKey: String,
-        model: String
+        model: String,
+        speed: AISpeed = .quality
     ) async throws -> PairingResponse {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw AIServiceError.missingAPIKey(provider) }
@@ -107,8 +126,10 @@ final class AIService: Sendable {
 
         let client = client(for: provider)
         var repairHint: String?
-        for attempt in 1...2 {
-            let (raw, rawText) = try await client.recommend(request, repairHint: repairHint, apiKey: key, model: model)
+        // Bei Siri zählt Tempo: nur ein Versuch, kein Reparaturlauf.
+        let maxAttempts = speed == .fast ? 1 : 2
+        for attempt in 1...maxAttempts {
+            let (raw, rawText) = try await client.recommend(request, repairHint: repairHint, speed: speed, apiKey: key, model: model)
             let validation = PairingValidator.validate(raw, inventory: request.inventory)
             switch validation {
             case .usable(let response):
@@ -125,7 +146,7 @@ final class AIService: Sendable {
     /// Bequemer Einstieg direkt aus den Einstellungen heraus: verwendet automatisch
     /// den Anbieter, für den ein API-Key hinterlegt ist.
     @MainActor
-    func recommend(_ request: PairingRequest, using settings: AISettings) async throws -> PairingResponse {
+    func recommend(_ request: PairingRequest, using settings: AISettings, speed: AISpeed = .quality) async throws -> PairingResponse {
         guard let provider = settings.activeProvider else {
             throw AIServiceError.noProviderConfigured
         }
@@ -133,7 +154,8 @@ final class AIService: Sendable {
             request,
             provider: provider,
             apiKey: settings.apiKey(for: provider),
-            model: settings.model(for: provider)
+            model: settings.model(for: provider, speed: speed),
+            speed: speed
         )
     }
 

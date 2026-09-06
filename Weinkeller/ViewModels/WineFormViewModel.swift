@@ -26,6 +26,7 @@ final class WineFormViewModel {
     var vintage: Int
     var grape: String
     var region: String
+    var country: String
     var type: WineType
     var quantity: Int
     var notes: String
@@ -45,6 +46,7 @@ final class WineFormViewModel {
             vintage = Calendar.current.component(.year, from: .now) - 2
             grape = ""
             region = ""
+            country = ""
             type = .red
             quantity = 1
             notes = ""
@@ -55,6 +57,7 @@ final class WineFormViewModel {
             vintage = wine.vintage
             grape = wine.grape
             region = wine.region
+            country = wine.country
             type = wine.type
             quantity = wine.quantity
             notes = wine.notes
@@ -82,6 +85,7 @@ final class WineFormViewModel {
         if Self.vintageRange.contains(extraction.vintage) { vintage = extraction.vintage }
         if !extraction.grape.isEmpty { grape = extraction.grape }
         if !extraction.region.isEmpty { region = extraction.region }
+        if !extraction.country.isEmpty { country = extraction.country }
         if let wineType = extraction.wineType { type = wineType }
         if let imageData = scan.labelImageData { labelImageData = imageData }
 
@@ -108,6 +112,7 @@ final class WineFormViewModel {
                 vintage: vintage,
                 grape: trimmed(grape),
                 region: trimmed(region),
+                country: trimmed(country),
                 type: type,
                 quantity: quantity,
                 notes: trimmed(notes),
@@ -120,6 +125,7 @@ final class WineFormViewModel {
             wine.vintage = vintage
             wine.grape = trimmed(grape)
             wine.region = trimmed(region)
+            wine.country = trimmed(country)
             wine.type = type
             wine.quantity = max(0, quantity)
             wine.notes = trimmed(notes)

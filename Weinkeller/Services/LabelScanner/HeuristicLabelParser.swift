@@ -19,6 +19,7 @@ enum HeuristicLabelParser {
         result.type = detectType(in: lowered)
         result.grape = detectGrapes(in: lowered)
         result.region = detectRegion(in: lines)
+        result.country = detectCountry(in: lowered)
         result.producer = lines.first { line in
             producerKeywords.contains { line.lowercased().contains($0) }
         } ?? ""
@@ -84,6 +85,33 @@ enum HeuristicLabelParser {
             found.append(grape.display)
         }
         return found.joined(separator: ", ")
+    }
+
+    /// Suchbegriffe (kleingeschrieben) je Land. Rückenetiketten tragen fast immer
+    /// eine Herkunftsangabe wie „Product of France“ oder „Prodotto in Italia“.
+    private static let countries: [(needles: [String], name: String)] = [
+        (["france", "frankreich", "français", "francia"], "Frankreich"),
+        (["italia", "italy", "italien", "italie"], "Italien"),
+        (["españa", "espana", "spain", "spanien", "espagne"], "Spanien"),
+        (["deutschland", "germany", "allemagne", "german"], "Deutschland"),
+        (["schweiz", "suisse", "switzerland", "svizzera"], "Schweiz"),
+        (["österreich", "osterreich", "austria"], "Österreich"),
+        (["portugal"], "Portugal"),
+        (["chile"], "Chile"),
+        (["argentina", "argentinien"], "Argentinien"),
+        (["south africa", "südafrika", "sudafrika"], "Südafrika"),
+        (["australia", "australien"], "Australien"),
+        (["new zealand", "neuseeland"], "Neuseeland"),
+        (["u.s.a", "usa", "california", "kalifornien"], "USA"),
+        (["griechenland", "greece", "hellas"], "Griechenland"),
+        (["ungarn", "hungary", "magyar"], "Ungarn")
+    ]
+
+    private static func detectCountry(in text: String) -> String {
+        for entry in countries where entry.needles.contains(where: text.contains) {
+            return entry.name
+        }
+        return ""
     }
 
     private static func detectRegion(in lines: [String]) -> String {

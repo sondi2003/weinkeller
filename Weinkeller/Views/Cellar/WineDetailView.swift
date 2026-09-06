@@ -17,6 +17,7 @@ struct WineDetailView: View {
             VStack(spacing: 16) {
                 header
                 stockCard
+                WineOriginMapView(wine: wine)
                 if !wine.notes.isEmpty {
                     notesCard
                 }

@@ -217,8 +217,11 @@ private struct LabelPhotoSlot: View {
                 }
             }
 
+            // Titel außerhalb des Picker-Closures bilden: darin ist `photo` nicht erreichbar,
+            // ohne die Nebenläufigkeitsprüfung zu verletzen.
+            let pickerTitle = photo == nil ? "Aus Fotos" : "Anderes Foto"
             PhotosPicker(selection: $pickerItem, matching: .images) {
-                Label(photo == nil ? "Aus Fotos" : "Anderes Foto", systemImage: "photo.on.rectangle")
+                Label(pickerTitle, systemImage: "photo.on.rectangle")
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
             }
