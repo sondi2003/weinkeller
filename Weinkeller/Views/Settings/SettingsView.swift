@@ -30,29 +30,6 @@ struct SettingsView: View {
                          : "Die App bleibt \(appearance.title.lowercased()), unabhängig vom System.")
                 }
 
-                Section {
-                    activeProviderRow
-
-                    if settings.hasMultipleProviders {
-                        Picker("Bevorzugter Anbieter", selection: $settings.preferredProvider) {
-                            ForEach(settings.configuredProviders) { provider in
-                                Label(provider.displayName, systemImage: provider.symbolName)
-                                    .tag(provider)
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Aktiv")
-                } footer: {
-                    if settings.hasMultipleProviders {
-                        Text("Du hast mehrere Keys hinterlegt. Der bevorzugte Anbieter wird für Empfehlungen verwendet.")
-                    } else if settings.activeProvider == nil {
-                        Text("Trage unten den API-Key eines Anbieters ein – er wird dann automatisch verwendet.")
-                    } else {
-                        Text("Der Anbieter mit hinterlegtem Key wird automatisch verwendet. Für einen Wechsel einfach den Key beim anderen Anbieter eintragen.")
-                    }
-                }
-
                 CellarSharingSection()
 
                 Section {
@@ -63,10 +40,26 @@ struct SettingsView: View {
                             providerRow(provider)
                         }
                     }
+                    // Nur nötig, wenn mehrere Keys hinterlegt sind – sonst ist der aktive
+                    // Anbieter ohnehin eindeutig.
+                    if settings.hasMultipleProviders {
+                        Picker("Bevorzugt", selection: $settings.preferredProvider) {
+                            ForEach(settings.configuredProviders) { provider in
+                                Label(provider.displayName, systemImage: provider.symbolName)
+                                    .tag(provider)
+                            }
+                        }
+                    }
                 } header: {
                     Text("Anbieter")
                 } footer: {
-                    Text("API-Keys werden ausschließlich in der Keychain dieses Geräts gespeichert und nur an den jeweiligen Anbieter gesendet.")
+                    if settings.hasMultipleProviders {
+                        Text("Du hast mehrere Keys hinterlegt. Der bevorzugte wird für Empfehlungen verwendet. API-Keys liegen ausschließlich in der Keychain dieses Geräts.")
+                    } else if settings.activeProvider == nil {
+                        Text("Der Wein-Berater braucht einen API-Key. Trage ihn bei einem Anbieter ein – er wird dann automatisch verwendet. Keys liegen ausschließlich in der Keychain dieses Geräts.")
+                    } else {
+                        Text("Der Anbieter mit hinterlegtem Key wird automatisch verwendet. API-Keys liegen ausschließlich in der Keychain dieses Geräts und gehen nur an den jeweiligen Anbieter.")
+                    }
                 }
 
                 Section {
@@ -114,45 +107,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Visuelle Bestätigung: welcher Anbieter und welches Modell gerade aktiv sind.
-    @ViewBuilder
-    private var activeProviderRow: some View {
-        if let provider = settings.activeProvider {
-            HStack(spacing: 12) {
-                Image(systemName: provider.symbolName)
-                    .font(.title2)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 32)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(provider.displayName)
-                        .font(.body.weight(.semibold))
-                    Text(settings.model(for: provider))
-                        .font(.footnote.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .accessibilityLabel("Aktiv")
-            }
-            .padding(.vertical, 4)
-        } else {
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.orange)
-                    .frame(width: 32)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Kein Anbieter eingerichtet")
-                        .font(.body.weight(.semibold))
-                    Text("Der Wein-Berater braucht einen API-Key.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.vertical, 4)
-        }
-    }
 }
 
 // MARK: - Eigene Seite pro Anbieter
