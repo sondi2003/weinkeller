@@ -88,8 +88,10 @@ struct SplashView: View {
                 .tracking(4)
                 .textCase(.uppercase)
                 .foregroundStyle(.white.opacity(0.75))
-            Text("Weinkeller")
-                .font(.system(size: 40, weight: .bold, design: .serif))
+            Text("Wyychällerli")
+                .font(.system(size: 34, weight: .bold, design: .serif))
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
                 .foregroundStyle(.white)
         }
         .opacity(titleVisible ? 1 : 0)

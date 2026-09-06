@@ -218,7 +218,7 @@ final class PersistenceController: @unchecked Sendable {
         guard share[CKShare.SystemFieldKey.title] == nil, let store = privateStore else {
             return share
         }
-        share[CKShare.SystemFieldKey.title] = "Weinkeller" as CKRecordValue
+        share[CKShare.SystemFieldKey.title] = "Wyychällerli" as CKRecordValue
         return try await withCheckedThrowingContinuation {
             (continuation: CheckedContinuation<CKShare, Error>) in
             container.persistUpdatedShare(share, in: store) { updated, error in

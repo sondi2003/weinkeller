@@ -106,7 +106,7 @@ struct CellarSharingSection: View {
         }
         .sheet(isPresented: $isShowingSharingSheet) {
             if let share, let cloudContainer {
-                CloudSharingView(share: share, container: cloudContainer, title: "Weinkeller")
+                CloudSharingView(share: share, container: cloudContainer, title: "Wyychällerli")
                     .ignoresSafeArea()
             }
         }
