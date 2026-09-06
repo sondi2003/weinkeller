@@ -3,6 +3,9 @@ import SwiftUI
 @main
 struct WeinkellerApp: App {
 
+    /// Nötig, damit Freigabe-Einladungen ankommen (siehe SceneDelegate).
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     /// Core Data mit CloudKit. Wird von App und Siri-Intent gemeinsam genutzt.
     private let persistence = PersistenceController.shared
 

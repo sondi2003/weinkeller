@@ -35,6 +35,8 @@ struct SettingsView: View {
                     }
                 }
 
+                CellarSharingSection()
+
                 ForEach(AIProvider.allCases) { provider in
                     ProviderSettingsSection(provider: provider)
                 }

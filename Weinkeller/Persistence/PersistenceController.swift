@@ -1,3 +1,4 @@
+import CloudKit
 import CoreData
 import Foundation
 import OSLog
@@ -23,6 +24,11 @@ final class PersistenceController: @unchecked Sendable {
 
     let container: NSPersistentCloudKitContainer
 
+    /// Eigener Keller. Neue Flaschen landen hier.
+    private(set) var privateStore: NSPersistentStore?
+    /// Keller, die andere mit uns geteilt haben.
+    private(set) var sharedStore: NSPersistentStore?
+
     var viewContext: NSManagedObjectContext { container.viewContext }
 
     /// - Parameters:
@@ -34,31 +40,43 @@ final class PersistenceController: @unchecked Sendable {
             managedObjectModel: PersistenceController.makeModel()
         )
 
-        guard let description = container.persistentStoreDescriptions.first else {
+        guard let privateDescription = container.persistentStoreDescriptions.first else {
             fatalError("Keine Store-Beschreibung vorhanden.")
         }
 
         if inMemory {
-            description.url = URL(fileURLWithPath: "/dev/null")
-            description.cloudKitContainerOptions = nil
+            privateDescription.url = URL(fileURLWithPath: "/dev/null")
+            privateDescription.cloudKitContainerOptions = nil
+            container.persistentStoreDescriptions = [privateDescription]
         } else {
-            // Beides ist für CloudKit Pflicht.
-            description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-            description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+            let directory = NSPersistentContainer.defaultDirectoryURL()
+            // Der Pfad des privaten Speichers muss unverändert bleiben, sonst wäre der
+            // bestehende Keller weg.
+            privateDescription.url = directory.appendingPathComponent("Weinkeller.sqlite")
+            Self.configure(privateDescription, scope: .private, useCloudKit: useCloudKit)
+
             if useCloudKit {
-                description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(
-                    containerIdentifier: Self.cloudContainerIdentifier
-                )
+                // Zweiter Speicher für Keller, die andere mit uns geteilt haben.
+                let sharedDescription = privateDescription.copy() as! NSPersistentStoreDescription
+                sharedDescription.url = directory.appendingPathComponent("Weinkeller-shared.sqlite")
+                Self.configure(sharedDescription, scope: .shared, useCloudKit: true)
+                container.persistentStoreDescriptions = [privateDescription, sharedDescription]
             } else {
-                description.cloudKitContainerOptions = nil
+                container.persistentStoreDescriptions = [privateDescription]
             }
         }
 
-        container.loadPersistentStores { storeDescription, error in
+        container.loadPersistentStores { [weak self] storeDescription, error in
             if let error {
                 Self.logger.error("Store konnte nicht geladen werden: \(error.localizedDescription)")
-            } else {
-                Self.logger.info("Store geladen: \(storeDescription.url?.lastPathComponent ?? "-")")
+                return
+            }
+            Self.logger.info("Store geladen: \(storeDescription.url?.lastPathComponent ?? "-")")
+            guard let self, let url = storeDescription.url,
+                  let store = self.container.persistentStoreCoordinator.persistentStore(for: url) else { return }
+            switch storeDescription.cloudKitContainerOptions?.databaseScope {
+            case .shared: self.sharedStore = store
+            default:      self.privateStore = store
             }
         }
 
@@ -74,6 +92,88 @@ final class PersistenceController: @unchecked Sendable {
         request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         request.predicate = NSPredicate(format: "isArchived == NO AND quantity > 0")
         return (try? viewContext.fetch(request)) ?? []
+    }
+
+    /// Gemeinsame Einstellungen beider Speicher.
+    private static func configure(
+        _ description: NSPersistentStoreDescription,
+        scope: CKDatabase.Scope,
+        useCloudKit: Bool
+    ) {
+        // Beides ist für CloudKit Pflicht.
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        guard useCloudKit else {
+            description.cloudKitContainerOptions = nil
+            return
+        }
+        let options = NSPersistentCloudKitContainerOptions(containerIdentifier: cloudContainerIdentifier)
+        options.databaseScope = scope
+        description.cloudKitContainerOptions = options
+    }
+
+    // MARK: Freigabe
+
+    enum SharingError: LocalizedError {
+        case notReady
+        var errorDescription: String? {
+            "Die Freigabe ist gerade nicht möglich. Prüfe, ob du in iCloud angemeldet bist."
+        }
+    }
+
+    /// Erzeugt (oder holt) die Freigabe für den Keller. Das Ergebnis wird direkt an
+    /// Apples Freigabe-Dialog übergeben.
+    @MainActor
+    func share(_ cellar: Cellar) async throws -> (CKShare, CKContainer) {
+        try await withCheckedThrowingContinuation { continuation in
+            container.share([cellar], to: nil) { _, share, cloudContainer, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let share, let cloudContainer {
+                    // Titel, der in der Einladung erscheint.
+                    share[CKShare.SystemFieldKey.title] = "Weinkeller" as CKRecordValue
+                    continuation.resume(returning: (share, cloudContainer))
+                } else {
+                    continuation.resume(throwing: SharingError.notReady)
+                }
+            }
+        }
+    }
+
+    /// Bereits bestehende Freigabe zu einem Keller, falls vorhanden.
+    func existingShare(for cellar: Cellar) -> CKShare? {
+        try? container.fetchShares(matching: [cellar.objectID])[cellar.objectID]
+    }
+
+    /// `true`, wenn dieser Keller von jemand anderem stammt.
+    func isSharedWithMe(_ cellar: Cellar) -> Bool {
+        guard let sharedStore else { return false }
+        return cellar.objectID.persistentStore === sharedStore
+    }
+
+    /// Nimmt eine Einladung an, die über den Freigabe-Link geöffnet wurde.
+    func acceptShare(_ metadata: CKShare.Metadata) {
+        guard let sharedStore else {
+            Self.logger.error("Kein Speicher für geteilte Keller vorhanden.")
+            return
+        }
+        container.acceptShareInvitations(from: [metadata], into: sharedStore) { _, error in
+            if let error {
+                Self.logger.error("Einladung konnte nicht angenommen werden: \(error.localizedDescription)")
+            } else {
+                Self.logger.info("Einladung angenommen.")
+            }
+        }
+    }
+
+    /// Speichert Änderungen aus dem Freigabe-Dialog (Teilnehmer, Rechte).
+    func persist(_ share: CKShare) {
+        guard let store = privateStore else { return }
+        container.persistUpdatedShare(share, in: store) { _, error in
+            if let error {
+                Self.logger.error("Freigabe konnte nicht gespeichert werden: \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: Datenmodell

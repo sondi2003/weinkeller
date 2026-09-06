@@ -107,6 +107,11 @@ final class Wine: NSManagedObject, Identifiable {
         createdAt: Date = .now
     ) -> Wine {
         let wine = Wine(context: context)
+        // Bei einem geteilten Keller muss die Flasche in denselben Speicher wie der Keller,
+        // sonst landet sie im privaten und die Partnerin sieht sie nie.
+        if let store = cellar.objectID.persistentStore {
+            context.assign(wine, to: store)
+        }
         wine.uuid = UUID()
         wine.cellar = cellar
         wine.name = name

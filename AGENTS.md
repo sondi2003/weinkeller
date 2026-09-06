@@ -81,6 +81,15 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Ints sind `Int64`. Beim Übergeben an UI-Bausteine mit `Int(...)` wandeln.
 - Views nutzen `@FetchRequest` und `@ObservedObject var wine: Wine` (nicht `@Bindable`, das ist für `@Observable`).
 
+## Freigabe (CloudKit Sharing)
+
+- **Zwei Speicher**: `Weinkeller.sqlite` (Scope `.private`) und `Weinkeller-shared.sqlite` (Scope `.shared`), beide am selben CloudKit-Container. Der Pfad des privaten Speichers darf sich nie ändern, sonst ist der bestehende Keller weg.
+- Geteilt wird der **`Cellar`**, nicht einzelne Flaschen. CloudKit teilt Objektbäume, deshalb hängen alle Weine daran.
+- `Wine.create` weist die neue Flasche per `context.assign(_:to:)` dem Speicher des Kellers zu. Ohne das landet eine Flasche im geteilten Keller im privaten Speicher und die Partnerin sieht sie nie.
+- Einladungen annehmen läuft über `SceneDelegate.windowScene(_:userDidAcceptCloudKitShareWith:)`. Die App-Delegate-Variante ist seit iOS 26 abgekündigt. Der Delegate hängt über `@UIApplicationDelegateAdaptor` an der App, `Config/Info.plist` braucht `CKSharingSupported`.
+- **Eine angelegte, aber nie verschickte Freigabe ist noch keine Freigabe.** `container.share(...)` legt den `CKShare` lokal auch dann an, wenn der Upload scheitert. Die UI darf deshalb nicht auf „Share vorhanden“ prüfen, sondern auf Teilnehmer ohne Eigentümerrolle (`isActuallyShared`), sonst meldet sie „freigegeben, 0 Personen“.
+- Im Simulator nicht testbar: ohne iCloud-Konto schlägt `share(...)` mit `CKAccountStatusNoAccount` fehl. Der Fehler wird in `CellarSharingSection.friendlyMessage` in Klartext übersetzt. Echte Tests brauchen zwei Geräte mit verschiedenen Apple-IDs.
+
 ## Übernahme aus der früheren SwiftData-Ablage
 
 - `LegacyImporter` liest `Library/Application Support/default.store` **direkt per SQLite**, nicht über SwiftData. SwiftData verlangt ein exakt passendes Modell und versucht sonst zu migrieren; in der App schlägt das mit `SwiftDataError 1` fehl, selbst wenn dasselbe Modell in einem eigenständigen Programm funktioniert.
