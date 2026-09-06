@@ -11,12 +11,14 @@ struct WineDetailView: View {
     @State private var isEditing = false
     @State private var isConfirmingDelete = false
     @State private var consumeCount = 0
+    @State private var isRating = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 header
                 stockCard
+                RatingCard(wine: wine) { isRating = true }
                 if !wine.foodPairings.isEmpty {
                     pairingCard
                 }
@@ -38,6 +40,9 @@ struct WineDetailView: View {
         }
         .sheet(isPresented: $isEditing) {
             WineFormView(mode: .edit(wine))
+        }
+        .sheet(isPresented: $isRating) {
+            RatingSheet(wine: wine)
         }
         .confirmationDialog("Wein löschen?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {

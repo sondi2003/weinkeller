@@ -86,6 +86,8 @@ final class Wine: NSManagedObject, Identifiable {
     @NSManaged var drinkWindowFromLabel: Bool
     @NSManaged var createdAt: Date?
     @NSManaged var cellar: Cellar?
+    /// Bewertungen, eine je Person. Siehe `Rating`.
+    @NSManaged var ratings: NSSet?
 
     /// Rohwerte, die über berechnete Eigenschaften bequemer nutzbar sind.
     @NSManaged private var typeRaw: String
@@ -181,6 +183,70 @@ final class Wine: NSManagedObject, Identifiable {
     var quantityValue: Int {
         get { Int(quantity) }
         set { quantity = Int64(max(0, newValue)) }
+    }
+
+    // MARK: Bewertungen
+
+    /// Alle abgegebenen Bewertungen, nach Name sortiert. Einträge ohne Sterne zählen nicht:
+    /// Sie entstehen, sobald jemand den Bewertungsbogen öffnet, aber nichts vergibt.
+    var ratingList: [Rating] {
+        let all = (ratings as? Set<Rating>) ?? []
+        return all.filter { $0.stars > 0 }.sorted { $0.displayName < $1.displayName }
+    }
+
+    /// Gemeinsames Ergebnis: schlichter Mittelwert der abgegebenen Bewertungen.
+    var averageRating: Double? {
+        let values = ratingList.map(\.stars)
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// Bewertung einer bestimmten Person, falls vorhanden – auch die noch leere.
+    func rating(by raterID: String) -> Rating? {
+        let all = (ratings as? Set<Rating>) ?? []
+        return all.first { $0.raterID == raterID }
+    }
+
+    /// Ob sich ein Nachkauf lohnt. Bewusst eine feste Regel und keine KI-Frage:
+    /// Der Wert steht schon fest, sobald beide bewertet haben.
+    enum BuyAgain {
+        case unrated
+        case yes
+        case maybe
+        case no
+
+        var title: String {
+            switch self {
+            case .unrated: return "Noch nicht bewertet"
+            case .yes:     return "Wieder kaufen"
+            case .maybe:   return "Kann man wieder"
+            case .no:      return "Eher nicht wieder"
+            }
+        }
+
+        var symbolName: String {
+            switch self {
+            case .unrated: return "questionmark.circle"
+            case .yes:     return "cart.fill.badge.plus"
+            case .maybe:   return "cart"
+            case .no:      return "hand.thumbsdown"
+            }
+        }
+    }
+
+    var buyAgain: BuyAgain {
+        guard let average = averageRating else { return .unrated }
+        if average >= 4.0 { return .yes }
+        if average >= 3.0 { return .maybe }
+        return .no
+    }
+
+    /// Kurzform für den Prompt, z. B. "4,0 von 5 (2 Bewertungen)". Leer ohne Bewertung.
+    var ratingText: String {
+        guard let average = averageRating else { return "" }
+        let value = average.formatted(.number.precision(.fractionLength(0...1)))
+        let count = ratingList.count
+        return "\(value) von 5 (\(count) \(count == 1 ? "Bewertung" : "Bewertungen"))"
     }
 
     // MARK: Trinkreife
@@ -328,6 +394,7 @@ final class Wine: NSManagedObject, Identifiable {
             notes: String(notes.prefix(300)),
             labelPairings: foodPairings,
             drinkWindow: drinkWindowText,
+            rating: ratingText,
             quantity: Int(quantity)
         )
     }
@@ -351,5 +418,8 @@ struct WineInventoryItem: Codable, Hashable, Sendable {
     /// Empfohlene Trinkjahre als "2022–2028"; leer, wenn nichts bekannt ist.
     /// Der Berater soll eine Flasche bevorzugen, die jetzt dran ist.
     let drinkWindow: String
+    /// Gemeinsames Urteil der Haushaltsmitglieder, z. B. "4,0 von 5 (2 Bewertungen)".
+    /// Leer, solange niemand bewertet hat.
+    let rating: String
     let quantity: Int
 }

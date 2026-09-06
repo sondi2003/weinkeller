@@ -33,6 +33,11 @@ enum PromptBuilder {
         `labelPairings` eine Speiseempfehlung des Produzenten, die zum Gericht passt, gewichte \
         das positiv und erwähne es kurz.
         5. Gib zu jeder Empfehlung einen kurzen Serviertipp (Trinktemperatur, Dekantieren, Glas).
+        5b. Steht bei einer Flasche ein `rating`, ist das das Urteil des Haushalts über \
+        genau diesen Wein. Gewichte es: gut bewertet gibt einen Bonus, schwach bewertet \
+        einen Abzug. **Schliesse eine schwach bewertete Flasche nie aus** – wenn sie zum \
+        Gericht am besten passt, empfiehl sie trotzdem und sag in einem Halbsatz, dass sie \
+        beim letzten Mal nicht überzeugt hat. Ohne `rating` einfach nicht erwähnen.
         5a. Steht bei einer Flasche ein `drinkWindow`, berücksichtige es: Eine Flasche, deren \
         Spanne dieses Jahr endet oder schon überschritten ist, bekommt bei sonst gleicher \
         Eignung den Vorzug – sag in einem Halbsatz, dass sie dran ist. Eine deutlich zu junge \

@@ -7,6 +7,7 @@ import SwiftUI
 struct SettingsView: View {
 
     @Environment(AISettings.self) private var settings
+    @Environment(CurrentRater.self) private var rater
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
 
     var body: some View {
@@ -28,6 +29,18 @@ struct SettingsView: View {
                     Text(appearance == .system
                          ? "Die App folgt der Einstellung von iOS."
                          : "Die App bleibt \(appearance.title.lowercased()), unabhängig vom System.")
+                }
+
+                Section {
+                    TextField("Dein Name", text: Binding(
+                        get: { rater.name },
+                        set: { rater.name = $0 }
+                    ))
+                    .textContentType(.givenName)
+                } header: {
+                    Text("Bewertungen")
+                } footer: {
+                    Text("Steht bei deinen Weinbewertungen, damit beide Seiten sehen, von wem sie stammen. Den Namen kann iOS nicht selbst ermitteln, deshalb die Nachfrage.")
                 }
 
                 CellarSharingSection()

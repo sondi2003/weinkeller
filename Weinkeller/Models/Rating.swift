@@ -1,0 +1,99 @@
+import CoreData
+import Foundation
+
+/// Die Bewertung **einer Person** zu **einem Wein**.
+///
+/// Bewusst ein eigenes Objekt und nicht ein paar Felder am Wein: Beide Seiten eines
+/// geteilten Kellers bewerten unabhängig voneinander, oft auf verschiedenen Geräten und
+/// zu verschiedenen Zeiten. Als Felder am Wein würde die zweite Bewertung die erste
+/// überschreiben, sobald CloudKit die Änderungen zusammenführt.
+///
+/// Bewertet wird der Wein, nicht die einzelne Flasche: Jeder Eintrag im Keller ist ohnehin
+/// ein bestimmter Wein mit bestimmtem Jahrgang.
+@objc(RatingEntity)
+final class Rating: NSManagedObject, Identifiable {
+
+    @nonobjc class func fetchRequest() -> NSFetchRequest<Rating> {
+        NSFetchRequest<Rating>(entityName: "Rating")
+    }
+
+    @NSManaged var uuid: UUID?
+    /// Stabile Kennung der Apple-ID (CloudKit-Benutzerdatensatz). Trennt die Personen
+    /// zuverlässig, auch wenn beide denselben Anzeigenamen wählen.
+    @NSManaged var raterID: String
+    /// Anzeigename, den die Person selbst eingetragen hat.
+    @NSManaged var raterName: String
+    /// 0,5 bis 5,0 in halben Schritten. 0 heisst „noch nicht bewertet“.
+    @NSManaged var stars: Double
+    @NSManaged var note: String
+    @NSManaged var updatedAt: Date?
+    @NSManaged var wine: Wine?
+
+    @NSManaged private var tagsRaw: String
+
+    var id: NSManagedObjectID { objectID }
+
+    /// Angetippte Gründe, intern als eine Zeile pro Eintrag.
+    var tags: [String] {
+        get {
+            tagsRaw
+                .components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        set { tagsRaw = newValue.joined(separator: "\n") }
+    }
+
+    /// Name für die Anzeige; fällt auf etwas Neutrales zurück, wenn keiner gesetzt ist.
+    var displayName: String {
+        raterName.isEmpty ? "Ohne Namen" : raterName
+    }
+
+    /// Legt eine Bewertung an und hängt sie an den Wein.
+    @discardableResult
+    static func create(
+        in context: NSManagedObjectContext,
+        wine: Wine,
+        raterID: String,
+        raterName: String
+    ) -> Rating {
+        let rating = Rating(context: context)
+        // Muss in denselben Speicher wie der Wein, sonst sieht die andere Seite sie nie.
+        if let store = wine.objectID.persistentStore {
+            context.assign(rating, to: store)
+        }
+        rating.uuid = UUID()
+        rating.wine = wine
+        rating.raterID = raterID
+        rating.raterName = raterName
+        rating.stars = 0
+        rating.note = ""
+        rating.tags = []
+        rating.updatedAt = .now
+        return rating
+    }
+}
+
+// MARK: - Gründe zum Antippen
+
+/// Kurze Gründe in Alltagssprache – bewusst keine Sommelier-Skalen.
+///
+/// Unterbewertungen für Säure, Tannin und Körper würden ein Fachurteil verlangen, das
+/// hier niemand abgeben will. Diese Begriffe treffen das, was beim Trinken tatsächlich
+/// auffällt, und kosten einen Fingertipp.
+enum RatingTag: String, CaseIterable, Identifiable {
+
+    case tooSour = "Zu sauer"
+    case tooTannic = "Zu herb"
+    case tooSweet = "Zu süss"
+    case weakAroma = "Wenig Aroma"
+    case oddAroma = "Aroma passt nicht"
+    case tooHeavy = "Zu schwer"
+    case tooThin = "Zu dünn"
+    case balanced = "Harmonisch"
+
+    var id: String { rawValue }
+
+    /// `true` bei einem Lob – für die farbliche Unterscheidung.
+    var isPositive: Bool { self == .balanced }
+}

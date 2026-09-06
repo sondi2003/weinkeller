@@ -10,6 +10,9 @@ struct CellarView: View {
         animation: .default
     ) private var fetchedWines: FetchedResults<Wine>
     @State private var viewModel = CellarViewModel()
+    @State private var isShowingRatings = false
+    /// Wein, der gerade bewertet wird – nach dem Austrinken der letzten Flasche.
+    @State private var wineToRate: Wine?
 
     /// FetchedResults als Array, damit Filter und Zusammenfassung damit rechnen können.
     private var wines: [Wine] { Array(fetchedWines) }
@@ -25,6 +28,9 @@ struct CellarView: View {
             }
             .navigationTitle("Weinkeller")
             .toolbar { toolbarContent }
+            .sheet(isPresented: $isShowingRatings) {
+                RatingsOverviewView()
+            }
             .searchable(text: $viewModel.searchText, prompt: "Name, Rebsorte, Region, Jahrgang")
             .sheet(item: $viewModel.addMode) { mode in
                 WineFormView(mode: .add, startWithScanner: mode == .scan)
@@ -41,11 +47,16 @@ struct CellarView: View {
                 titleVisibility: .visible,
                 presenting: viewModel.justEmptiedWine
             ) { wine in
+                // Der natürliche Moment zum Bewerten: Die Flasche ist gerade ausgetrunken.
+                Button("Bewerten") { wineToRate = wine }
                 Button("Archivieren") { viewModel.archive(wine) }
                 Button("Löschen", role: .destructive) { viewModel.delete(wine, in: context) }
                 Button("Im Keller behalten", role: .cancel) { }
             } message: { wine in
                 Text("„\(wine.name) \(String(wine.vintage))“ ist jetzt leer. Was soll damit passieren?")
+            }
+            .sheet(item: $wineToRate) { wine in
+                RatingSheet(wine: wine)
             }
             .sensoryFeedback(.decrease, trigger: viewModel.consumeCount)
         }
@@ -204,6 +215,12 @@ struct CellarView: View {
                 }
                 Toggle(isOn: $viewModel.showOnlyDrinkSoon) {
                     Label("Nur was dran ist", systemImage: "clock.badge.exclamationmark")
+                }
+                Divider()
+                Button {
+                    isShowingRatings = true
+                } label: {
+                    Label("Bewertungen", systemImage: "star")
                 }
             } label: {
                 Image(systemName: viewModel.isFiltering ? "line.3.horizontal.decrease.circle.fill" : "ellipsis.circle")

@@ -347,7 +347,44 @@ final class PersistenceController: @unchecked Sendable {
         cellar.properties.append(winesRelation)
         wine.properties.append(cellarRelation)
 
-        model.entities = [cellar, wine]
+        // Eine Bewertung pro Person und Wein. Getrennte Objekte statt Feldern am Wein,
+        // damit beide Seiten gleichzeitig bewerten können, ohne sich zu überschreiben.
+        let rating = NSEntityDescription()
+        rating.name = "Rating"
+        rating.managedObjectClassName = "RatingEntity"
+        rating.properties = [
+            attribute("uuid", .UUIDAttributeType, optional: true),
+            attribute("raterID", .stringAttributeType, default: ""),
+            attribute("raterName", .stringAttributeType, default: ""),
+            attribute("stars", .doubleAttributeType, default: 0.0),
+            attribute("tagsRaw", .stringAttributeType, default: ""),
+            attribute("note", .stringAttributeType, default: ""),
+            attribute("updatedAt", .dateAttributeType, optional: true)
+        ]
+
+        let ratingsRelation = NSRelationshipDescription()
+        ratingsRelation.name = "ratings"
+        ratingsRelation.destinationEntity = rating
+        ratingsRelation.minCount = 0
+        ratingsRelation.maxCount = 0
+        ratingsRelation.isOptional = true
+        ratingsRelation.deleteRule = .cascadeDeleteRule
+
+        let ratedWineRelation = NSRelationshipDescription()
+        ratedWineRelation.name = "wine"
+        ratedWineRelation.destinationEntity = wine
+        ratedWineRelation.minCount = 0
+        ratedWineRelation.maxCount = 1
+        ratedWineRelation.isOptional = true
+        ratedWineRelation.deleteRule = .nullifyDeleteRule
+
+        ratingsRelation.inverseRelationship = ratedWineRelation
+        ratedWineRelation.inverseRelationship = ratingsRelation
+
+        wine.properties.append(ratingsRelation)
+        rating.properties.append(ratedWineRelation)
+
+        model.entities = [cellar, wine, rating]
         return model
     }
 

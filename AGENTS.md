@@ -128,6 +128,18 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Ablauf im Berater: erst der lokale Abgleich. Treffer → Anzeige ohne KI-Anfrage, dazu der Knopf „Zusätzlich die KI fragen“ (`forceAI: true`). Kein Treffer → normale KI-Anfrage. Der Knopf „Empfehlung holen“ ist deshalb **auch ohne API-Key aktiv**; `canRequest` darf keinen Provider verlangen.
 - Die Etikett-Empfehlungen gehen als `labelPairings` auch ins Inventar-JSON an die KI, die sie laut Prompt positiv gewichten soll.
 
+## Bewertungen
+
+- **Eigene Entität `Rating`, nicht Felder am Wein.** In einem geteilten Keller bewerten beide Seiten unabhängig, oft gleichzeitig auf verschiedenen Geräten. Als Felder am Wein würde die zweite Bewertung die erste überschreiben, sobald CloudKit zusammenführt. Eine Bewertung je Person und Wein, nicht je Flasche.
+- **Wer bewertet**: `CurrentRater`. Kennung bevorzugt `CKContainer.userRecordID()` – stabil pro Apple-ID und übersteht Neuinstallationen. Ist iCloud nicht erreichbar (kein Konto, Simulator), wird eine lokale Kennung mit Präfix `local-` erzeugt, damit bewertet werden kann; trifft die iCloud-Kennung später ein, schreibt `adoptExistingRatings(in:)` die eigenen Bewertungen um. Ohne das stünde dieselbe Person zweimal in der Liste.
+- **Den Namen kann iOS nicht liefern.** `discoverUserIdentity` ist seit iOS 17 abgekündigt, und bei einer Einladung per Link bleibt `nameComponents` der Teilnehmer teilweise leer. Deshalb trägt jede Person ihren Anzeigenamen selbst in den Einstellungen ein; ohne Eintrag steht „Ohne Namen“ plus ein Hinweis auf der Bewertungskarte.
+- **Skala**: 0,5 bis 5,0 in halben Schritten (`StarRatingView`). Halbe Schritte, weil der Mittelwert aus zwei Bewertungen sonst grob springt. Feiner wäre vorgetäuschte Genauigkeit. Keine Unterbewertungen für Säure oder Tannin – das wäre ein Fachurteil, das hier niemand abgeben will; stattdessen `RatingTag` in Alltagssprache („Zu sauer“, „Aroma passt nicht“ …).
+- **Gemeinsames Ergebnis** ist der schlichte Mittelwert, immer zusammen mit den Einzelbewertungen angezeigt. Bei nur einer Bewertung steht ausdrücklich „vorläufig“ – ein Durchschnitt aus einer Stimme ist kein gemeinsames Urteil.
+- `Wine.buyAgain`: ab 4,0 „Wieder kaufen“, ab 3,0 „Kann man wieder“, darunter „Eher nicht wieder“. Feste Regel, bewusst keine KI-Frage.
+- Der Berater bekommt `rating` im Inventar-JSON und **gewichtet** es (Regel 5b). Schwach bewertete Flaschen werden nie ausgeschlossen: Passt eine trotzdem am besten zum Gericht, soll sie mit Hinweis empfohlen werden.
+- `RatingsOverviewView` (Menü in der Kellerliste) listet bewertete Weine nach Kaufhinweis gruppiert – **einschliesslich archivierter und leerer Flaschen**, denn genau die sind schon getrunken und damit die interessanten für den nächsten Einkauf.
+- Gefragt wird beim Austrinken der letzten Flasche (Knopf „Bewerten“ im vorhandenen Dialog) und jederzeit über die Detailseite.
+
 ## Trinkreife
 
 - `Wine.drinkFrom` / `drinkTo` (Jahre, 0 = unbekannt) und `drinkWindowFromLabel`. Daraus leiten sich `drinkWindow`, `maturity` (`tooYoung`, `ready`, `drinkSoon`, `pastPeak`, `unknown`) und `needsDrinkingSoon` ab. Regel: kleiner als `from` = zu jung, grösser als `to` = überschritten, gleich `to` = bald trinken, sonst reif.

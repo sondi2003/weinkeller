@@ -12,6 +12,9 @@ struct WeinkellerApp: App {
     /// Einstellungen (Provider, Modelle, Keys) – einmal pro App-Lebenszyklus.
     @State private var settings = AISettings()
 
+    /// Wer an diesem Gerät bewertet (Kennung aus iCloud, Name aus den Einstellungen).
+    @State private var rater = CurrentRater()
+
     /// Der KI-Service ist zustandslos und kann geteilt werden.
     private let aiService = AIService()
 
@@ -22,12 +25,15 @@ struct WeinkellerApp: App {
         WindowGroup {
             ContentView()
                 .environment(settings)
+                .environment(rater)
                 .environment(\.aiService, aiService)
                 .environment(\.managedObjectContext, persistence.viewContext)
                 .preferredColorScheme(appearance.colorScheme)
                 .task {
                     // Einmalige Übernahme aus der früheren SwiftData-Ablage.
                     LegacyImporter.importIfNeeded(into: persistence.viewContext)
+                    await rater.refresh()
+                    rater.adoptExistingRatings(in: persistence.viewContext)
                 }
         }
     }
