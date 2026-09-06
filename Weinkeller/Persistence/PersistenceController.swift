@@ -21,13 +21,21 @@ final class PersistenceController: @unchecked Sendable {
 
     private static let logger = Logger(subsystem: "com.weinkeller.app", category: "Persistence")
     static let cloudContainerIdentifier = "iCloud.com.sondinetwork.weinkeller.app"
+    /// Dateiname der Ablage für Keller, die andere mit uns geteilt haben.
+    static let sharedStoreFileName = "Weinkeller-shared.sqlite"
 
     let container: NSPersistentCloudKitContainer
 
     /// Eigener Keller. Neue Flaschen landen hier.
     private(set) var privateStore: NSPersistentStore?
     /// Keller, die andere mit uns geteilt haben.
-    private(set) var sharedStore: NSPersistentStore?
+    private(set) var sharedStore: NSPersistentStore? {
+        didSet { drainPendingShares() }
+    }
+
+    /// Einladungen, die eintrafen, bevor der geteilte Speicher bereit war.
+    /// Ohne diese Warteschlange geht eine Einladung verloren, wenn der Link die App startet.
+    private var pendingShareMetadata: [CKShare.Metadata] = []
 
     var viewContext: NSManagedObjectContext { container.viewContext }
 
@@ -58,7 +66,7 @@ final class PersistenceController: @unchecked Sendable {
             if useCloudKit {
                 // Zweiter Speicher für Keller, die andere mit uns geteilt haben.
                 let sharedDescription = privateDescription.copy() as! NSPersistentStoreDescription
-                sharedDescription.url = directory.appendingPathComponent("Weinkeller-shared.sqlite")
+                sharedDescription.url = directory.appendingPathComponent(Self.sharedStoreFileName)
                 Self.configure(sharedDescription, scope: .shared, useCloudKit: true)
                 container.persistentStoreDescriptions = [privateDescription, sharedDescription]
             } else {
@@ -145,16 +153,13 @@ final class PersistenceController: @unchecked Sendable {
         try? container.fetchShares(matching: [cellar.objectID])[cellar.objectID]
     }
 
-    /// `true`, wenn dieser Keller von jemand anderem stammt.
-    func isSharedWithMe(_ cellar: Cellar) -> Bool {
-        guard let sharedStore else { return false }
-        return cellar.objectID.persistentStore === sharedStore
-    }
-
     /// Nimmt eine Einladung an, die über den Freigabe-Link geöffnet wurde.
     func acceptShare(_ metadata: CKShare.Metadata) {
         guard let sharedStore else {
-            Self.logger.error("Kein Speicher für geteilte Keller vorhanden.")
+            // Startet die Einladung die App, ist der Speicher noch nicht geladen.
+            // Merken und nachholen, sobald er bereitsteht.
+            Self.logger.info("Einladung vorgemerkt, Speicher lädt noch.")
+            pendingShareMetadata.append(metadata)
             return
         }
         container.acceptShareInvitations(from: [metadata], into: sharedStore) { _, error in
@@ -163,6 +168,17 @@ final class PersistenceController: @unchecked Sendable {
             } else {
                 Self.logger.info("Einladung angenommen.")
             }
+        }
+    }
+
+    /// Holt vorgemerkte Einladungen nach, sobald der geteilte Speicher da ist.
+    private func drainPendingShares() {
+        guard sharedStore != nil, !pendingShareMetadata.isEmpty else { return }
+        let pending = pendingShareMetadata
+        pendingShareMetadata = []
+        Self.logger.info("Hole \(pending.count) vorgemerkte Einladung(en) nach.")
+        for metadata in pending {
+            acceptShare(metadata)
         }
     }
 

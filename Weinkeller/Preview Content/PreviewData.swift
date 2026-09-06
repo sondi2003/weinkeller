@@ -9,7 +9,7 @@ enum PreviewData {
     static let controller: PersistenceController = {
         let controller = PersistenceController(inMemory: true, useCloudKit: false)
         let context = controller.viewContext
-        let cellar = Cellar.findOrCreateDefault(in: context)
+        let cellar = Cellar.findOrCreateOwn(in: context)
 
         Wine.create(in: context, cellar: cellar, name: "Les Murettes", producer: "Fendant",
                     vintage: 2022, grape: "Chasselas", region: "Wallis", country: "Schweiz",

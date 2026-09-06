@@ -38,7 +38,7 @@ enum LegacyImporter {
             return nil
         }
 
-        let cellar = Cellar.findOrCreateDefault(in: context)
+        let cellar = Cellar.findOrCreateOwn(in: context)
         for row in rows {
             let wine = Wine.create(
                 in: context,

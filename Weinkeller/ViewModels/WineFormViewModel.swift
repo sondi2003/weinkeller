@@ -122,7 +122,7 @@ final class WineFormViewModel {
         case .add:
             Wine.create(
                 in: context,
-                cellar: Cellar.findOrCreateDefault(in: context),
+                cellar: Cellar.active(in: context),
                 name: trimmedName,
                 producer: trimmed(producer),
                 vintage: vintage,

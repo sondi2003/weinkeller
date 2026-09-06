@@ -28,7 +28,7 @@ struct CellarSharingSection: View {
         Section {
             if isGuest {
                 Label {
-                    Text("Dieser Keller wurde mit dir geteilt. Verwalten kann ihn nur die Person, die ihn freigegeben hat.")
+                    Text("Ein Weinkeller wurde mit dir geteilt. Verwalten kann ihn nur die Person, die ihn freigegeben hat.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } icon: {
@@ -95,6 +95,12 @@ struct CellarSharingSection: View {
             }
         }
         .task { refresh() }
+        // Die Daten der Gegenseite treffen verzögert ein; dann neu bewerten.
+        .onReceive(NotificationCenter.default.publisher(
+            for: .NSPersistentStoreRemoteChange
+        )) { _ in
+            refresh()
+        }
         .onChange(of: isShowingSharingSheet) { _, isShowing in
             // Nach dem Schliessen kann sich die Teilnehmerliste geändert haben.
             if !isShowing { refresh() }
@@ -104,9 +110,15 @@ struct CellarSharingSection: View {
     // MARK: Aktionen
 
     private func refresh() {
-        let cellar = Cellar.findOrCreateDefault(in: context)
-        isGuest = PersistenceController.shared.isSharedWithMe(cellar)
-        share = PersistenceController.shared.existingShare(for: cellar)
+        // Gibt es einen Keller aus der geteilten Ablage, sind wir Gast.
+        if Cellar.sharedWithMe(in: context) != nil {
+            isGuest = true
+            share = nil
+            return
+        }
+        isGuest = false
+        // Bewusst ohne Anlegen: Das blosse Öffnen der Einstellungen soll keinen Keller erzeugen.
+        share = Cellar.own(in: context).flatMap { PersistenceController.shared.existingShare(for: $0) }
     }
 
     /// Übersetzt die technischen CloudKit-Meldungen in etwas Lesbares.
@@ -138,7 +150,7 @@ struct CellarSharingSection: View {
         errorMessage = nil
         defer { isPreparing = false }
 
-        let cellar = Cellar.findOrCreateDefault(in: context)
+        let cellar = Cellar.findOrCreateOwn(in: context)
         do {
             // Eine bereits angelegte Freigabe wiederverwenden, sonst entstehen Dubletten.
             if let existing = share {
