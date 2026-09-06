@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SwiftData
+import CoreData
 
 /// Zustand des Tabs „Wein-Berater“: Eingabe, Ladezustand, Ergebnis, Fehler.
 @Observable
@@ -17,7 +17,7 @@ final class PairingViewModel {
     struct LabelMatch: Identifiable {
         let wine: Wine
         let terms: [String]
-        var id: PersistentIdentifier { wine.persistentModelID }
+        var id: NSManagedObjectID { wine.objectID }
     }
 
     var dish = ""

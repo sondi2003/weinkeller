@@ -1,12 +1,18 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Tab 1: Liste aller Weine mit Bestand, Schnell-Abbuchung und Hinzufügen.
 struct CellarView: View {
 
-    @Environment(\.modelContext) private var context
-    @Query(sort: \Wine.createdAt, order: .reverse) private var wines: [Wine]
+    @Environment(\.managedObjectContext) private var context
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(key: "createdAt", ascending: false)],
+        animation: .default
+    ) private var fetchedWines: FetchedResults<Wine>
     @State private var viewModel = CellarViewModel()
+
+    /// FetchedResults als Array, damit Filter und Zusammenfassung damit rechnen können.
+    private var wines: [Wine] { Array(fetchedWines) }
 
     var body: some View {
         NavigationStack {
@@ -253,10 +259,10 @@ private struct FilterChip: View {
 
 #Preview("Mit Weinen") {
     CellarView()
-        .modelContainer(PreviewData.container)
+        .environment(\.managedObjectContext, PreviewData.context)
 }
 
 #Preview("Leer") {
     CellarView()
-        .modelContainer(PreviewData.emptyContainer)
+        .environment(\.managedObjectContext, PreviewData.emptyContext)
 }

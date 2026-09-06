@@ -22,7 +22,7 @@ struct WineRowView: View {
 
             Spacer(minLength: 8)
 
-            StockBadge(quantity: wine.quantity)
+            StockBadge(quantity: Int(wine.quantity))
 
             if !wine.isArchived {
                 Button(action: onConsume) {
@@ -47,5 +47,5 @@ struct WineRowView: View {
         WineRowView(wine: PreviewData.sampleWines[0]) { }
         WineRowView(wine: PreviewData.sampleWines[3]) { }
     }
-    .modelContainer(PreviewData.container)
+    .environment(\.managedObjectContext, PreviewData.context)
 }

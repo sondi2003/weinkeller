@@ -1,11 +1,12 @@
+import CoreData
+import CoreLocation
 import Foundation
-import SwiftData
 
 // MARK: - Weintyp
 
 /// Die vier Grundtypen, nach denen der Keller sortiert und gefiltert wird.
 /// `rawValue` ist stabil (englisch), damit sich Anzeige-Texte später ändern lassen,
-/// ohne bestehende SwiftData-Datensätze zu brechen.
+/// ohne bestehende Datensätze zu brechen.
 enum WineType: String, Codable, CaseIterable, Identifiable, Sendable {
     case red = "red"
     case white = "white"
@@ -35,72 +36,62 @@ enum WineType: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-// MARK: - SwiftData-Modell
+// MARK: - Core-Data-Modell
 
 /// Eine Position im Weinkeller: ein bestimmter Wein mit Jahrgang und aktuellem Bestand.
-@Model
-final class Wine {
+// Laufzeitname bewusst abweichend: „Wine“ ist zugleich der Entitätsname der früheren
+// SwiftData-Ablage. Ohne eigenen Namen greift die Übernahme auf die falsche Klasse zu
+// und das Öffnen des alten Speichers schlägt fehl.
+@objc(WineEntity)
+final class Wine: NSManagedObject, Identifiable {
+
+    @nonobjc class func fetchRequest() -> NSFetchRequest<Wine> {
+        NSFetchRequest<Wine>(entityName: "Wine")
+    }
+
+    // MARK: Gespeicherte Werte
+
+    @NSManaged var uuid: UUID?
+    /// Stabile Identität für Listen; `objectID` gilt auch für noch nicht gespeicherte Objekte.
+    var id: NSManagedObjectID { objectID }
     /// Name des Weins bzw. der Cuvée, z. B. "La Pinède".
-    var name: String
-
+    @NSManaged var name: String
     /// Produzent, Weingut oder Domaine, z. B. "Domaine La Tour Vieille".
-    var producer: String = ""
-
-    /// Jahrgang, z. B. 2019.
-    var vintage: Int
-
+    @NSManaged var producer: String
+    @NSManaged var vintage: Int64
     /// Rebsorte(n), z. B. "Grenache noir, Mourvèdre, Carignan".
-    /// Hieß früher `grapeOrRegion`; SwiftData migriert bestehende Daten automatisch.
-    @Attribute(originalName: "grapeOrRegion")
-    var grape: String
-
+    @NSManaged var grape: String
     /// Region oder Appellation, z. B. "Collioure".
-    var region: String = ""
+    @NSManaged var region: String
+    /// Herkunftsland, macht die Kartensuche eindeutig.
+    @NSManaged var country: String
+    @NSManaged var quantity: Int64
+    @NSManaged var isArchived: Bool
+    /// Freitext, z. B. Terroir, Vinifikation, "bis 2030 trinken".
+    @NSManaged var notes: String
+    /// Zugeschnittenes Foto des Vorderseiten-Etiketts als JPEG.
+    @NSManaged var labelImageData: Data?
+    @NSManaged var createdAt: Date?
+    @NSManaged var cellar: Cellar?
 
-    /// Herkunftsland, z. B. "Frankreich". Macht die Kartensuche eindeutig
-    /// („Mosel“ allein landet sonst in Frankreich statt in Deutschland).
-    var country: String = ""
+    /// Rohwerte, die über berechnete Eigenschaften bequemer nutzbar sind.
+    @NSManaged private var typeRaw: String
+    @NSManaged private var foodPairingsRaw: String
+    @NSManaged private var latitude: Double
+    @NSManaged private var longitude: Double
+    @NSManaged var geocodedQuery: String
+    @NSManaged var geocodedPlaceName: String
+    /// „place“ = Region gefunden, „country“ = nur das Land, „none“ = erfolglos gesucht,
+    /// leer = noch nie gesucht.
+    @NSManaged var geocodePrecision: String
 
-    /// Rot, Weiß, Schaum oder Rosé.
-    var type: WineType
+    // MARK: Anlegen
 
-    /// Anzahl der Flaschen, die aktuell im Keller liegen.
-    var quantity: Int
-
-    /// Archivierte Weine bleiben als Historie erhalten, tauchen aber weder
-    /// in der Kellerliste noch in KI-Empfehlungen auf.
-    var isArchived: Bool
-
-    /// Freitext, z. B. Terroir, Vinifikation, "Geschenk von Anna", "bis 2030 trinken".
-    var notes: String
-
-    /// Speiseempfehlungen, die auf dem Etikett stehen – auf Deutsch, z. B.
-    /// ["Gegrilltes Fleisch", "Hartkäse"]. Leer, wenn das Etikett nichts dazu sagt.
-    var foodPairings: [String] = []
-
-    /// Zugeschnittenes Foto des Vorderseiten-Etiketts als JPEG. Liegt dank
-    /// `externalStorage` als Datei neben der Datenbank, nicht in ihr.
-    @Attribute(.externalStorage)
-    var labelImageData: Data? = nil
-
-    // MARK: Herkunft auf der Karte
-
-    /// Koordinaten der Region, einmalig per Geocoding ermittelt.
-    var latitude: Double? = nil
-    var longitude: Double? = nil
-
-    /// Welche Region zuletzt nachgeschlagen wurde – erkennt spätere Änderungen.
-    var geocodedQuery: String? = nil
-
-    /// Aufgelöster Ortsname mit Land, z. B. „Collioure, Frankreich“.
-    var geocodedPlaceName: String? = nil
-
-    /// „place“ = Region gefunden (Stecknadel), „country“ = nur das Land gesichert.
-    var geocodePrecision: String? = nil
-
-    var createdAt: Date
-
-    init(
+    /// Legt eine Flasche an und hängt sie an den Keller.
+    @discardableResult
+    static func create(
+        in context: NSManagedObjectContext,
+        cellar: Cellar,
         name: String,
         producer: String = "",
         vintage: Int,
@@ -114,20 +105,56 @@ final class Wine {
         labelImageData: Data? = nil,
         isArchived: Bool = false,
         createdAt: Date = .now
-    ) {
-        self.name = name
-        self.producer = producer
-        self.vintage = vintage
-        self.grape = grape
-        self.region = region
-        self.country = country
-        self.type = type
-        self.quantity = max(0, quantity)
-        self.notes = notes
-        self.foodPairings = foodPairings
-        self.labelImageData = labelImageData
-        self.isArchived = isArchived
-        self.createdAt = createdAt
+    ) -> Wine {
+        let wine = Wine(context: context)
+        wine.uuid = UUID()
+        wine.cellar = cellar
+        wine.name = name
+        wine.producer = producer
+        wine.vintage = Int64(vintage)
+        wine.grape = grape
+        wine.region = region
+        wine.country = country
+        wine.type = type
+        wine.quantity = Int64(max(0, quantity))
+        wine.notes = notes
+        wine.foodPairings = foodPairings
+        wine.labelImageData = labelImageData
+        wine.isArchived = isArchived
+        wine.createdAt = createdAt
+        wine.geocodedQuery = ""
+        wine.geocodedPlaceName = ""
+        wine.geocodePrecision = ""
+        return wine
+    }
+
+    // MARK: Bequeme Zugriffe
+
+    var type: WineType {
+        get { WineType(rawValue: typeRaw) ?? .red }
+        set { typeRaw = newValue.rawValue }
+    }
+
+    /// Speiseempfehlungen laut Etikett, intern als eine Zeile pro Eintrag gespeichert.
+    var foodPairings: [String] {
+        get {
+            foodPairingsRaw
+                .components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        set { foodPairingsRaw = newValue.joined(separator: "\n") }
+    }
+
+    /// Jahrgang als `Int`, weil Core Data mit `Int64` arbeitet.
+    var vintageValue: Int {
+        get { Int(vintage) }
+        set { vintage = Int64(newValue) }
+    }
+
+    var quantityValue: Int {
+        get { Int(quantity) }
+        set { quantity = Int64(max(0, newValue)) }
     }
 
     // MARK: Bestands-Management
@@ -139,16 +166,20 @@ final class Wine {
     func consumeBottle() {
         guard quantity > 0 else { return }
         quantity -= 1
+        managedObjectContext?.saveChanges()
     }
 
     /// Eine Flasche hinzubuchen (Plus-Button).
     func addBottle() {
         quantity += 1
+        managedObjectContext?.saveChanges()
     }
 
-    /// Kurzform für Listen: "2019 · Grenache, Mourvèdre · Collioure".
+    // MARK: Darstellung
+
+    /// Kurzform für Listen: "2019 · Grenache · Collioure".
     var subtitle: String {
-        ([String(vintage), grape, region.isEmpty ? country : region])
+        [String(vintage), grape, region.isEmpty ? country : region]
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
@@ -159,20 +190,13 @@ final class Wine {
         producer.isEmpty ? name : "\(producer) – \(name)"
     }
 
-    /// `true`, wenn zur aktuellen Region schon ein Nachschlagen stattgefunden hat.
-    /// Ein fehlender `geocodePrecision` bedeutet: noch nie oder mit älterer Logik gesucht.
-    var needsGeocoding: Bool {
-        geocodePrecision == nil || geocodedQuery != RegionGeocoder.query(region: region, country: country)
-    }
+    // MARK: Herkunft
 
-    /// Übernimmt ein Geocoding-Ergebnis (oder merkt sich den erfolglosen Versuch).
-    func applyGeocode(_ result: GeocodedRegion?, for query: String) {
-        geocodedQuery = query
-        latitude = result?.latitude
-        longitude = result?.longitude
-        geocodedPlaceName = result?.placeName
-        // „none“ merkt sich den erfolglosen Versuch, damit nicht bei jedem Öffnen neu gesucht wird.
-        geocodePrecision = result?.precision.rawValue ?? "none"
+    /// Koordinate der Herkunft, sofern eine ermittelt wurde.
+    var coordinate: CLLocationCoordinate2D? {
+        guard geocodePrecision == GeocodedRegion.Precision.place.rawValue
+                || geocodePrecision == GeocodedRegion.Precision.country.rawValue else { return nil }
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
     /// `true`, wenn die Region selbst gefunden wurde und eine Stecknadel gerechtfertigt ist.
@@ -180,19 +204,37 @@ final class Wine {
         geocodePrecision == GeocodedRegion.Precision.place.rawValue
     }
 
-    /// Schlanke, `Codable`-Kopie für die Übergabe an den KI-Service.
-    /// SwiftData-Objekte selbst sind nicht `Sendable` und gehören nicht ins Netzwerk-Layer.
+    /// `true`, wenn zur aktuellen Region noch kein Nachschlagen stattgefunden hat.
+    var needsGeocoding: Bool {
+        geocodePrecision.isEmpty
+            || geocodedQuery != (RegionGeocoder.query(region: region, country: country) ?? "")
+    }
+
+    /// Übernimmt ein Geocoding-Ergebnis (oder merkt sich den erfolglosen Versuch).
+    func applyGeocode(_ result: GeocodedRegion?, for query: String) {
+        geocodedQuery = query
+        latitude = result?.latitude ?? 0
+        longitude = result?.longitude ?? 0
+        geocodedPlaceName = result?.placeName ?? ""
+        // „none“ merkt sich den erfolglosen Versuch, damit nicht bei jedem Öffnen neu gesucht wird.
+        geocodePrecision = result?.precision.rawValue ?? "none"
+        managedObjectContext?.saveChanges()
+    }
+
+    // MARK: Übergabe an den KI-Service
+
+    /// Schlanke, `Codable`-Kopie für den KI-Service. Managed Objects gehören nicht ins Netzwerk-Layer.
     var inventoryItem: WineInventoryItem {
         WineInventoryItem(
             name: name,
             producer: producer,
-            vintage: vintage,
+            vintage: Int(vintage),
             grape: grape,
-            region: ([region, country].filter { !$0.isEmpty }).joined(separator: ", "),
+            region: [region, country].filter { !$0.isEmpty }.joined(separator: ", "),
             type: type.displayName,
             notes: String(notes.prefix(300)),
             labelPairings: foodPairings,
-            quantity: quantity
+            quantity: Int(quantity)
         )
     }
 }

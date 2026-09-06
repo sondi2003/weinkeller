@@ -1,10 +1,10 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Sheet zum Anlegen oder Bearbeiten eines Weins – manuell oder per Etikett-Scan.
 struct WineFormView: View {
 
-    @Environment(\.modelContext) private var context
+    @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: WineFormViewModel
     @State private var isShowingScanner: Bool
@@ -172,12 +172,12 @@ struct WineFormView: View {
 
 #Preview("Neu") {
     WineFormView(mode: .add)
-        .modelContainer(PreviewData.container)
+        .environment(\.managedObjectContext, PreviewData.context)
         .environment(AISettings(defaults: PreviewData.defaults))
 }
 
 #Preview("Bearbeiten") {
     WineFormView(mode: .edit(PreviewData.sampleWines[0]))
-        .modelContainer(PreviewData.container)
+        .environment(\.managedObjectContext, PreviewData.context)
         .environment(AISettings(defaults: PreviewData.defaults))
 }

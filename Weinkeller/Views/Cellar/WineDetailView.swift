@@ -1,12 +1,12 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Detailansicht eines Weins mit Bestandsverwaltung, Notizen, Archiv und Löschen.
 struct WineDetailView: View {
 
-    @Environment(\.modelContext) private var context
+    @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Bindable var wine: Wine
+    @ObservedObject var wine: Wine
 
     @State private var isEditing = false
     @State private var isConfirmingDelete = false
@@ -42,6 +42,7 @@ struct WineDetailView: View {
         .confirmationDialog("Wein löschen?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
                 context.delete(wine)
+                context.saveChanges()
                 dismiss()
             }
         } message: {
@@ -178,6 +179,7 @@ struct WineDetailView: View {
         VStack(spacing: 12) {
             Button {
                 wine.isArchived.toggle()
+                wine.managedObjectContext?.saveChanges()
             } label: {
                 Label(
                     wine.isArchived ? "Zurück in den Keller" : "Archivieren",
@@ -203,5 +205,5 @@ struct WineDetailView: View {
     NavigationStack {
         WineDetailView(wine: PreviewData.sampleWines[0])
     }
-    .modelContainer(PreviewData.container)
+    .environment(\.managedObjectContext, PreviewData.context)
 }

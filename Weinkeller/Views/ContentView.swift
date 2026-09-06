@@ -45,6 +45,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(PreviewData.container)
+        .environment(\.managedObjectContext, PreviewData.context)
         .environment(AISettings(defaults: PreviewData.defaults))
 }

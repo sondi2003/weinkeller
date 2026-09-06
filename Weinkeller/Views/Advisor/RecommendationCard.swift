@@ -58,7 +58,7 @@ struct RecommendationCard: View {
 
             HStack {
                 if let wine {
-                    StockBadge(quantity: wine.quantity)
+                    StockBadge(quantity: Int(wine.quantity))
                     Spacer()
                     Button(action: onOpenBottle) {
                         Label("Flasche öffnen", systemImage: "wineglass")
@@ -126,5 +126,5 @@ struct RecommendationCard: View {
         .padding()
     }
     .background(Color(.systemGroupedBackground))
-    .modelContainer(PreviewData.container)
+    .environment(\.managedObjectContext, PreviewData.context)
 }

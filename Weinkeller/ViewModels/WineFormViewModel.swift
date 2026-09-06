@@ -1,5 +1,5 @@
+import CoreData
 import Foundation
-import SwiftData
 import Observation
 
 /// Formularzustand für „Wein hinzufügen“ und „Wein bearbeiten“.
@@ -32,7 +32,6 @@ final class WineFormViewModel {
     var notes: String
     /// Kommagetrennt im Formular, als Liste am Wein.
     var foodPairings: String
-
     /// Zugeschnittenes Etikett-Foto (JPEG), wird mit dem Wein gespeichert.
     var labelImageData: Data?
 
@@ -57,12 +56,12 @@ final class WineFormViewModel {
         case .edit(let wine):
             name = wine.name
             producer = wine.producer
-            vintage = wine.vintage
+            vintage = Int(wine.vintage)
             grape = wine.grape
             region = wine.region
             country = wine.country
             type = wine.type
-            quantity = wine.quantity
+            quantity = Int(wine.quantity)
             notes = wine.notes
             foodPairings = wine.foodPairings.joined(separator: ", ")
             labelImageData = wine.labelImageData
@@ -117,11 +116,13 @@ final class WineFormViewModel {
     }
 
     /// Schreibt das Formular in den Context (neu anlegen oder aktualisieren).
-    func save(in context: ModelContext) {
+    func save(in context: NSManagedObjectContext) {
         let trimmed = { (value: String) in value.trimmingCharacters(in: .whitespacesAndNewlines) }
         switch mode {
         case .add:
-            let wine = Wine(
+            Wine.create(
+                in: context,
+                cellar: Cellar.findOrCreateDefault(in: context),
                 name: trimmedName,
                 producer: trimmed(producer),
                 vintage: vintage,
@@ -134,19 +135,19 @@ final class WineFormViewModel {
                 foodPairings: pairingList,
                 labelImageData: labelImageData
             )
-            context.insert(wine)
         case .edit(let wine):
             wine.name = trimmedName
             wine.producer = trimmed(producer)
-            wine.vintage = vintage
+            wine.vintage = Int64(vintage)
             wine.grape = trimmed(grape)
             wine.region = trimmed(region)
             wine.country = trimmed(country)
             wine.type = type
-            wine.quantity = max(0, quantity)
+            wine.quantity = Int64(max(0, quantity))
             wine.notes = trimmed(notes)
             wine.foodPairings = pairingList
             wine.labelImageData = labelImageData
         }
+        context.saveChanges()
     }
 }

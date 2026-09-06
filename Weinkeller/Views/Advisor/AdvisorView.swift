@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import CoreData
 
 /// Tab 2: Essens-Stichwort eingeben und Top-3-Empfehlung vom aktiven Anbieter holen.
 struct AdvisorView: View {
@@ -8,10 +8,13 @@ struct AdvisorView: View {
 
     @Environment(AISettings.self) private var settings
     @Environment(\.aiService) private var aiService
-    @Query private var wines: [Wine]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(key: "name", ascending: true)])
+    private var fetchedWines: FetchedResults<Wine>
     @State private var viewModel = PairingViewModel()
     @FocusState private var dishFieldFocused: Bool
     @State private var openedBottleCount = 0
+
+    private var wines: [Wine] { Array(fetchedWines) }
 
     /// Nur was wirklich im Keller liegt, geht an die KI.
     private var availableWines: [Wine] {
@@ -360,7 +363,7 @@ struct AdvisorView: View {
     /// Ordnet eine Empfehlung dem Wein im Keller zu (Name + Jahrgang, Name-Fallback).
     private func matchingWine(for recommendation: PairingRecommendation) -> Wine? {
         let name = recommendation.wineName.lowercased()
-        return wines.first { $0.name.lowercased() == name && $0.vintage == recommendation.vintage }
+        return wines.first { $0.name.lowercased() == name && Int($0.vintage) == recommendation.vintage }
             ?? wines.first { $0.name.lowercased() == name }
     }
 }
@@ -407,7 +410,7 @@ private struct LabelMatchCard: View {
             Divider()
 
             HStack {
-                StockBadge(quantity: wine.quantity)
+                StockBadge(quantity: Int(wine.quantity))
                 Spacer()
                 Button(action: onOpenBottle) {
                     Label("Flasche öffnen", systemImage: "wineglass")
@@ -458,6 +461,6 @@ struct ProviderStatusBadge: View {
 
 #Preview {
     AdvisorView(selectedTab: .constant(.advisor))
-        .modelContainer(PreviewData.container)
+        .environment(\.managedObjectContext, PreviewData.context)
         .environment(AISettings(defaults: PreviewData.defaults))
 }

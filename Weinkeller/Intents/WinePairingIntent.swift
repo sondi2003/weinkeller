@@ -1,7 +1,7 @@
 import AppIntents
 import Foundation
 import OSLog
-import SwiftData
+import CoreData
 import SwiftUI
 
 /// Siri-Befehl: „Wein-Berater in Weinkeller“ → Siri fragt nach dem Essen und
@@ -86,7 +86,7 @@ struct WinePairingIntent: AppIntent {
             )
         }
 
-        let wines = (try? SharedModelContainer.availableWines()) ?? []
+        let wines = PersistenceController.shared.availableWines()
         guard !wines.isEmpty else {
             return Ausgabe(
                 gesprochen: "In deinem Weinkeller liegt gerade keine Flasche mit Bestand.",
@@ -134,7 +134,7 @@ struct WinePairingIntent: AppIntent {
 
         let wein = passenderWein(zu: beste, in: wines)
         let bezeichnung = wein.map { $0.producer.isEmpty ? $0.name : "\($0.name) von \($0.producer)" } ?? beste.wineName
-        let jahrgang = wein?.vintage ?? beste.vintage
+        let jahrgang = wein.map { Int($0.vintage) } ?? beste.vintage
 
         var gesprochen = "Zu \(gericht) empfehle ich \(bezeichnung), Jahrgang \(String(jahrgang))."
         if beste.fit == .acceptable || beste.fit == .poor {
@@ -156,7 +156,7 @@ struct WinePairingIntent: AppIntent {
     /// Ordnet die Empfehlung dem Wein im Keller zu (Name + Jahrgang, sonst Name).
     private static func passenderWein(zu empfehlung: PairingRecommendation, in wines: [Wine]) -> Wine? {
         let name = empfehlung.wineName.lowercased()
-        return wines.first { $0.name.lowercased() == name && $0.vintage == empfehlung.vintage }
+        return wines.first { $0.name.lowercased() == name && Int($0.vintage) == empfehlung.vintage }
             ?? wines.first { $0.name.lowercased() == name }
     }
 }

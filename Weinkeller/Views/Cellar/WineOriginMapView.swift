@@ -9,7 +9,7 @@ import SwiftUI
 /// findet der Geocoder nichts, wird die Karte einfach weggelassen.
 struct WineOriginMapView: View {
 
-    @Bindable var wine: Wine
+    @ObservedObject var wine: Wine
     @State private var isLookingUp = false
 
     /// Ausschnitt so weit, dass das Land ringsum erkennbar bleibt.
@@ -32,10 +32,7 @@ struct WineOriginMapView: View {
         .task(id: "\(wine.region)|\(wine.country)") { await lookupIfNeeded() }
     }
 
-    private var coordinate: CLLocationCoordinate2D? {
-        guard let latitude = wine.latitude, let longitude = wine.longitude else { return nil }
-        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-    }
+    private var coordinate: CLLocationCoordinate2D? { wine.coordinate }
 
     // MARK: Karte
 
@@ -65,9 +62,10 @@ struct WineOriginMapView: View {
             .frame(height: 180)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .allowsHitTesting(false)
-            .accessibilityLabel("Karte der Herkunft: \(wine.geocodedPlaceName ?? wine.region)")
+            .accessibilityLabel("Karte der Herkunft: \(wine.geocodedPlaceName.isEmpty ? wine.region : wine.geocodedPlaceName)")
 
-            if let place = wine.geocodedPlaceName, !place.isEmpty {
+            let place = wine.geocodedPlaceName
+            if !place.isEmpty {
                 Label {
                     if wine.hasPreciseOrigin {
                         Text(place)
@@ -104,7 +102,7 @@ struct WineOriginMapView: View {
 
     private func openInMaps(_ coordinate: CLLocationCoordinate2D) {
         let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        item.name = wine.geocodedPlaceName ?? wine.region
+        item.name = wine.geocodedPlaceName.isEmpty ? wine.region : wine.geocodedPlaceName
         item.openInMaps()
     }
 
@@ -131,5 +129,5 @@ struct WineOriginMapView: View {
             .padding()
     }
     .background(Color(.systemGroupedBackground))
-    .modelContainer(PreviewData.container)
+    .environment(\.managedObjectContext, PreviewData.context)
 }

@@ -4,7 +4,7 @@ Anleitung für KI-Agenten (Claude Code u. a.), die an diesem Projekt arbeiten. D
 
 ## Projekt in einem Satz
 
-SwiftUI-App „Weinkeller“ (iOS 17+, SwiftData, MVVM) mit Multi-AI-Service für Wein-Empfehlungen über OpenAI, Gemini oder Anthropic. Details in [README.md](README.md).
+SwiftUI-App „Weinkeller“ (iOS 17+, Core Data mit CloudKit, MVVM) mit Multi-AI-Service für Wein-Empfehlungen über OpenAI, Gemini oder Anthropic. Details in [README.md](README.md).
 
 ## Sprache und Stil
 
@@ -32,7 +32,7 @@ Wichtig: Der Ordner `Preview Content` enthält ein Leerzeichen – Dateilisten i
 UI-Änderungen im Simulator verifizieren (Simulator-Tool oder `xcrun simctl`). Für den Simulator-Build **nicht** `CODE_SIGNING_ALLOWED=NO` setzen, sonst fehlt die Keychain-Berechtigung und `SecItemAdd` schlägt mit -34018 fehl. Nach Tests mit Dummy-Keys aufräumen:
 
 ```bash
-xcrun simctl uninstall <UDID> com.weinkeller.app && xcrun simctl keychain <UDID> reset
+xcrun simctl uninstall <UDID> com.sondinetwork.weinkeller.app && xcrun simctl keychain <UDID> reset
 ```
 
 Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-Klassifikation) lässt sich mit einem kleinen macOS-Harness prüfen: `swiftc main.swift Weinkeller/Models/*.swift Weinkeller/Services/*.swift Weinkeller/Services/Providers/*.swift`.
@@ -41,12 +41,12 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 
 - `Weinkeller/` ist ein **synchronisierter Ordner** im Xcode-Projekt: neue Dateien einfach im passenden Unterordner ablegen, kein Eintrag in `project.pbxproj` nötig.
 - `project.pbxproj` nur bei Build-Settings anfassen (z. B. Entitlements); Xcode formatiert die Datei beim Öffnen um – das ist normal.
-- `Weinkeller/Weinkeller.entitlements` enthält `keychain-access-groups`; nicht entfernen.
+- `Weinkeller/Weinkeller.entitlements` enthält `keychain-access-groups`, iCloud/CloudKit und den Container `iCloud.com.sondinetwork.weinkeller.app`; nicht entfernen. Die Keychain-Gruppe heisst noch `com.weinkeller.app` – **so lassen**: Sie funktioniert (Team-Präfix zählt), und eine Umbenennung würde die gespeicherten API-Keys unauffindbar machen.
 - `Config/Info.plist` liegt **bewusst außerhalb** des synchronisierten Ordners (sonst „Multiple commands produce Info.plist“). Xcode führt sie mit den generierten Keys zusammen (`GENERATE_INFOPLIST_FILE = YES` + `INFOPLIST_FILE = Config/Info.plist`). Dort steht nur, was sich nicht als Build-Setting ausdrücken lässt, z. B. `UILaunchScreen/UIColorName`.
 - App-Icon: `swift Tools/MakeAppIcon.swift` rendert die drei Varianten (hell, dunkel, getönt) per CoreGraphics nach `Assets.xcassets/AppIcon.appiconset`. Design-Änderungen im Script machen, nicht in den PNGs. Keine SF Symbols im App-Icon (Lizenz).
 - Startbildschirm: System-Launchscreen in `LaunchBackground` (Bordeaux), danach `SplashView` als Overlay in `ContentView` für `SplashView.displayDuration`. `accessibilityReduceMotion` wird respektiert.
 - Neue Ansichten bekommen eine `#Preview` mit `PreviewData`.
-- SwiftData: `Wine` ist das einzige Modell. Schema-Änderungen brauchen Migrationsüberlegungen, da bestehende Installationen Daten haben.
+- Schema-Änderungen brauchen Migrationsüberlegungen, da bestehende Installationen Daten haben. Neue Attribute immer mit Standardwert (CloudKit-Pflicht).
 
 ## KI-Layer
 
@@ -69,6 +69,24 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Diagnose: `Logger(subsystem: "com.weinkeller.app", category: "LabelScan")`. Im Simulator mitlesen: `xcrun simctl spawn <UDID> log stream --level info --predicate 'subsystem == "com.weinkeller.app"'`.
 - OCR und Regel-Parser lassen sich ohne Simulator prüfen: macOS-Harness mit `LabelTextRecognizer` + `HeuristicLabelParser` und Fotos via `CGImageSource` (siehe Tools-Abschnitt oben).
 - `Config/Info.plist`: Xcode überschreibt die Datei gelegentlich mit seiner In-Memory-Kopie, wenn das Projekt offen ist. Nach Änderungen prüfen, ob `NSCameraUsageDescription` noch drin ist.
+
+## Datenschicht: Core Data mit CloudKit
+
+- **Kein SwiftData mehr.** SwiftData kennt für CloudKit nur `private` (im SDK geprüft: `CloudKitDatabase` hat genau `automatic`, `none`, `private`) und keinerlei Freigabe. Für „Zugriff für die Partnerin mit eigener Apple-ID“ braucht es `NSPersistentCloudKitContainer`.
+- Das Modell steht **programmatisch** in `PersistenceController.makeModel()`, nicht in einer `.xcdatamodeld`. Grund: zuverlässig mit dem synchronisierten Projektordner, alles an einer Stelle.
+- **CloudKit-Regeln, die das Modell einhalten muss**: jedes Attribut optional oder mit Standardwert, alle Beziehungen optional, keine Eindeutigkeits-Bedingungen. Neue Felder immer mit Standardwert anlegen.
+- Entitäten: `Cellar` (Wurzel für die spätere Freigabe, alle Flaschen hängen daran) und `Wine`. CloudKit teilt Objektbäume, deshalb braucht es das Dach.
+- **Laufzeitnamen weichen bewusst ab**: `@objc(WineEntity)` / `@objc(CellarEntity)`. Heisst die Klasse zur Laufzeit „Wine“, greift die Alt-Datenübernahme auf die falsche Klasse zu.
+- Core Data speichert nicht automatisch. Nach jeder Änderung `context.saveChanges()` aufrufen (Erweiterung in `PersistenceController.swift`). `Wine.consumeBottle()`, `addBottle()` und `applyGeocode` speichern selbst.
+- Ints sind `Int64`. Beim Übergeben an UI-Bausteine mit `Int(...)` wandeln.
+- Views nutzen `@FetchRequest` und `@ObservedObject var wine: Wine` (nicht `@Bindable`, das ist für `@Observable`).
+
+## Übernahme aus der früheren SwiftData-Ablage
+
+- `LegacyImporter` liest `Library/Application Support/default.store` **direkt per SQLite**, nicht über SwiftData. SwiftData verlangt ein exakt passendes Modell und versucht sonst zu migrieren; in der App schlägt das mit `SwiftDataError 1` fehl, selbst wenn dasselbe Modell in einem eigenständigen Programm funktioniert.
+- Gearbeitet wird auf einer Kopie inklusive `-wal` und `-shm`; das Original wird nie verändert. Läuft genau einmal (`legacyImport.completed` in UserDefaults).
+- Formate im Alt-Speicher: `[String]` liegt als `NSKeyedArchiver`-Plist vor, grosse Binärwerte als Verweis auf `.default_SUPPORT/_EXTERNAL_DATA/<UUID>`.
+- **Achtung Bundle-ID**: Wurde sie geändert, liegt der alte Speicher im Container der alten App und ist für die neue unerreichbar. Dann findet die Übernahme nichts.
 
 ## Speiseempfehlung vom Etikett
 

@@ -1,11 +1,11 @@
+import CoreData
 import Foundation
-import SwiftData
 import Observation
 
 /// UI-Zustand und Aktionen für den Tab „Weinkeller“.
 ///
-/// Die Weine selbst kommen per `@Query` in die View (so ist SwiftData gedacht);
-/// dieses ViewModel kümmert sich um Filter, Suche, Sheets und die Bestandsaktionen.
+/// Die Weine selbst kommen per `@FetchRequest` in die View; dieses ViewModel kümmert
+/// sich um Filter, Suche, Sheets und die Bestandsaktionen.
 @Observable
 @MainActor
 final class CellarViewModel {
@@ -36,7 +36,7 @@ final class CellarViewModel {
 
     // MARK: Abgeleitete Daten
 
-    /// Wendet Archiv-, Typ- und Suchfilter auf die Query-Ergebnisse an.
+    /// Wendet Archiv-, Typ- und Suchfilter auf die Ergebnisse an.
     func filtered(_ wines: [Wine]) -> [Wine] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return wines.filter { wine in
@@ -64,7 +64,7 @@ final class CellarViewModel {
     /// "12 Flaschen · 7 Weine" für die Kopfzeile.
     func summary(for wines: [Wine]) -> String {
         let active = wines.filter { !$0.isArchived }
-        let bottles = active.reduce(0) { $0 + $1.quantity }
+        let bottles = active.reduce(0) { $0 + Int($1.quantity) }
         return "\(bottles) \(bottles == 1 ? "Flasche" : "Flaschen") · \(active.count) \(active.count == 1 ? "Wein" : "Weine")"
     }
 
@@ -85,13 +85,16 @@ final class CellarViewModel {
 
     func archive(_ wine: Wine) {
         wine.isArchived = true
+        wine.managedObjectContext?.saveChanges()
     }
 
     func unarchive(_ wine: Wine) {
         wine.isArchived = false
+        wine.managedObjectContext?.saveChanges()
     }
 
-    func delete(_ wine: Wine, in context: ModelContext) {
+    func delete(_ wine: Wine, in context: NSManagedObjectContext) {
         context.delete(wine)
+        context.saveChanges()
     }
 }

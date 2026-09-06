@@ -37,13 +37,14 @@ xcodebuild build -project Weinkeller.xcodeproj -scheme Weinkeller -destination '
 
 ## Architektur
 
-MVVM mit SwiftUI, SwiftData und `@Observable`.
+MVVM mit SwiftUI, Core Data mit CloudKit und `@Observable`.
 
 ```
 Weinkeller/
-├── App/            WeinkellerApp und SharedModelContainer (von App und Siri genutzt)
+├── App/            WeinkellerApp (Einstieg, Environment)
 ├── Intents/        Siri-Befehl, Kurzbefehl-Anmeldung, Ergebniskarte
-├── Models/         Wine (SwiftData), PairingRequest/PairingResponse, JSON-Schema
+├── Models/         Wine und Cellar (Core Data), PairingRequest/PairingResponse, JSON-Schema
+├── Persistence/    Core-Data-Stack mit CloudKit, Übernahme der früheren Ablage
 ├── Services/
 │   ├── AIService       Fassade: wählt den Client zum aktiven Anbieter
 │   ├── AISettings      Keys (Keychain), Modelle, aktiver Anbieter

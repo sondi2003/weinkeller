@@ -1,8 +1,10 @@
 import SwiftUI
-import SwiftData
 
 @main
 struct WeinkellerApp: App {
+
+    /// Core Data mit CloudKit. Wird von App und Siri-Intent gemeinsam genutzt.
+    private let persistence = PersistenceController.shared
 
     /// Einstellungen (Provider, Modelle, Keys) – einmal pro App-Lebenszyklus.
     @State private var settings = AISettings()
@@ -15,9 +17,12 @@ struct WeinkellerApp: App {
             ContentView()
                 .environment(settings)
                 .environment(\.aiService, aiService)
+                .environment(\.managedObjectContext, persistence.viewContext)
+                .task {
+                    // Einmalige Übernahme aus der früheren SwiftData-Ablage.
+                    LegacyImporter.importIfNeeded(into: persistence.viewContext)
+                }
         }
-        // Derselbe Container, den auch die Siri-Intents verwenden.
-        .modelContainer(SharedModelContainer.shared)
     }
 }
 
