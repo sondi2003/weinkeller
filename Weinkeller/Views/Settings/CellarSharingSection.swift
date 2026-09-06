@@ -172,7 +172,8 @@ struct CellarSharingSection: View {
             // Eine bereits angelegte Freigabe wiederverwenden, sonst entstehen Dubletten.
             if let existing = share {
                 cloudContainer = CKContainer(identifier: PersistenceController.cloudContainerIdentifier)
-                _ = existing
+                // Freigaben aus früheren Versionen haben noch keinen Titel.
+                share = await PersistenceController.shared.ensuringTitle(on: existing)
                 isShowingSharingSheet = true
                 return
             }

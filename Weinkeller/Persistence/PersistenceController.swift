@@ -199,6 +199,13 @@ final class PersistenceController: @unchecked Sendable {
         return (try await titled(share), cloudContainer)
     }
 
+    /// Setzt den Titel auch bei einer Freigabe, die schon vor dieser Korrektur entstanden ist.
+    /// Ohne das behält eine bestehende Einladung für immer den internen Namen.
+    @MainActor
+    func ensuringTitle(on share: CKShare) async -> CKShare {
+        (try? await titled(share)) ?? share
+    }
+
     /// Setzt den Titel der Einladung **und speichert ihn**.
     ///
     /// `container.share(...)` legt die Freigabe bereits auf dem Server ab. Ein danach
