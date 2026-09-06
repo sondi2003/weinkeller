@@ -4,7 +4,7 @@ Privater Weinkeller-Assistent für iPhone und iPad. Verwaltet den Flaschenbestan
 
 ## Funktionen
 
-- **Weinkeller** – Flaschen mit Name, Jahrgang, Rebsorte/Region, Typ (Rot, Weiß, Schaum, Rosé, Glühwein) und Bestand. Schnell-Abbuchung per Minus-Button, Filter nach Typ, Suche, Archiv. Bei der letzten Flasche fragt die App, ob der Wein archiviert oder gelöscht werden soll.
+- **Bestand** – Flaschen mit Name, Jahrgang, Rebsorte/Region, Typ (Rot, Weiß, Schaum, Rosé, Glühwein) und Bestand. Schnell-Abbuchung per Minus-Button, Filter nach Typ, Suche, Archiv. Bei der letzten Flasche fragt die App, ob der Wein archiviert oder gelöscht werden soll.
 - **Speiseempfehlung vom Etikett** – Steht auf dem Etikett, wozu der Wein passt, wird das beim Scannen übernommen und ins Deutsche übersetzt. Übernommen wird sie nur, wenn sie wirklich auf dem Etikett steht: Die KI muss die betreffende Stelle wörtlich mitliefern, und die App sucht sie im erkannten Text. Findet sie den Beleg nicht, wird die Empfehlung verworfen, statt „laut Etikett“ zu behaupten. Der Wein-Berater prüft zuerst diese Angaben: Nennt ein Etikett das Gericht ausdrücklich, erscheint der Treffer sofort, ohne KI-Anfrage und ohne Kosten. Erst wenn nichts passt, wird die KI gefragt. Steht nichts auf dem Etikett, bleibt der Abschnitt ausgeblendet.
 - **Herkunftskarte** – Die Detailseite zeigt einen Kartenausschnitt mit Stecknadel auf der Weinregion, ermittelt aus Region und Land des Etiketts. Ist die Region nicht eindeutig auffindbar, zeigt die Karte nur das Land statt einer falschen Nadel. Ein Tipp öffnet Apple Karten.
 - **Wein-Berater** – Essens-Stichwort eingeben (z. B. „Raclette“), die KI liefert bis zu drei Empfehlungen aus dem aktuellen Bestand mit ehrlicher Passung (Perfekt, passt gut, geht, Notlösung), Begründung und Serviertipp. Passt nichts wirklich, sagt sie das offen und nennt, was klassisch passen würde, als Kauftipp. „Flasche öffnen“ bucht direkt ab. Antworten werden auf Plausibilität geprüft (nur Weine aus dem Keller, keine Platzhalter) und bei Bedarf einmal automatisch wiederholt.
@@ -28,7 +28,7 @@ Privater Weinkeller-Assistent für iPhone und iPad. Verwaltet den Flaschenbestan
 ## Starten
 
 ```bash
-open Weinkeller.xcodeproj
+open Wyychaellerli.xcodeproj
 ```
 
 Im Simulator läuft die App ohne Signierung. Für ein echtes Gerät unter „Signing & Capabilities“ das eigene Team wählen.
@@ -36,7 +36,7 @@ Im Simulator läuft die App ohne Signierung. Für ein echtes Gerät unter „Sig
 Build von der Kommandozeile:
 
 ```bash
-xcodebuild build -project Weinkeller.xcodeproj -scheme Weinkeller -destination 'generic/platform=iOS Simulator'
+xcodebuild build -project Wyychaellerli.xcodeproj -scheme Wyychaellerli -destination 'generic/platform=iOS Simulator'
 ```
 
 ## Architektur
@@ -44,8 +44,8 @@ xcodebuild build -project Weinkeller.xcodeproj -scheme Weinkeller -destination '
 MVVM mit SwiftUI, Core Data mit CloudKit und `@Observable`.
 
 ```
-Weinkeller/
-├── App/            WeinkellerApp (Einstieg, Environment)
+Wyychaellerli/
+├── App/            WyychaellerliApp (Einstieg, Environment)
 ├── Intents/        Siri-Befehl, Kurzbefehl-Anmeldung, Ergebniskarte
 ├── Models/         Wine und Cellar (Core Data), PairingRequest/PairingResponse, JSON-Schema
 ├── Persistence/    Core-Data-Stack mit CloudKit, Übernahme der früheren Ablage

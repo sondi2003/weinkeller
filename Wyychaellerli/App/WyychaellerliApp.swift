@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct WeinkellerApp: App {
+struct WyychaellerliApp: App {
 
     /// Nötig, damit Freigabe-Einladungen ankommen (siehe SceneDelegate).
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate

@@ -26,7 +26,7 @@ struct CellarView: View {
                     wineList
                 }
             }
-            .navigationTitle("Weinkeller")
+            .navigationTitle("Wyychällerli")
             .toolbar { toolbarContent }
             .sheet(isPresented: $isShowingRatings) {
                 RatingsOverviewView()

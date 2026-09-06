@@ -4,7 +4,7 @@ import OSLog
 import CoreData
 import SwiftUI
 
-/// Siri-Befehl: „Wein-Berater in Weinkeller“ → Siri fragt nach dem Essen und
+/// Siri-Befehl: „Wein-Berater in Wyychällerli“ → Siri fragt nach dem Essen und
 /// liest die beste Empfehlung aus dem eigenen Keller vor.
 ///
 /// Läuft ohne die App zu öffnen. Für Tempo wird das schnelle Modell verwendet

@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 //
 // Erzeugt die App-Icons (hell, dunkel, getönt) als 1024×1024-PNG und legt sie
-// in Weinkeller/Assets.xcassets/AppIcon.appiconset ab.
+// in Wyychaellerli/Assets.xcassets/AppIcon.appiconset ab.
 //
 // Aufruf aus dem Projektordner:
 //   swift Tools/MakeAppIcon.swift
@@ -19,7 +19,7 @@ enum Variant: String {
 
 let size: CGFloat = 1024
 let outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    .appendingPathComponent("Weinkeller/Assets.xcassets/AppIcon.appiconset")
+    .appendingPathComponent("Wyychaellerli/Assets.xcassets/AppIcon.appiconset")
 
 func color(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor {
     CGColor(colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!, components: [r, g, b, a])!

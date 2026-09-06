@@ -4,7 +4,7 @@ Anleitung für KI-Agenten (Claude Code u. a.), die an diesem Projekt arbeiten. D
 
 ## Projekt in einem Satz
 
-SwiftUI-App „Weinkeller“ (iOS 17+, Core Data mit CloudKit, MVVM) mit Multi-AI-Service für Wein-Empfehlungen über OpenAI, Gemini oder Anthropic. Details in [README.md](README.md).
+SwiftUI-App „Wyychällerli“ (iOS 17+, Core Data mit CloudKit, MVVM) mit Multi-AI-Service für Wein-Empfehlungen über OpenAI, Gemini oder Anthropic. Details in [README.md](README.md).
 
 ## Sprache und Stil
 
@@ -18,13 +18,13 @@ SwiftUI-App „Weinkeller“ (iOS 17+, Core Data mit CloudKit, MVVM) mit Multi-A
 Projekt bauen (Simulator, ohne Team):
 
 ```bash
-xcodebuild build -project Weinkeller.xcodeproj -scheme Weinkeller -destination 'generic/platform=iOS Simulator' 2>&1 | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)"
+xcodebuild build -project Wyychaellerli.xcodeproj -scheme Wyychaellerli -destination 'generic/platform=iOS Simulator' 2>&1 | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)"
 ```
 
 Schneller Typecheck aller Quellen (Swift 5 und Swift 6 strict concurrency müssen beide sauber sein):
 
 ```bash
-find Weinkeller -name '*.swift' -print0 | xargs -0 xcrun -sdk iphonesimulator swiftc -typecheck -target arm64-apple-ios17.0-simulator -swift-version 6 -parse-as-library
+find Wyychaellerli -name '*.swift' -print0 | xargs -0 xcrun -sdk iphonesimulator swiftc -typecheck -target arm64-apple-ios17.0-simulator -swift-version 6 -parse-as-library
 ```
 
 Wichtig: Der Ordner `Preview Content` enthält ein Leerzeichen – Dateilisten immer mit `-print0 | xargs -0` übergeben.
@@ -32,27 +32,28 @@ Wichtig: Der Ordner `Preview Content` enthält ein Leerzeichen – Dateilisten i
 UI-Änderungen im Simulator verifizieren (Simulator-Tool oder `xcrun simctl`). Für den Simulator-Build **nicht** `CODE_SIGNING_ALLOWED=NO` setzen, sonst fehlt die Keychain-Berechtigung und `SecItemAdd` schlägt mit -34018 fehl. Nach Tests mit Dummy-Keys aufräumen:
 
 ```bash
-xcrun simctl uninstall <UDID> com.sondinetwork.weinkeller.app && xcrun simctl keychain <UDID> reset
+xcrun simctl uninstall <UDID> ch.sondinetwork.wyychaellerli && xcrun simctl keychain <UDID> reset
 ```
 
-Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-Klassifikation) lässt sich mit einem kleinen macOS-Harness prüfen: `swiftc main.swift Weinkeller/Models/*.swift Weinkeller/Services/*.swift Weinkeller/Services/Providers/*.swift`.
+Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-Klassifikation) lässt sich mit einem kleinen macOS-Harness prüfen: `swiftc main.swift Wyychaellerli/Models/*.swift Wyychaellerli/Services/*.swift Wyychaellerli/Services/Providers/*.swift`.
 
 ## Projektstruktur und Regeln
 
-- `Weinkeller/` ist ein **synchronisierter Ordner** im Xcode-Projekt: neue Dateien einfach im passenden Unterordner ablegen, kein Eintrag in `project.pbxproj` nötig.
+- `Wyychaellerli/` ist ein **synchronisierter Ordner** im Xcode-Projekt: neue Dateien einfach im passenden Unterordner ablegen, kein Eintrag in `project.pbxproj` nötig.
 - `project.pbxproj` nur bei Build-Settings anfassen (z. B. Entitlements); Xcode formatiert die Datei beim Öffnen um – das ist normal.
 - **Namen und Kennungen** (die App hiess bis zur Umbenennung „Weinkeller“):
   - Angezeigter Name: **Wyychällerli**, gesetzt über `INFOPLIST_KEY_CFBundleDisplayName` in beiden Konfigurationen. Umlaute sind hier erlaubt.
   - Bundle-ID: **`ch.sondinetwork.wyychaellerli`**. Umlaute sind hier **nicht** erlaubt; Xcode meldet „invalid character in Bundle Identifier … only alphanumeric (A-Z,a-z,0-9), hyphen (-), and period (.)“ und der Build läuft trotzdem durch – Signierung und App Store Connect würden ihn später abweisen.
-  - `PRODUCT_NAME` bleibt `Weinkeller`, damit die Binärdatei ASCII bleibt. `CFBundleName` lässt sich deshalb **nicht** ändern: `INFOPLIST_KEY_CFBundleName` wird zwar als Build-Einstellung akzeptiert, aber vom Info.plist-Generator ignoriert, und ein Eintrag in `Config/Info.plist` wird von ihm überschrieben. Für die Anzeige ist ohnehin `CFBundleDisplayName` massgeblich – nicht weiter daran herumbasteln.
+  - **Auf der Platte alles ASCII**: Ordner `Wyychaellerli/`, `Wyychaellerli.xcodeproj`, Target und Scheme `Wyychaellerli`. Nur der angezeigte Name trägt den Umlaut. Das hält Build-Befehle, Pfade und Git frei von Normalisierungs- und Quoting-Fragen.
+  - `CFBundleName` folgt `PRODUCT_NAME` und damit dem Target-Namen. Direkt setzen lässt es sich **nicht**: `INFOPLIST_KEY_CFBundleName` wird zwar als Build-Einstellung akzeptiert, aber vom Info.plist-Generator ignoriert, und ein Eintrag in `Config/Info.plist` wird von ihm überschrieben. Für die Anzeige ist ohnehin `CFBundleDisplayName` massgeblich.
   - Der Logger nutzt weiterhin `subsystem == "com.weinkeller.app"`. **So lassen**, sonst stimmen alle dokumentierten Log-Befehle nicht mehr.
-- `Weinkeller/Weinkeller.entitlements` enthält `keychain-access-groups`, iCloud/CloudKit und den Container `iCloud.com.sondinetwork.weinkeller.app`; nicht entfernen. Die Keychain-Gruppe heisst noch `com.weinkeller.app` – **so lassen**: Sie funktioniert (Team-Präfix zählt), und eine Umbenennung würde die gespeicherten API-Keys unauffindbar machen.
+- `Wyychaellerli/Wyychaellerli.entitlements` enthält `keychain-access-groups`, iCloud/CloudKit und den Container `iCloud.com.sondinetwork.weinkeller.app`; nicht entfernen. Die Keychain-Gruppe heisst noch `com.weinkeller.app` – **so lassen**: Sie funktioniert (Team-Präfix zählt), und eine Umbenennung würde die gespeicherten API-Keys unauffindbar machen.
 - **Der iCloud-Container behält den alten Namen und darf nie geändert werden.** `iCloud.com.sondinetwork.weinkeller.app` hängt nicht an der Bundle-ID. Genau deshalb hat die Umbenennung die Daten nicht gekostet: Die neue App zieht denselben Container und damit den gesamten Keller samt Freigabe wieder herunter. Eine Änderung dieser Zeichenkette wäre gleichbedeutend mit Datenverlust.
 - `Config/Info.plist` liegt **bewusst außerhalb** des synchronisierten Ordners (sonst „Multiple commands produce Info.plist“). Xcode führt sie mit den generierten Keys zusammen (`GENERATE_INFOPLIST_FILE = YES` + `INFOPLIST_FILE = Config/Info.plist`). Dort steht nur, was sich nicht als Build-Setting ausdrücken lässt, z. B. `UILaunchScreen/UIColorName`.
 - App-Icon: `swift Tools/MakeAppIcon.swift` rendert die drei Varianten (hell, dunkel, getönt) per CoreGraphics nach `Assets.xcassets/AppIcon.appiconset`. Design-Änderungen im Script machen, nicht in den PNGs. Keine SF Symbols im App-Icon (Lizenz).
 - Startbildschirm: System-Launchscreen in `LaunchBackground` (Bordeaux), danach `SplashView` als Overlay in `ContentView` für `SplashView.displayDuration`. `accessibilityReduceMotion` wird respektiert.
 - Neue Ansichten bekommen eine `#Preview` mit `PreviewData`.
-- **Erscheinungsbild**: `AppearanceSetting` (System / Hell / Dunkel) liegt in `UserDefaults` unter `AppearanceSetting.storageKey` und wird in `WeinkellerApp` mit `.preferredColorScheme` auf die ganze App gelegt. Bewusst eine Geräte-Einstellung, nicht in iCloud – am iPhone dunkel und am iPad hell soll möglich sein.
+- **Erscheinungsbild**: `AppearanceSetting` (System / Hell / Dunkel) liegt in `UserDefaults` unter `AppearanceSetting.storageKey` und wird in `WyychaellerliApp` mit `.preferredColorScheme` auf die ganze App gelegt. Bewusst eine Geräte-Einstellung, nicht in iCloud – am iPhone dunkel und am iPad hell soll möglich sein.
 - **Feste Farben brauchen eine Dunkelvariante.** Systemfarben (`Color(.systemGroupedBackground)`, `.secondary`, Materialien) passen sich selbst an, `Color(red:green:blue:)` nicht. Die Weintyp-Farben liefen deshalb im Dunkelmodus ins Leere, Bordeaux war praktisch unlesbar. `Color.adaptive(light:dark:)` in `Theme.swift` baut aus zwei Tönen eine mitlaufende Farbe; jede neue feste Farbe gehört dort hinein. Die Akzentfarbe hat ihre Dunkelvariante bereits im Asset-Katalog.
 - Schema-Änderungen brauchen Migrationsüberlegungen, da bestehende Installationen Daten haben. Neue Attribute immer mit Standardwert (CloudKit-Pflicht).
 - **Weintypen** (`WineType` in `Models/Wine.swift`): `red`, `white`, `sparkling`, `rose`, `mulled` (Glühwein und verwandte Winter-Heißgetränke). Der Rohwert steht als String am `Wine`, ein neuer Fall braucht deshalb keine Migration. Ein neuer Typ ist an fünf Stellen nachzuziehen: `displayName` und `symbolName` (Wine.swift), `color` (Theme.swift), `LabelSchema` (enum-Liste), `PromptBuilder.labelSystemPrompt`, `GeneratedWineLabel` (`@Guide`) und `HeuristicLabelParser.typeKeywords`. Bei den Stichwörtern zählt die **Reihenfolge**: Glühwein steht vor den Farbbegriffen, weil solche Etiketten fast immer zusätzlich „Rotwein“ oder „vin rouge“ nennen.
@@ -109,7 +110,7 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - **Eine Einladung kommt auf zwei Wegen an, beide müssen bedient werden.** Läuft die App beim Tippen auf den Link schon, ruft iOS `windowScene(_:userDidAcceptCloudKitShareWith:)`. Wird die App durch den Link **erst gestartet**, gibt es noch keine Szene: Die Daten liegen dann in `UIScene.ConnectionOptions.cloudKitShareMetadata` und müssen in `scene(_:willConnectTo:options:)` abgeholt werden. Fehlt der zweite Weg, geht die Einladung spurlos verloren – ohne Fehler, ohne Meldung, beim Gast erscheint nur nie ein Keller. Ob es klappte, hing dann allein daran, ob die App zufällig noch im Hintergrund lief; **genau das war die Ursache des wochenlang unklaren Fehlers**. Beide Wege loggen jetzt („Einladung beim Start empfangen“ / „im Betrieb empfangen“). Die App-Delegate-Variante ist seit iOS 26 abgekündigt. Der Delegate hängt über `@UIApplicationDelegateAdaptor` an der App, `Config/Info.plist` braucht `CKSharingSupported`.
 - **Eine angelegte, aber nie verschickte Freigabe ist noch keine Freigabe.** `container.share(...)` legt den `CKShare` lokal auch dann an, wenn der Upload scheitert. Die UI darf deshalb nicht auf „Share vorhanden“ prüfen, sondern auf Teilnehmer ohne Eigentümerrolle (`isActuallyShared`), sonst meldet sie „freigegeben, 0 Personen“.
 - **Einladung kann vor dem Laden der Speicher eintreffen.** Startet der Link die App, feuert `userDidAcceptCloudKitShareWith`, bevor `loadPersistentStores` fertig ist. `sharedStore` ist dann `nil`. Deshalb legt `acceptShare` die Metadaten in `pendingShareMetadata` und holt sie nach, sobald der Speicher gesetzt wird (`didSet` auf `sharedStore`). Ohne das geht die Einladung still verloren – genau dieser Fehler ist im Test aufgetreten.
-- **Titel der Einladung muss zurückgeschrieben werden.** `container.share(...)` legt die Freigabe bereits auf dem Server ab. Ein im Completion-Handler gesetzter `CKShare.SystemFieldKey.title` ist danach nur eine lokale Änderung und erreicht den Server nie – auch `UICloudSharingController` speichert sie nicht, und `itemTitle(for:)` im Delegate füllt nur die eigene Oberfläche. Auf dem Gerät der eingeladenen Person steht dann statt „Weinkeller“ der interne Name des Freigabe-Datensatzes, bei Core Data `cloudkit.zoneshare`. `PersistenceController.titled(_:)` setzt den Titel deshalb und schreibt ihn mit `persistUpdatedShare` zurück, bevor der Dialog erscheint. Schlägt das fehl, wird nur geloggt und weitergemacht – eine Einladung ohne Titel ist hässlich, aber brauchbar.
+- **Titel der Einladung muss zurückgeschrieben werden.** `container.share(...)` legt die Freigabe bereits auf dem Server ab. Ein im Completion-Handler gesetzter `CKShare.SystemFieldKey.title` ist danach nur eine lokale Änderung und erreicht den Server nie – auch `UICloudSharingController` speichert sie nicht, und `itemTitle(for:)` im Delegate füllt nur die eigene Oberfläche. Auf dem Gerät der eingeladenen Person steht dann statt dem App-Namen der interne Name des Freigabe-Datensatzes, bei Core Data `cloudkit.zoneshare`. `PersistenceController.titled(_:)` setzt den Titel deshalb und schreibt ihn mit `persistUpdatedShare` zurück, bevor der Dialog erscheint. Schlägt das fehl, wird nur geloggt und weitergemacht – eine Einladung ohne Titel ist hässlich, aber brauchbar.
 - **Ein nicht geladener geteilter Speicher sieht aus wie „nichts wurde geteilt“.** Scheitert `loadPersistentStores` für `Weinkeller-shared.sqlite`, läuft die App einfach ohne diesen Speicher weiter: `sharedStore` bleibt `nil`, `acceptShare` legt die Einladung für immer in die Warteschlange, `Cellar.sharedWithMe` liefert `nil`, und die Einstellungen zeigen dem Gast „Weinkeller teilen“, als wäre er Eigentümer. Genau dieses Bild hat der Nutzer gemeldet. Deshalb nennt die Fehlermeldung jetzt den Dateinamen, die Wanderungsoptionen stehen ausdrücklich in `configure`, und `isSharedStoreAvailable` wird in `CellarSharingSection` als Warnung angezeigt. Beim Prüfen im Log zuerst nachsehen, ob **beide** „Store geladen“-Zeilen erscheinen.
 - **CloudKit scheitert sonst lautlos.** `observeCloudKitEvents()` hängt an `NSPersistentCloudKitContainer.eventChangedNotification` und protokolliert Einrichtung, Empfang und Versand samt Fehler unter `subsystem == "com.weinkeller.app"`. Ohne das gibt es bei „beim Gast erscheint nichts“ keinerlei Anhaltspunkt. **Mitlesen auf dem Gerät geht über die Xcode-Konsole** (Gerät per Kabel, App aus Xcode starten) oder die Konsole-App am Mac mit dem iPhone in der Seitenleiste. `log stream --device` gibt es auf aktuellem macOS nicht mehr, das schlägt mit „unrecognized option“ fehl.
 - **Keller-Auswahl nie am Singleton festmachen.** `Cellar.sharedStore(for:)` / `privateStore(for:)` leiten den Speicher aus dem Context ab, sonst greifen Previews mit eigenem Stack auf die falsche Ablage zu. Unterschieden wird über den Dateinamen `PersistenceController.sharedStoreFileName`.
@@ -165,13 +166,13 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 
 ## Siri / App Intents
 
-- `Intents/WinePairingIntent.swift` ist der Siri-Befehl, `Intents/WeinkellerShortcuts.swift` meldet ihn beim System an, `Intents/PairingSnippet.swift` ist die Karte unter der Sprachantwort.
+- `Intents/WinePairingIntent.swift` ist der Siri-Befehl, `Intents/WyychaellerliShortcuts.swift` meldet ihn beim System an, `Intents/PairingSnippet.swift` ist die Karte unter der Sprachantwort.
 - Apple verlangt, dass **jeder** Siri-Satz `\(.applicationName)` enthält. Ein freier Satz wie „Siri, welcher Wein passt zu Lasagne“ ist nicht möglich; das Gericht erfragt Siri über `requestValueDialog` am `@Parameter`.
 - **Der Rückgabetyp von `perform()` muss an allen `return`-Stellen identisch sein.** Hilfsfunktionen mit `some IntentResult & ...` erzeugen je eigene opake Typen und brechen den Build. Deshalb sammelt `perform` alles in einer internen `Ausgabe`-Struktur und hat genau eine Rückgabe.
 - Siri nutzt `AISpeed.fast`: schnelleres Modell (`AISettings.fastModel(for:)`), bei Anthropic zusätzlich `effort: "low"`, und **kein** zweiter Reparaturversuch. Der Keller-Tab bleibt bei `.quality`.
 - App und Intent teilen sich `SharedModelContainer.shared`. Nicht zwei Container anlegen, sonst sieht Siri einen leeren Keller.
-- Testen ohne Gerät: App einmal starten (registriert die Intents), dann Kurzbefehle-App im Simulator öffnen, dort erscheint „Wein empfehlen“ unter „Weinkeller“. Metadaten prüfen: `Metadata.appintents/extract.actionsdata` im gebauten `.app`.
-- CarPlay braucht keine eigene Arbeit und ist als eigene App auch nicht erlaubt (Weinkeller passt in keine zugelassene CarPlay-Kategorie). Siri im Auto nutzt denselben Intent.
+- Testen ohne Gerät: App einmal starten (registriert die Intents), dann Kurzbefehle-App im Simulator öffnen, dort erscheint „Wein empfehlen“ unter „Wyychällerli“. Metadaten prüfen: `Metadata.appintents/extract.actionsdata` im gebauten `.app`.
+- CarPlay braucht keine eigene Arbeit und ist als eigene App auch nicht erlaubt (die App passt in keine zugelassene CarPlay-Kategorie). Siri im Auto nutzt denselben Intent.
 
 ## Bekannte Stolperfallen
 

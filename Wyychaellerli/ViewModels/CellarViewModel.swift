@@ -2,7 +2,7 @@ import CoreData
 import Foundation
 import Observation
 
-/// UI-Zustand und Aktionen für den Tab „Weinkeller“.
+/// UI-Zustand und Aktionen für den Tab „Wyychällerli“ (die Bestandsliste).
 ///
 /// Die Weine selbst kommen per `@FetchRequest` in die View; dieses ViewModel kümmert
 /// sich um Filter, Suche, Sheets und die Bestandsaktionen.

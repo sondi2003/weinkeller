@@ -16,7 +16,7 @@ struct ContentView: View {
         ZStack {
             TabView(selection: $selectedTab) {
                 CellarView()
-                    .tabItem { Label("Weinkeller", systemImage: "cabinet") }
+                    .tabItem { Label("Wyychällerli", systemImage: "cabinet") }
                     .tag(AppTab.cellar)
 
                 AdvisorView(selectedTab: $selectedTab)

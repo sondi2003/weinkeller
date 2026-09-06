@@ -6,7 +6,7 @@ import AppIntents
 /// Apple verlangt, dass jeder Satz den App-Namen enthält. Ein freier Satz wie
 /// „Siri, welcher Wein passt zu Lasagne“ ist deshalb nicht möglich; das Gericht
 /// erfragt Siri im zweiten Schritt.
-struct WeinkellerShortcuts: AppShortcutsProvider {
+struct WyychaellerliShortcuts: AppShortcutsProvider {
 
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

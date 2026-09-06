@@ -53,6 +53,9 @@ final class PersistenceController: @unchecked Sendable {
     ///   - inMemory: für Previews und Tests, schreibt nichts auf die Platte.
     ///   - useCloudKit: in Previews abschaltbar.
     init(inMemory: Bool = false, useCloudKit: Bool = true) {
+        // Name bewusst unverändert, obwohl die App inzwischen anders heisst: Er gehört zur
+        // bestehenden Ablage. Umbenennen brächte nichts und riskiert nur den Verlust des
+        // lokalen Speichers.
         container = NSPersistentCloudKitContainer(
             name: "Weinkeller",
             managedObjectModel: PersistenceController.makeModel()
