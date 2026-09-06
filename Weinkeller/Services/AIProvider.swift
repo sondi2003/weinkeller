@@ -30,7 +30,9 @@ enum AIProvider: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .openAI:    return "gpt-5"
         case .gemini:    return "gemini-2.5-pro"
-        case .anthropic: return "claude-opus-5"
+        // Sonnet 5 ist für ein Wein-Pairing schnell genug und deutlich günstiger als Opus 5.
+        // Wer die ausführlichere Begründung will, trägt in den Einstellungen claude-opus-5 ein.
+        case .anthropic: return "claude-sonnet-5"
         }
     }
 

@@ -27,6 +27,8 @@ struct AdvisorView: View {
 
                     if viewModel.hasLabelMatches {
                         labelMatchSection
+                    } else if let outcome = viewModel.labelCheckOutcome {
+                        labelCheckNote(outcome)
                     }
 
                     if viewModel.isLoading {
@@ -249,6 +251,33 @@ struct AdvisorView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: Rückmeldung des lokalen Abgleichs
+
+    /// Macht sichtbar, dass zuerst ohne KI gesucht wurde – und warum das nichts ergab.
+    @ViewBuilder
+    private func labelCheckNote(_ outcome: PairingViewModel.LabelCheckOutcome) -> some View {
+        if outcome != .matched {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Zuerst ohne KI gesucht")
+                        .font(.subheadline.weight(.semibold))
+                    Text(outcome == .nothingStored
+                         ? "Bei keiner Flasche sind Speiseempfehlungen vom Etikett erfasst. Beim Scannen werden sie automatisch übernommen, sofern sie auf dem Etikett stehen."
+                         : "Kein Etikett nennt „\(viewModel.labelMatchDish)“.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 

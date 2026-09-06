@@ -34,6 +34,18 @@ struct AnthropicClient: AIProviderClient {
         // Adaptives Thinking zählt zum max_tokens-Budget. Ein zu knappes Budget führt dazu, dass das
         // Modell das Schema nur noch mit Minimal-Inhalten füllt („placeholder“, "x", 0). Deshalb
         // großzügiges Limit und moderater Denkaufwand – für ein Wein-Pairing reicht das völlig.
+        var outputConfig: [String: Any] = [
+            "format": [
+                "type": "json_schema",
+                "schema": schema
+            ]
+        ]
+        // Haiku kennt keinen Denkaufwand; das Feld würde die Anfrage scheitern lassen.
+        if !model.lowercased().contains("haiku") {
+            // Für Siri weniger Denkaufwand, damit die Antwort schnell kommt.
+            outputConfig["effort"] = speed == .fast ? "low" : "medium"
+        }
+
         let body: [String: Any] = [
             "model": model,
             "max_tokens": 16000,
@@ -41,14 +53,7 @@ struct AnthropicClient: AIProviderClient {
             "messages": [
                 ["role": "user", "content": user]
             ],
-            "output_config": [
-                // Für Siri weniger Denkaufwand, damit die Antwort schnell kommt.
-                "effort": speed == .fast ? "low" : "medium",
-                "format": [
-                    "type": "json_schema",
-                    "schema": schema
-                ]
-            ],
+            "output_config": outputConfig,
             "fallbacks": "default"
         ]
 

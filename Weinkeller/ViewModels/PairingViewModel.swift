@@ -24,10 +24,22 @@ final class PairingViewModel {
     var isLoading = false
     var response: PairingResponse?
 
+    /// Wie der lokale Abgleich mit den Etiketten ausgegangen ist.
+    enum LabelCheckOutcome: Equatable {
+        /// Mindestens ein Etikett nennt das Gericht.
+        case matched
+        /// Etiketten sind hinterlegt, keines passt zum Gericht.
+        case noMatch
+        /// Bei keiner Flasche im Keller sind Etikett-Angaben erfasst.
+        case nothingStored
+    }
+
     /// Treffer aus den Etiketten – ohne KI, ohne Kosten.
     private(set) var labelMatches: [LabelMatch] = []
     /// Für welches Gericht die Etikett-Treffer gelten.
     private(set) var labelMatchDish = ""
+    /// `nil`, solange noch nichts gesucht wurde.
+    private(set) var labelCheckOutcome: LabelCheckOutcome?
 
     /// Letzter Fehler, typisiert – damit die UI Titel und passende Aktionen anbieten kann.
     var error: AIServiceError?
@@ -66,8 +78,13 @@ final class PairingViewModel {
             }
             labelMatches = matches
             labelMatchDish = dish
-            // Treffer auf dem Etikett: keine Anfrage nötig.
-            if !matches.isEmpty { return }
+            if !matches.isEmpty {
+                labelCheckOutcome = .matched
+                // Treffer auf dem Etikett: keine Anfrage nötig.
+                return
+            }
+            // Unterscheiden, ob nichts passt oder schlicht nichts erfasst ist.
+            labelCheckOutcome = wines.contains { !$0.foodPairings.isEmpty } ? .noMatch : .nothingStored
         }
 
         guard settings.activeProvider != nil else {
@@ -102,6 +119,7 @@ final class PairingViewModel {
         error = nil
         labelMatches = []
         labelMatchDish = ""
+        labelCheckOutcome = nil
         resultProvider = nil
         resultModel = ""
         resultDish = ""

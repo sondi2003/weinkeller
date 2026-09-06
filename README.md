@@ -73,7 +73,7 @@ Alle drei Anbieter werden per Structured Output auf dasselbe JSON-Schema festgel
 |-----------|-------------------------------------------------------|--------------------------------------------|--------------------|
 | OpenAI    | `POST /v1/chat/completions`                           | `response_format: json_schema` (strict)    | `gpt-5`            |
 | Gemini    | `POST /v1beta/models/{model}:generateContent`         | `responseMimeType` + `responseSchema`      | `gemini-2.5-pro`   |
-| Anthropic | `POST /v1/messages`                                   | `output_config.format: json_schema`        | `claude-opus-5`    |
+| Anthropic | `POST /v1/messages`                                   | `output_config.format: json_schema`        | `claude-sonnet-5`  |
 
 Der Modellname ist pro Anbieter in den Einstellungen überschreibbar.
 
