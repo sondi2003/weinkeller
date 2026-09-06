@@ -37,7 +37,17 @@ final class PersistenceController: @unchecked Sendable {
     /// Ohne diese Warteschlange geht eine Einladung verloren, wenn der Link die App startet.
     private var pendingShareMetadata: [CKShare.Metadata] = []
 
+    /// Beobachter für die CloudKit-Ereignisse; festhalten, damit er nicht abgeräumt wird.
+    private var cloudEventObserver: NSObjectProtocol?
+
     var viewContext: NSManagedObjectContext { container.viewContext }
+
+    /// `false`, wenn der geteilte Speicher nicht geladen werden konnte.
+    ///
+    /// Dann kann keine Einladung angenommen werden, und die Einstellungen zeigen fälschlich
+    /// „Weinkeller teilen“, als wäre man Eigentümer ohne Freigabe. Ohne diese Auskunft ist
+    /// der Zustand von aussen nicht von „es wurde nichts geteilt“ zu unterscheiden.
+    var isSharedStoreAvailable: Bool { sharedStore != nil }
 
     /// - Parameters:
     ///   - inMemory: für Previews und Tests, schreibt nichts auf die Platte.
@@ -75,11 +85,14 @@ final class PersistenceController: @unchecked Sendable {
         }
 
         container.loadPersistentStores { [weak self] storeDescription, error in
+            let fileName = storeDescription.url?.lastPathComponent ?? "-"
             if let error {
-                Self.logger.error("Store konnte nicht geladen werden: \(error.localizedDescription)")
+                // Welcher Speicher betroffen ist, entscheidet alles: Fehlt der geteilte,
+                // kann keine Einladung angenommen werden und die App merkt es nie.
+                Self.logger.error("Store \(fileName, privacy: .public) nicht geladen: \(error.localizedDescription, privacy: .public)")
                 return
             }
-            Self.logger.info("Store geladen: \(storeDescription.url?.lastPathComponent ?? "-")")
+            Self.logger.info("Store geladen: \(fileName, privacy: .public)")
             guard let self, let url = storeDescription.url,
                   let store = self.container.persistentStoreCoordinator.persistentStore(for: url) else { return }
             switch storeDescription.cloudKitContainerOptions?.databaseScope {
@@ -91,6 +104,39 @@ final class PersistenceController: @unchecked Sendable {
         // Änderungen vom Gerät der Partnerin sollen ohne Zutun im UI ankommen.
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+
+        observeCloudKitEvents()
+    }
+
+    /// Schreibt mit, ob CloudKit Einrichtung, Empfang und Versand schafft.
+    ///
+    /// Ohne das scheitert der Abgleich lautlos: Auf dem Gerät des Gasts erscheinen einfach
+    /// keine Daten, und es gibt nichts, woran man die Ursache festmachen könnte. Die
+    /// Meldungen laufen unter demselben Subsystem wie der Rest der App und sind damit
+    /// über `log stream` oder die Konsole am Mac lesbar.
+    private func observeCloudKitEvents() {
+        cloudEventObserver = NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: container,
+            queue: .main
+        ) { notification in
+            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event,
+                  event.endDate != nil else { return }
+
+            let kind: String
+            switch event.type {
+            case .setup:  kind = "Einrichtung"
+            case .import: kind = "Empfangen"
+            case .export: kind = "Senden"
+            @unknown default: kind = "Unbekannt"
+            }
+            if let error = event.error {
+                Self.logger.error("CloudKit \(kind, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            } else {
+                Self.logger.info("CloudKit \(kind, privacy: .public) erfolgreich.")
+            }
+        }
     }
 
     /// Alle Flaschen, die aktuell trinkbereit im Keller liegen. Auch vom Siri-Intent genutzt.
@@ -111,6 +157,11 @@ final class PersistenceController: @unchecked Sendable {
         // Beides ist für CloudKit Pflicht.
         description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        // Nach jeder Modelländerung muss der bestehende Speicher mitwandern. Das ist zwar
+        // die Voreinstellung, steht hier aber ausdrücklich: Scheitert die Wanderung beim
+        // geteilten Speicher, verschwindet die Freigabe spurlos.
+        description.shouldMigrateStoreAutomatically = true
+        description.shouldInferMappingModelAutomatically = true
         guard useCloudKit else {
             description.cloudKitContainerOptions = nil
             return
@@ -133,16 +184,43 @@ final class PersistenceController: @unchecked Sendable {
     /// Apples Freigabe-Dialog übergeben.
     @MainActor
     func share(_ cellar: Cellar) async throws -> (CKShare, CKContainer) {
-        try await withCheckedThrowingContinuation { continuation in
+        let (share, cloudContainer) = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<(CKShare, CKContainer), Error>) in
             container.share([cellar], to: nil) { _, share, cloudContainer, error in
                 if let error {
                     continuation.resume(throwing: error)
                 } else if let share, let cloudContainer {
-                    // Titel, der in der Einladung erscheint.
-                    share[CKShare.SystemFieldKey.title] = "Weinkeller" as CKRecordValue
                     continuation.resume(returning: (share, cloudContainer))
                 } else {
                     continuation.resume(throwing: SharingError.notReady)
+                }
+            }
+        }
+        return (try await titled(share), cloudContainer)
+    }
+
+    /// Setzt den Titel der Einladung **und speichert ihn**.
+    ///
+    /// `container.share(...)` legt die Freigabe bereits auf dem Server ab. Ein danach
+    /// gesetzter Titel bleibt eine rein lokale Änderung; auf dem Server steht dann kein
+    /// Titel, und iOS zeigt der eingeladenen Person ersatzweise den internen Namen des
+    /// Datensatzes an – bei Core Data ist das „cloudkit.zoneshare“. Deshalb muss der
+    /// Titel mit `persistUpdatedShare` zurückgeschrieben werden, bevor die Einladung
+    /// verschickt wird.
+    private func titled(_ share: CKShare) async throws -> CKShare {
+        guard share[CKShare.SystemFieldKey.title] == nil, let store = privateStore else {
+            return share
+        }
+        share[CKShare.SystemFieldKey.title] = "Weinkeller" as CKRecordValue
+        return try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<CKShare, Error>) in
+            container.persistUpdatedShare(share, in: store) { updated, error in
+                if let error {
+                    Self.logger.error("Titel der Freigabe nicht gespeichert: \(error.localizedDescription)")
+                    // Ohne Titel ist die Einladung hässlich, aber brauchbar – nicht abbrechen.
+                    continuation.resume(returning: share)
+                } else {
+                    continuation.resume(returning: updated ?? share)
                 }
             }
         }

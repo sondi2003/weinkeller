@@ -15,6 +15,8 @@ struct CellarSharingSection: View {
     @State private var errorMessage: String?
     /// Ist der Keller von jemand anderem geteilt worden, gibt es hier nichts zu verwalten.
     @State private var isGuest = false
+    /// Konnte der geteilte Speicher nicht geladen werden, ist keine Einladung annehmbar.
+    @State private var isSharedStoreMissing = false
 
     /// Eingeladene Personen ohne den Eigentümer. Zählt auch Einladungen, die noch offen sind.
     private var participants: [CKShare.Participant] {
@@ -26,6 +28,20 @@ struct CellarSharingSection: View {
 
     var body: some View {
         Section {
+            if isSharedStoreMissing {
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Geteilte Ablage nicht verfügbar")
+                            .font(.body.weight(.semibold))
+                        Text("Solange sie fehlt, kann keine Einladung angenommen werden – ein mit dir geteilter Keller bliebe unsichtbar. Meist hilft ein Neustart der App; bleibt es dabei, prüfe die iCloud-Anmeldung.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+            }
             if isGuest {
                 Label {
                     Text("Ein Weinkeller wurde mit dir geteilt. Verwalten kann ihn nur die Person, die ihn freigegeben hat.")
@@ -110,6 +126,7 @@ struct CellarSharingSection: View {
     // MARK: Aktionen
 
     private func refresh() {
+        isSharedStoreMissing = !PersistenceController.shared.isSharedStoreAvailable
         // Gibt es einen Keller aus der geteilten Ablage, sind wir Gast.
         if Cellar.sharedWithMe(in: context) != nil {
             isGuest = true
