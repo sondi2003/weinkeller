@@ -25,13 +25,17 @@ struct AdvisorView: View {
                     dishInputCard
                     requestButton
 
+                    if viewModel.hasLabelMatches {
+                        labelMatchSection
+                    }
+
                     if viewModel.isLoading {
                         loadingCard
                     } else if let error = viewModel.error {
                         errorCard(error)
                     } else if let response = viewModel.response {
                         resultSection(response)
-                    } else {
+                    } else if !viewModel.hasLabelMatches {
                         introCard
                     }
                 }
@@ -105,7 +109,7 @@ struct AdvisorView: View {
                     .padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.canRequest(settings: settings, hasInventory: !availableWines.isEmpty))
+            .disabled(!viewModel.canRequest(hasInventory: !availableWines.isEmpty))
 
             hintLine
         }
@@ -125,24 +129,24 @@ struct AdvisorView: View {
                     .foregroundStyle(.secondary)
             }
         } else {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text("Noch kein API-Key hinterlegt.")
+            VStack(spacing: 4) {
+                Text("Ohne API-Key wird nur geprüft, ob ein Etikett das Gericht ausdrücklich nennt.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Button("Einstellungen") { selectedTab = .settings }
+                    .multilineTextAlignment(.center)
+                Button("API-Key hinterlegen") { selectedTab = .settings }
                     .font(.footnote.weight(.semibold))
             }
         }
     }
 
-    private func request() async {
+    private func request(forceAI: Bool = false) async {
         dishFieldFocused = false
         await viewModel.requestRecommendation(
-            inventory: availableWines.map(\.inventoryItem),
+            wines: availableWines,
             settings: settings,
-            service: aiService
+            service: aiService,
+            forceAI: forceAI
         )
     }
 
@@ -201,7 +205,7 @@ struct AdvisorView: View {
                     Label("Erneut versuchen", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!viewModel.canRequest(settings: settings, hasInventory: !availableWines.isEmpty))
+                .disabled(!viewModel.canRequest(hasInventory: !availableWines.isEmpty))
             }
         }
         .cardStyle()
@@ -248,6 +252,46 @@ struct AdvisorView: View {
         }
     }
 
+    // MARK: Treffer laut Etikett
+
+    /// Direkte Treffer aus den Etiketten – ohne KI-Anfrage, ohne Kosten.
+    private var labelMatchSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Laut Etikett passend zu „\(viewModel.labelMatchDish)“")
+                    .font(.headline)
+                Spacer()
+                Text("ohne KI")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.green.opacity(0.15), in: Capsule())
+                    .foregroundStyle(.green)
+            }
+
+            ForEach(viewModel.labelMatches) { match in
+                LabelMatchCard(wine: match.wine, terms: match.terms) {
+                    if match.wine.quantity > 0 {
+                        match.wine.consumeBottle()
+                        openedBottleCount += 1
+                    }
+                }
+            }
+
+            if viewModel.response == nil, !viewModel.isLoading, settings.activeProvider != nil {
+                Button {
+                    Task { await request(forceAI: true) }
+                } label: {
+                    Label("Zusätzlich die KI fragen", systemImage: "sparkles")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
     /// Ehrliche Absage: keine Flasche im Keller passt – mit Begründung und Kauftipp.
     private func noMatchCard(_ response: PairingResponse) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -289,6 +333,67 @@ struct AdvisorView: View {
         let name = recommendation.wineName.lowercased()
         return wines.first { $0.name.lowercased() == name && $0.vintage == recommendation.vintage }
             ?? wines.first { $0.name.lowercased() == name }
+    }
+}
+
+// MARK: - Karte für Etikett-Treffer
+
+/// Zeigt einen Wein, dessen Etikett das gesuchte Gericht ausdrücklich nennt.
+private struct LabelMatchCard: View {
+
+    let wine: Wine
+    let terms: [String]
+    let onOpenBottle: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                LabelThumbnail(wine: wine, size: 52)
+                VStack(alignment: .leading, spacing: 2) {
+                    if !wine.producer.isEmpty {
+                        Text(wine.producer)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Text(wine.name)
+                        .font(.headline)
+                    Text(wine.subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+
+            // Genau die Begriffe, die auf dem Etikett stehen.
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "tag")
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+                Text(terms.joined(separator: " · "))
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            HStack {
+                StockBadge(quantity: wine.quantity)
+                Spacer()
+                Button(action: onOpenBottle) {
+                    Label("Flasche öffnen", systemImage: "wineglass")
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .disabled(wine.isOutOfStock)
+            }
+        }
+        .cardStyle()
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.green.opacity(0.45), lineWidth: 1.5)
+        }
     }
 }
 

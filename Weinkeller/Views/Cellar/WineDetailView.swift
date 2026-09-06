@@ -17,6 +17,9 @@ struct WineDetailView: View {
             VStack(spacing: 16) {
                 header
                 stockCard
+                if !wine.foodPairings.isEmpty {
+                    pairingCard
+                }
                 WineOriginMapView(wine: wine)
                 if !wine.notes.isEmpty {
                     notesCard
@@ -130,6 +133,28 @@ struct WineDetailView: View {
                 CalloutBox(kind: .warning, text: "Keine Flasche mehr übrig. Du kannst den Wein archivieren oder löschen.")
             }
         }
+        .cardStyle()
+    }
+
+    // MARK: Speiseempfehlung vom Etikett
+
+    /// Nur sichtbar, wenn auf dem Etikett tatsächlich etwas dazu steht.
+    private var pairingCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Passt laut Etikett zu", systemImage: "fork.knife")
+                .font(.headline)
+            FlowLayout(spacing: 8) {
+                ForEach(wine.foodPairings, id: \.self) { pairing in
+                    Text(pairing)
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(wine.type.color.opacity(0.12), in: Capsule())
+                        .foregroundStyle(wine.type.color)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
 

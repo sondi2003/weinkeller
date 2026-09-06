@@ -14,6 +14,8 @@ struct WineLabelExtraction: Codable, Sendable, Equatable {
     var type: String = "unknown"
     var alcoholPercent: Double = 0
     var notes: String = ""
+    /// Speiseempfehlungen vom Etikett, auf Deutsch übersetzt.
+    var foodPairings: [String] = []
 
     /// Typ als App-Enum, falls erkannt.
     var wineType: WineType? {
@@ -69,9 +71,14 @@ enum LabelSchema {
                 "country": ["type": "string", "description": "Herkunftsland auf Deutsch, z. B. \"Frankreich\". Auch ableiten, wenn nur die Appellation genannt ist. Leer, wenn unklar."],
                 "type": ["type": "string", "enum": ["red", "white", "sparkling", "rose", "unknown"], "description": "Weintyp."],
                 "alcoholPercent": ["type": "number", "description": "Alkoholgehalt in Volumenprozent, 0 wenn unbekannt."],
-                "notes": ["type": "string", "description": "Kurze deutsche Notiz zu Terroir, Vinifikation und Ausbau (max. 2 Sätze). Leer, wenn nichts dazu auf dem Etikett steht."]
+                "notes": ["type": "string", "description": "Kurze deutsche Notiz zu Terroir, Vinifikation und Ausbau (max. 2 Sätze). Leer, wenn nichts dazu auf dem Etikett steht."],
+                "foodPairings": [
+                    "type": "array",
+                    "description": "Speiseempfehlungen, die auf dem Etikett stehen, ins Deutsche übersetzt. Je Eintrag ein kurzer Begriff, z. B. \"Gegrilltes Fleisch\". Leeres Array, wenn das Etikett nichts dazu sagt.",
+                    "items": ["type": "string"]
+                ]
             ],
-            "required": ["name", "producer", "vintage", "grape", "region", "country", "type", "alcoholPercent", "notes"]
+            "required": ["name", "producer", "vintage", "grape", "region", "country", "type", "alcoholPercent", "notes", "foodPairings"]
         ]
         if includeAdditionalProperties {
             schema["additionalProperties"] = false

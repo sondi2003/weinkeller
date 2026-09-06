@@ -126,6 +126,15 @@ struct WineFormView: View {
                     .animation(.snappy, value: viewModel.quantity)
                 }
 
+                Section {
+                    TextField("z. B. Gegrilltes Fleisch, Hartkäse", text: $viewModel.foodPairings, axis: .vertical)
+                        .lineLimit(1...3)
+                } header: {
+                    Text("Passt laut Etikett zu")
+                } footer: {
+                    Text("Kommagetrennt. Wird beim Scannen automatisch übernommen und ins Deutsche übersetzt.")
+                }
+
                 Section("Notizen") {
                     TextField("Terroir, Ausbau, „Geschenk von Anna“, „bis 2030 trinken“ …", text: $viewModel.notes, axis: .vertical)
                         .lineLimit(2...6)

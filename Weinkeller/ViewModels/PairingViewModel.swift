@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 /// Zustand des Tabs „Wein-Berater“: Eingabe, Ladezustand, Ergebnis, Fehler.
 @Observable
@@ -12,9 +13,21 @@ final class PairingViewModel {
         "Pizza Margherita", "Sushi", "Käseplatte", "Thai-Curry", "Apéro"
     ]
 
+    /// Ein Wein, dessen Etikett das gesuchte Gericht ausdrücklich nennt.
+    struct LabelMatch: Identifiable {
+        let wine: Wine
+        let terms: [String]
+        var id: PersistentIdentifier { wine.persistentModelID }
+    }
+
     var dish = ""
     var isLoading = false
     var response: PairingResponse?
+
+    /// Treffer aus den Etiketten – ohne KI, ohne Kosten.
+    private(set) var labelMatches: [LabelMatch] = []
+    /// Für welches Gericht die Etikett-Treffer gelten.
+    private(set) var labelMatchDish = ""
 
     /// Letzter Fehler, typisiert – damit die UI Titel und passende Aktionen anbieten kann.
     var error: AIServiceError?
@@ -26,20 +39,43 @@ final class PairingViewModel {
 
     var trimmedDish: String { dish.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    func canRequest(settings: AISettings, hasInventory: Bool) -> Bool {
-        !trimmedDish.isEmpty && !isLoading && settings.activeProvider != nil && hasInventory
+    var hasLabelMatches: Bool { !labelMatches.isEmpty }
+
+    /// Auch ohne API-Key möglich: Der Abgleich mit den Etiketten läuft lokal.
+    func canRequest(hasInventory: Bool) -> Bool {
+        !trimmedDish.isEmpty && !isLoading && hasInventory
     }
 
+    /// Sucht zuerst in den Etiketten. Nur wenn dort nichts steht – oder der Nutzer
+    /// ausdrücklich mehr will – wird die KI gefragt.
     func requestRecommendation(
-        inventory: [WineInventoryItem],
+        wines: [Wine],
         settings: AISettings,
-        service: AIService
+        service: AIService,
+        forceAI: Bool = false
     ) async {
         let dish = trimmedDish
         guard !dish.isEmpty else { return }
 
-        isLoading = true
         error = nil
+        if !forceAI {
+            response = nil
+            let matches = wines.compactMap { wine -> LabelMatch? in
+                let terms = LabelPairingMatcher.matchingTerms(dish: dish, pairings: wine.foodPairings)
+                return terms.isEmpty ? nil : LabelMatch(wine: wine, terms: terms)
+            }
+            labelMatches = matches
+            labelMatchDish = dish
+            // Treffer auf dem Etikett: keine Anfrage nötig.
+            if !matches.isEmpty { return }
+        }
+
+        guard settings.activeProvider != nil else {
+            error = .noProviderConfigured
+            return
+        }
+
+        isLoading = true
         response = nil
         defer { isLoading = false }
 
@@ -47,7 +83,7 @@ final class PairingViewModel {
         let model = settings.activeModel ?? ""
         do {
             let result = try await service.recommend(
-                PairingRequest(dish: dish, inventory: inventory),
+                PairingRequest(dish: dish, inventory: wines.map(\.inventoryItem)),
                 using: settings
             )
             response = result
@@ -64,6 +100,8 @@ final class PairingViewModel {
     func reset() {
         response = nil
         error = nil
+        labelMatches = []
+        labelMatchDish = ""
         resultProvider = nil
         resultModel = ""
         resultDish = ""

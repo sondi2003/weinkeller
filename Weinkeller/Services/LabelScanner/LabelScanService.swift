@@ -105,6 +105,7 @@ struct LabelScanService: Sendable {
         if merged.grape.isEmpty { merged.grape = fallback.grape }
         if merged.region.isEmpty { merged.region = fallback.region }
         if merged.country.isEmpty { merged.country = fallback.country }
+        if merged.foodPairings.isEmpty { merged.foodPairings = fallback.foodPairings }
         return merged
     }
 }

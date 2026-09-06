@@ -30,6 +30,8 @@ final class WineFormViewModel {
     var type: WineType
     var quantity: Int
     var notes: String
+    /// Kommagetrennt im Formular, als Liste am Wein.
+    var foodPairings: String
 
     /// Zugeschnittenes Etikett-Foto (JPEG), wird mit dem Wein gespeichert.
     var labelImageData: Data?
@@ -50,6 +52,7 @@ final class WineFormViewModel {
             type = .red
             quantity = 1
             notes = ""
+            foodPairings = ""
             labelImageData = nil
         case .edit(let wine):
             name = wine.name
@@ -61,6 +64,7 @@ final class WineFormViewModel {
             type = wine.type
             quantity = wine.quantity
             notes = wine.notes
+            foodPairings = wine.foodPairings.joined(separator: ", ")
             labelImageData = wine.labelImageData
         }
     }
@@ -88,6 +92,9 @@ final class WineFormViewModel {
         if !extraction.country.isEmpty { country = extraction.country }
         if let wineType = extraction.wineType { type = wineType }
         if let imageData = scan.labelImageData { labelImageData = imageData }
+        if !extraction.foodPairings.isEmpty {
+            foodPairings = extraction.foodPairings.joined(separator: ", ")
+        }
 
         var extraNotes: [String] = []
         if !extraction.notes.isEmpty { extraNotes.append(extraction.notes) }
@@ -99,6 +106,14 @@ final class WineFormViewModel {
             notes = ([existing] + extraNotes).filter { !$0.isEmpty }.joined(separator: "\n")
         }
         lastScanSource = scan.source
+    }
+
+    /// Kommaliste in einzelne Begriffe zerlegen.
+    private var pairingList: [String] {
+        foodPairings
+            .components(separatedBy: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 
     /// Schreibt das Formular in den Context (neu anlegen oder aktualisieren).
@@ -116,6 +131,7 @@ final class WineFormViewModel {
                 type: type,
                 quantity: quantity,
                 notes: trimmed(notes),
+                foodPairings: pairingList,
                 labelImageData: labelImageData
             )
             context.insert(wine)
@@ -129,6 +145,7 @@ final class WineFormViewModel {
             wine.type = type
             wine.quantity = max(0, quantity)
             wine.notes = trimmed(notes)
+            wine.foodPairings = pairingList
             wine.labelImageData = labelImageData
         }
     }

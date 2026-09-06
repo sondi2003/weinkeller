@@ -8,7 +8,7 @@ enum PreviewData {
     static let sampleWines: [Wine] = [
         Wine(name: "Les Murettes", producer: "Fendant", vintage: 2022, grape: "Chasselas", region: "Wallis", type: .white, quantity: 4),
         Wine(name: "Cannubi", producer: "Barolo", vintage: 2017, grape: "Nebbiolo", region: "Piemont", type: .red, quantity: 2, notes: "Ab 2027 trinken, vorher dekantieren."),
-        Wine(name: "La Pinède", producer: "Domaine La Tour Vieille", vintage: 2019, grape: "Grenache noir, Mourvèdre, Carignan", region: "Collioure", type: .red, quantity: 1, notes: "Schieferterrassen am Mittelmeer, lange Mazeration, Ausbau im Tank."),
+        Wine(name: "La Pinède", producer: "Domaine La Tour Vieille", vintage: 2019, grape: "Grenache noir, Mourvèdre, Carignan", region: "Collioure", country: "Frankreich", type: .red, quantity: 1, notes: "Schieferterrassen am Mittelmeer, lange Mazeration, Ausbau im Tank.", foodPairings: ["Gegrilltes Fleisch", "Lamm", "Hartkäse"]),
         Wine(name: "Riesling Kabinett", vintage: 2021, grape: "Riesling", region: "Mosel", type: .white, quantity: 0),
         Wine(name: "Franciacorta Brut", vintage: 2019, grape: "Chardonnay", region: "Lombardei", type: .sparkling, quantity: 3),
         Wine(name: "Whispering Angel", producer: "Château d'Esclans", vintage: 2023, grape: "Grenache", region: "Provence", type: .rose, quantity: 6),

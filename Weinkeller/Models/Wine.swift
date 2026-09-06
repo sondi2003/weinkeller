@@ -74,6 +74,10 @@ final class Wine {
     /// Freitext, z. B. Terroir, Vinifikation, "Geschenk von Anna", "bis 2030 trinken".
     var notes: String
 
+    /// Speiseempfehlungen, die auf dem Etikett stehen – auf Deutsch, z. B.
+    /// ["Gegrilltes Fleisch", "Hartkäse"]. Leer, wenn das Etikett nichts dazu sagt.
+    var foodPairings: [String] = []
+
     /// Zugeschnittenes Foto des Vorderseiten-Etiketts als JPEG. Liegt dank
     /// `externalStorage` als Datei neben der Datenbank, nicht in ihr.
     @Attribute(.externalStorage)
@@ -106,6 +110,7 @@ final class Wine {
         type: WineType,
         quantity: Int = 1,
         notes: String = "",
+        foodPairings: [String] = [],
         labelImageData: Data? = nil,
         isArchived: Bool = false,
         createdAt: Date = .now
@@ -119,6 +124,7 @@ final class Wine {
         self.type = type
         self.quantity = max(0, quantity)
         self.notes = notes
+        self.foodPairings = foodPairings
         self.labelImageData = labelImageData
         self.isArchived = isArchived
         self.createdAt = createdAt
@@ -185,6 +191,7 @@ final class Wine {
             region: ([region, country].filter { !$0.isEmpty }).joined(separator: ", "),
             type: type.displayName,
             notes: String(notes.prefix(300)),
+            labelPairings: foodPairings,
             quantity: quantity
         )
     }
@@ -203,5 +210,7 @@ struct WineInventoryItem: Codable, Hashable, Sendable {
     let type: String
     /// Terroir, Vinifikation, eigene Notizen – hilft der KI beim Pairing.
     let notes: String
+    /// Speiseempfehlungen laut Etikett.
+    let labelPairings: [String]
     let quantity: Int
 }

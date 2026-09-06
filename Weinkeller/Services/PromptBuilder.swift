@@ -29,7 +29,9 @@ enum PromptBuilder {
         ebenfalls auf true, nimm sie aber auf – der Gast will trotzdem etwas trinken.
         4. Begründe jede Empfehlung konkret anhand von Aromen, Säure, Tannin, Körper, Süße \
         und Textur des Gerichts. Nutze dafür auch Rebsorte, Region und Notizen (Terroir, \
-        Vinifikation) aus dem Inventar. Nenne auch, was nicht perfekt passt.
+        Vinifikation) aus dem Inventar. Nenne auch, was nicht perfekt passt. Steht in \
+        `labelPairings` eine Speiseempfehlung des Produzenten, die zum Gericht passt, gewichte \
+        das positiv und erwähne es kurz.
         5. Gib zu jeder Empfehlung einen kurzen Serviertipp (Trinktemperatur, Dekantieren, Glas).
         6. `shoppingTip`: Nenne immer, was klassisch zu diesem Gericht passen würde (Rebsorte, \
         Stil, Region) – ein bis zwei Sätze, als Kauftipp für das nächste Mal.
@@ -124,6 +126,11 @@ enum PromptBuilder {
         - alcoholPercent: Volumenprozent als Zahl, 0 wenn unbekannt.
         - notes: In ein bis zwei deutschen Sätzen, was für das Pairing wichtig ist: Terroir \
         (z. B. Schiefer), Vinifikation, Ausbau, Stil. Leer, wenn nichts dazu steht.
+        - foodPairings: Nur Speiseempfehlungen, die tatsächlich auf dem Etikett stehen \
+        (z. B. „Accompagne les viandes grillées“, „Ottimo con carni rosse“, „Passt zu Wild“). \
+        Übersetze sie ins Deutsche und gib kurze Begriffe zurück, einen pro Eintrag, \
+        z. B. ["Gegrilltes Fleisch", "Hartkäse"]. Steht nichts dazu auf dem Etikett, gib ein \
+        leeres Array zurück – leite nichts aus Rebsorte oder Region ab.
 
         Erfinde nichts. Unbekannte Felder bleiben leer bzw. 0.
         """

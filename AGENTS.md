@@ -69,6 +69,13 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - OCR und Regel-Parser lassen sich ohne Simulator prüfen: macOS-Harness mit `LabelTextRecognizer` + `HeuristicLabelParser` und Fotos via `CGImageSource` (siehe Tools-Abschnitt oben).
 - `Config/Info.plist`: Xcode überschreibt die Datei gelegentlich mit seiner In-Memory-Kopie, wenn das Projekt offen ist. Nach Änderungen prüfen, ob `NSCameraUsageDescription` noch drin ist.
 
+## Speiseempfehlung vom Etikett
+
+- `Wine.foodPairings: [String]` hält die Empfehlungen des Produzenten, immer auf Deutsch. Die KI übersetzt sie beim Scannen (`foodPairings` in `WineLabelExtraction`, `LabelSchema`, `GeneratedWineLabel`); der Prompt verbietet ausdrücklich, aus Rebsorte oder Region etwas abzuleiten. Steht nichts auf dem Etikett, bleibt das Array leer und die UI blendet den Abschnitt aus.
+- `LabelPairingMatcher` gleicht das eingegebene Gericht lokal gegen diese Begriffe ab: Wortabgleich mit Umlaut-Faltung, Mindestlänge 4, beide Richtungen („Lamm“ in „Lammbraten“, „Fisch“ in „Fisch und Meeresfrüchte“). **Keine Bedeutungsanalyse** – „Lasagne“ trifft „Pasta“ bewusst nicht, dafür ist die KI zuständig. Die Regel ist ohne UI testbar und gegen elf Fälle verifiziert.
+- Ablauf im Berater: erst der lokale Abgleich. Treffer → Anzeige ohne KI-Anfrage, dazu der Knopf „Zusätzlich die KI fragen“ (`forceAI: true`). Kein Treffer → normale KI-Anfrage. Der Knopf „Empfehlung holen“ ist deshalb **auch ohne API-Key aktiv**; `canRequest` darf keinen Provider verlangen.
+- Die Etikett-Empfehlungen gehen als `labelPairings` auch ins Inventar-JSON an die KI, die sie laut Prompt positiv gewichten soll.
+
 ## Herkunftskarte
 
 - `Services/RegionGeocoder.swift` löst „Region, Land“ über `CLGeocoder` auf. Kein API-Key, keine Standortfreigabe (Forward Geocoding braucht keine). Ergebnis wird am Wein gespeichert (`latitude`, `longitude`, `geocodedQuery`, `geocodedPlaceName`, `geocodePrecision`).
