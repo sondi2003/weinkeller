@@ -43,6 +43,8 @@ struct SettingsView: View {
                     Text("Steht bei deinen Weinbewertungen, damit beide Seiten sehen, von wem sie stammen. Den Namen kann iOS nicht selbst ermitteln, deshalb die Nachfrage.")
                 }
 
+                NotesMigrationSection()
+
                 CellarSharingSection()
 
                 Section {

@@ -135,6 +135,14 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Ablauf im Berater: erst der lokale Abgleich. Treffer → Anzeige ohne KI-Anfrage, dazu der Knopf „Zusätzlich die KI fragen“ (`forceAI: true`). Kein Treffer → normale KI-Anfrage. Der Knopf „Empfehlung holen“ ist deshalb **auch ohne API-Key aktiv**; `canRequest` darf keinen Provider verlangen.
 - Die Etikett-Empfehlungen gehen als `labelPairings` auch ins Inventar-JSON an die KI, die sie laut Prompt positiv gewichten soll.
 
+## Nachträgliche Übersetzung bestehender Notizen
+
+- Die automatische Übersetzung beim Scannen kam **später** als der Keller. Wer vorher erfasst oder aus der früheren Ablage übernommen hat, trägt fremdsprachige Notizen mit sich – `NotesMigration` (Services) holt das einmalig nach, ausgelöst über `NotesMigrationSection` in den Einstellungen.
+- **Ausschliesslich auf dem Gerät** (`LabelNotesTranslator.appleTranslation`, deshalb nicht mehr privat). Kein Rückfall auf die Cloud: Ein einzelner Knopfdruck über den ganzen Keller würde sonst je nach Bestand dutzende kostenpflichtige Anfragen auslösen. Fehlt ein Sprachpaket, bleibt die Notiz **unangetastet** und wird gezählt.
+- **Rückfrage vor dem Schreiben.** Der Durchlauf ersetzt vorhandenen Text und lässt sich nicht rückgängig machen, deshalb wird erst gezählt und die Zahl genannt (`confirmationDialog`), bevor irgendetwas geschrieben wird.
+- Archivierte Weine sind eingeschlossen (kein Filter auf `isArchived`), leere Notizen werden per Prädikat ausgeschlossen.
+- Verifiziert mit einem macOS-Harness gegen den **echten** Core-Data-Stack (`PersistenceController(inMemory: true, useCloudKit: false)`): drei fremdsprachige Notizen (fr, it, es – eine davon archiviert) korrekt übersetzt, deutsche Notiz und leere Notiz unangetastet, Cloud-Attrappe nie aufgerufen. Im Simulator ist **kein** Sprachpaket installiert; dort lässt sich nur der Fehlerpfad prüfen, und der lässt die Notiz erwartungsgemäss stehen.
+
 ## Doppelte Flaschen
 
 - `DuplicateFinder` (Services) vergleicht Name, Produzent und Jahrgang. Bewusst ohne UI und mit einem eigenen `Candidate`-Typ, damit sich die Regel am Mac gegen echte Fälle prüfen lässt – gegen zwölf Fälle verifiziert.

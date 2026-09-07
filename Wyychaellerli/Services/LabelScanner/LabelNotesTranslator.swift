@@ -77,7 +77,11 @@ enum LabelNotesTranslator {
     ///
     /// Ein fehlendes Paket wird bewusst **nicht** nachgeladen: Das ginge nur über einen
     /// Systemdialog aus einer View heraus, und der gehört nicht mitten in einen Scan.
-    private static func appleTranslation(of text: String, from language: NLLanguage) async -> String? {
+    ///
+    /// Nicht privat, weil die einmalige Nachübersetzung bestehender Notizen
+    /// (`NotesMigration`) ausschliesslich diesen Weg nutzen darf – ein Durchlauf über den
+    /// ganzen Keller würde sonst je nach Bestand dutzende Cloud-Anfragen auslösen.
+    static func appleTranslation(of text: String, from language: NLLanguage) async -> String? {
         #if canImport(Translation)
         guard #available(iOS 26.0, *) else { return nil }
         let source = Locale.Language(identifier: language.rawValue)
