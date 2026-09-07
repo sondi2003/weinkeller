@@ -22,6 +22,7 @@ struct RackView: View {
     @State private var fillingPosition: Position?
     /// Belegtes Fach, das gerade angetippt wurde.
     @State private var selectedSlot: Slot?
+    @State private var mergeResult: String?
 
     private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
 
@@ -34,7 +35,9 @@ struct RackView: View {
                     ContentUnavailableView {
                         Label("Noch kein Regal", systemImage: "square.grid.3x3")
                     } description: {
-                        Text("Lege dein Regal an, dann kannst du deine Flaschen darin einräumen und später wiederfinden.")
+                        // Hinweis auf den Abgleich: Wer hier vorschnell anlegt, hat gleich
+                        // zwei Regale, sobald das erste über iCloud eintrifft.
+                        Text("Lege dein Regal an, dann kannst du deine Flaschen darin einräumen und später wiederfinden.\n\nHast du auf einem anderen Gerät schon eines eingerichtet, warte kurz – es kommt über iCloud von selbst.")
                     } actions: {
                         Button("Regal anlegen") { createRack() }
                             .buttonStyle(.borderedProminent)
@@ -98,6 +101,10 @@ struct RackView: View {
                     .padding(.vertical, 8)
                 }
 
+                if duplicateCount > 0 {
+                    duplicateCard
+                }
+
                 if unplacedWines.isEmpty {
                     Label("Alle Flaschen sind eingeräumt.", systemImage: "checkmark.circle")
                         .font(.footnote)
@@ -126,7 +133,50 @@ struct RackView: View {
         .cardStyle()
     }
 
+    /// Mehrere Regale für denselben Keller – entstanden, wenn auf zwei Geräten angelegt
+    /// wurde, bevor das erste eingetroffen war.
+    private var duplicateCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Mehrere Regale gefunden", systemImage: "exclamationmark.triangle.fill")
+                .font(.headline)
+                .foregroundStyle(.orange)
+            Text(duplicateCount == 1
+                 ? "Es gibt ein zweites Regal für diesen Keller. Das passiert, wenn auf einem anderen Gerät eines angelegt wurde, bevor deines dort ankam."
+                 : "Es gibt \(duplicateCount) weitere Regale für diesen Keller. Das passiert, wenn auf anderen Geräten eines angelegt wurde, bevor deines dort ankam.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Button {
+                merge()
+            } label: {
+                Label("Regale zusammenführen", systemImage: "arrow.triangle.merge")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+            }
+            .buttonStyle(.bordered)
+            if let mergeResult {
+                Text(mergeResult)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
     // MARK: Daten
+
+    private var duplicateCount: Int {
+        guard let cellar = Cellar.current(in: context) else { return 0 }
+        return max(0, Rack.all(in: context, for: cellar).count - 1)
+    }
+
+    private func merge() {
+        guard let cellar = Cellar.current(in: context) else { return }
+        let result = Rack.mergeDuplicates(in: context, for: cellar)
+        mergeResult = result.released == 0
+            ? "\(result.moved) Fächer übernommen."
+            : "\(result.moved) Fächer übernommen, \(result.released) Flaschen aus dem Regal genommen, weil das Fach schon belegt war. Der Bestand ist unverändert."
+    }
 
     /// Weine mit Bestand, von denen noch nicht jede Flasche einen Platz hat.
     private var unplacedWines: [Wine] {

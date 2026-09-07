@@ -72,6 +72,42 @@ final class Rack: NSManagedObject, Identifiable {
         return racks.first { $0.cellar == cellar } ?? racks.first
     }
 
+    /// Alle Regale dieses Kellers, ältestes zuerst.
+    static func all(in context: NSManagedObjectContext, for cellar: Cellar) -> [Rack] {
+        all(in: context).filter { $0.cellar == cellar }
+    }
+
+    /// Führt mehrere Regale desselben Kellers zusammen.
+    ///
+    /// Das passiert, wenn auf einem zweiten Gerät „Regal anlegen“ getippt wird, bevor das
+    /// erste über iCloud eingetroffen ist. Behalten wird das **älteste**; die Fächer der
+    /// übrigen wandern hinüber. Ist ein Fach dort schon belegt, wird die Flasche nur aus
+    /// dem Regal genommen – der Bestand bleibt in jedem Fall unangetastet.
+    @discardableResult
+    static func mergeDuplicates(in context: NSManagedObjectContext, for cellar: Cellar) -> (moved: Int, released: Int) {
+        let racks = all(in: context, for: cellar)
+        guard let keeper = racks.first, racks.count > 1 else { return (0, 0) }
+
+        var taken = Set(keeper.placedSlots.map(\.position))
+        var moved = 0
+        var released = 0
+        for extra in racks.dropFirst() {
+            for slot in extra.placedSlots {
+                if taken.contains(slot.position) {
+                    context.delete(slot)
+                    released += 1
+                } else {
+                    slot.rack = keeper
+                    taken.insert(slot.position)
+                    moved += 1
+                }
+            }
+            context.delete(extra)
+        }
+        context.saveChanges()
+        return (moved, released)
+    }
+
     /// Das Regal des Kellers, angelegt falls noch keines da ist.
     @discardableResult
     static func findOrCreate(in context: NSManagedObjectContext, cellar: Cellar) -> Rack {
