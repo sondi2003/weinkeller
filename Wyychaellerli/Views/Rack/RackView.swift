@@ -22,6 +22,8 @@ struct RackView: View {
     @State private var fillingPosition: Position?
     /// Belegtes Fach, das gerade angetippt wurde.
     @State private var selectedSlot: Slot?
+    /// Wein aus der Liste „Noch nicht im Regal“, dessen Flaschen gerade verortet werden.
+    @State private var placingWine: Wine?
     @State private var mergeResult: String?
 
     private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
@@ -61,6 +63,9 @@ struct RackView: View {
             }
             .sheet(item: $fillingPosition) { position in
                 if let rack { SlotFillerView(rack: rack, position: position) }
+            }
+            .sheet(item: $placingWine) { wine in
+                WineRackSheet(wine: wine, mode: .place)
             }
             .confirmationDialog(
                 selectedSlot?.wine?.name ?? "",
@@ -122,11 +127,16 @@ struct RackView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Noch nicht im Regal")
                 .font(.headline)
-            Text("Tippe auf ein freies Fach, um eine dieser Flaschen einzuräumen.")
+            Text("Tippe auf einen Wein und wähle dann so viele Fächer, wie er Flaschen hat – nebeneinander oder verteilt. Oder tippe auf ein freies Fach für eine einzelne Flasche.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             ForEach(unplacedWines) { wine in
-                UnplacedWineRow(wine: wine)
+                Button {
+                    placingWine = wine
+                } label: {
+                    UnplacedWineRow(wine: wine)
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -250,7 +260,13 @@ private struct UnplacedWineRow: View {
             Text("\(wine.unplacedCount)×")
                 .font(.subheadline.monospacedDigit())
                 .foregroundStyle(.secondary)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Öffnet das Regal, um die Flaschen einzuräumen.")
     }
 }
 

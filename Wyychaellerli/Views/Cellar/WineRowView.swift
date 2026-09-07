@@ -14,10 +14,17 @@ struct WineRowView: View {
                 Text(wine.name)
                     .font(.body.weight(.semibold))
                     .lineLimit(1)
-                Text(wine.subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    // Die Flagge steht vor der Herkunft, weil sie dazugehört.
+                    if let flag = CountryFlag.emoji(for: wine.country) {
+                        Text(flag)
+                            .accessibilityLabel(wine.country)
+                    }
+                    Text(wine.subtitle)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .font(.subheadline)
                 // Nur die beiden Zustände, die zum Handeln auffordern. „Trinkreif“ und
                 // „zu jung“ stünden bei fast jeder Flasche und wären dann nur Rauschen.
                 if wine.needsDrinkingSoon {

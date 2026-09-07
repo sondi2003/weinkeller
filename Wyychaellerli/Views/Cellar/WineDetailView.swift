@@ -93,12 +93,25 @@ struct WineDetailView: View {
             Text(wine.subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text(wine.type.displayName)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(wine.type.color.opacity(0.15), in: Capsule())
-                .foregroundStyle(wine.type.color)
+            HStack(spacing: 8) {
+                Text(wine.type.displayName)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(wine.type.color.opacity(0.15), in: Capsule())
+                    .foregroundStyle(wine.type.color)
+                // Herkunftsland als zweite Kapsel: Flagge plus Name, damit die Flagge
+                // nicht geraten werden muss.
+                if let flag = CountryFlag.emoji(for: wine.country) {
+                    Text("\(flag) \(wine.country.trimmingCharacters(in: .whitespaces))")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color(.tertiarySystemFill), in: Capsule())
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Herkunft \(wine.country)")
+                }
+            }
             maturityRow
         }
         .frame(maxWidth: .infinity)
