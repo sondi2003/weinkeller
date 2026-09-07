@@ -79,9 +79,8 @@ struct RackGridView: View {
                         .font(.system(size: tile * 0.4, weight: .bold))
                         .foregroundStyle(.white)
                 } else if let slot, let wine = slot.wine {
-                    Image(systemName: wine.type.symbolName)
-                        .font(.system(size: tile * 0.42))
-                        .foregroundStyle(isHighlighted ? Color.accentColor : wine.type.color)
+                    BottleIcon(color: isHighlighted ? Color.accentColor : wine.type.color)
+                        .frame(width: tile * 0.34, height: tile * 0.72)
                 }
             }
             .frame(width: tile, height: tile)
@@ -113,6 +112,70 @@ struct RackGridView: View {
         if selected.contains(position) { return "Fach \(position.label), ausgewählt" }
         guard let wine = slot?.wine else { return "Fach \(position.label), frei" }
         return "Fach \(position.label), \(wine.name)"
+    }
+}
+
+/// Eine liegende Weinflasche als Silhouette, in der Farbe der Weinart.
+///
+/// SF Symbols kennt keine Weinflasche (nur `waterbottle`, eine Sportflasche), deshalb
+/// selbst gezeichnet. Als `Shape` skaliert sie verlustfrei auf jede Fachgrösse.
+struct BottleIcon: View {
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            BottleShape()
+                .fill(color)
+            // Etikett: ein heller Streifen auf dem Bauch, damit es als Flasche lesbar bleibt.
+            GeometryReader { proxy in
+                RoundedRectangle(cornerRadius: proxy.size.width * 0.08, style: .continuous)
+                    .fill(.white.opacity(0.55))
+                    .frame(width: proxy.size.width * 0.62, height: proxy.size.height * 0.24)
+                    .position(x: proxy.size.width / 2, y: proxy.size.height * 0.66)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Aufrecht stehende Flasche: Hals oben, Schulter, Bauch, flacher Boden.
+struct BottleShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        let neckW = w * 0.40
+        let neckH = h * 0.30
+        let shoulderH = h * 0.14
+        let corner = w * 0.14
+        let x0 = rect.minX
+        let y0 = rect.minY
+
+        var path = Path()
+        // Hals mit abgerundeter Öffnung.
+        path.move(to: CGPoint(x: x0 + (w - neckW) / 2, y: y0 + neckH))
+        path.addLine(to: CGPoint(x: x0 + (w - neckW) / 2, y: y0 + corner))
+        path.addQuadCurve(to: CGPoint(x: x0 + (w - neckW) / 2 + corner, y: y0),
+                          control: CGPoint(x: x0 + (w - neckW) / 2, y: y0))
+        path.addLine(to: CGPoint(x: x0 + (w + neckW) / 2 - corner, y: y0))
+        path.addQuadCurve(to: CGPoint(x: x0 + (w + neckW) / 2, y: y0 + corner),
+                          control: CGPoint(x: x0 + (w + neckW) / 2, y: y0))
+        path.addLine(to: CGPoint(x: x0 + (w + neckW) / 2, y: y0 + neckH))
+        // Schulter rechts, gerundet in den Bauch.
+        path.addQuadCurve(to: CGPoint(x: x0 + w, y: y0 + neckH + shoulderH),
+                          control: CGPoint(x: x0 + w, y: y0 + neckH))
+        // Bauch rechts bis zum Boden.
+        path.addLine(to: CGPoint(x: x0 + w, y: y0 + h - corner))
+        path.addQuadCurve(to: CGPoint(x: x0 + w - corner, y: y0 + h),
+                          control: CGPoint(x: x0 + w, y: y0 + h))
+        path.addLine(to: CGPoint(x: x0 + corner, y: y0 + h))
+        path.addQuadCurve(to: CGPoint(x: x0, y: y0 + h - corner),
+                          control: CGPoint(x: x0, y: y0 + h))
+        path.addLine(to: CGPoint(x: x0, y: y0 + neckH + shoulderH))
+        // Schulter links zurück zum Hals.
+        path.addQuadCurve(to: CGPoint(x: x0 + (w - neckW) / 2, y: y0 + neckH),
+                          control: CGPoint(x: x0, y: y0 + neckH))
+        path.closeSubpath()
+        return path
     }
 }
 
