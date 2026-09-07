@@ -62,6 +62,9 @@ struct CellarView: View {
             .sheet(item: $wineToRate) { wine in
                 RatingSheet(wine: wine)
             }
+            .sheet(item: $viewModel.wineToTakeFromRack) { wine in
+                WineRackSheet(wine: wine, mode: .take)
+            }
             .sensoryFeedback(.decrease, trigger: viewModel.consumeCount)
         }
     }

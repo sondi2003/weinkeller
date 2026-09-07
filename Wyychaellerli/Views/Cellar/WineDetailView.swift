@@ -12,12 +12,15 @@ struct WineDetailView: View {
     @State private var isConfirmingDelete = false
     @State private var consumeCount = 0
     @State private var isRating = false
+    /// Alle Flaschen liegen im Regal – dann muss beim Abbuchen das Fach gewählt werden.
+    @State private var isTakingFromRack = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 header
                 stockCard
+                WineRackCard(wine: wine)
                 RatingCard(wine: wine) { isRating = true }
                 if !wine.foodPairings.isEmpty {
                     pairingCard
@@ -43,6 +46,9 @@ struct WineDetailView: View {
         }
         .sheet(isPresented: $isRating) {
             RatingSheet(wine: wine)
+        }
+        .sheet(isPresented: $isTakingFromRack) {
+            WineRackSheet(wine: wine, mode: .take)
         }
         .confirmationDialog("Wein löschen?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
@@ -137,8 +143,14 @@ struct WineDetailView: View {
 
             HStack(spacing: 28) {
                 Button {
-                    wine.consumeBottle()
-                    consumeCount += 1
+                    // Solange Flaschen ohne Platz da sind, bleibt der schnelle Weg schnell.
+                    // Erst wenn alles verortet ist, muss klar sein, welches Fach frei wird.
+                    if wine.placedCount > 0, wine.unplacedCount == 0 {
+                        isTakingFromRack = true
+                    } else {
+                        wine.consumeBottle()
+                        consumeCount += 1
+                    }
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.system(size: 44))

@@ -36,6 +36,9 @@ final class CellarViewModel {
     /// Wird gesetzt, wenn durch „Flasche trinken“ die letzte Flasche abgebucht wurde.
     var justEmptiedWine: Wine?
 
+    /// Wein, für den das Fach zu wählen ist, weil alle Flaschen verortet sind.
+    var wineToTakeFromRack: Wine?
+
     /// Trigger für haptisches Feedback beim Abbuchen.
     var consumeCount = 0
 
@@ -78,6 +81,11 @@ final class CellarViewModel {
 
     func consume(_ wine: Wine) {
         guard wine.quantity > 0 else { return }
+        // Liegen alle Flaschen im Regal, wird das Fach gewählt statt blind abgebucht.
+        guard !(wine.placedCount > 0 && wine.unplacedCount == 0) else {
+            wineToTakeFromRack = wine
+            return
+        }
         wine.consumeBottle()
         consumeCount += 1
         if wine.isOutOfStock {

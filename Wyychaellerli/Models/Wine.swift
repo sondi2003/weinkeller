@@ -324,9 +324,24 @@ final class Wine: NSManagedObject, Identifiable {
     var isOutOfStock: Bool { quantity <= 0 }
 
     /// Eine Flasche abbuchen (Minus-Button). Fällt nie unter 0.
+    ///
+    /// Räumt nötigenfalls ein Fach mit: Wären hinterher mehr Fächer belegt als Flaschen
+    /// da sind, zeigte das Regal eine Flasche, die es nicht mehr gibt. Geräumt wird die
+    /// zuletzt eingeräumte – wer ein bestimmtes Fach meint, nimmt den Weg übers Regal.
     func consumeBottle() {
         guard quantity > 0 else { return }
         quantity -= 1
+        if placedCount > Int(quantity), let newest = placedSlots.max(by: { ($0.placedAt ?? .distantPast) < ($1.placedAt ?? .distantPast) }) {
+            managedObjectContext?.delete(newest)
+        }
+        managedObjectContext?.saveChanges()
+    }
+
+    /// Eine bestimmte Flasche aus dem Regal nehmen: Bestand runter, Fach frei.
+    func consumeBottle(from slot: Slot) {
+        guard quantity > 0 else { return }
+        quantity -= 1
+        managedObjectContext?.delete(slot)
         managedObjectContext?.saveChanges()
     }
 

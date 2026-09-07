@@ -177,6 +177,11 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - **Zeilen in Listen müssen den Wein per `@ObservedObject` beobachten.** Beim Einräumen ändert sich nur eine *Beziehung* des Weins; ohne Beobachtung bleibt „2×“ stehen, obwohl schon eine Flasche im Regal liegt. Genau dieser Fehler ist beim ersten Test aufgetreten – deshalb `UnplacedWineRow` und `CandidateRow` als eigene Ansichten.
 - `RackGridView` ist bewusst dumm und ohne Datenzugriff, damit dieselbe Darstellung später auf der Detailseite mit hervorgehobenem Fach dienen kann. Das Pulsieren respektiert `accessibilityReduceMotion`.
 - Fachbeschriftung für Menschen: Zeile als Buchstabe, Spalte als Zahl ab 1 – „B3“ (`Position.label`).
+- **Abbuchen kennt drei Wege, und die Regel dahinter ist eine.** Es darf nie mehr belegte Fächer geben als Flaschen.
+  - `WineRackCard` auf der Detailseite: Tipp auf ein pulsierendes Fach → Rückfrage → `consumeBottle(from:)` bucht ab **und** räumt genau dieses Fach.
+  - Minus-Knopf in Detailseite und Kellerliste: Sind noch Flaschen ohne Platz da, wird direkt abgebucht (schneller Weg bleibt schnell). Liegen **alle** im Regal, öffnet sich `WineRackSheet(mode: .take)`, damit klar ist, welches Fach frei wird.
+  - `consumeBottle()` ohne Fach (Wein-Berater, Sonderfälle) räumt zur Not das **zuletzt eingeräumte** Fach mit. Sonst zeigte das Regal eine Flasche, die es nicht mehr gibt.
+- `WineRackSheet` bedient Entnehmen und Einräumen mit derselben Darstellung; nur die bedienbaren Fächer unterscheiden sich. Nicht bedienbare Fächer bleiben sichtbar, damit man sich im Regal zurechtfindet.
 
 ## Bewertungen
 
