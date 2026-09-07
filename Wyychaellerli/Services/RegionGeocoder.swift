@@ -115,7 +115,7 @@ actor RegionGeocoder {
     // MARK: Plausibilitätsprüfung
 
     /// Der Treffer zählt nur, wenn Ort, Bezirk oder Verwaltungsgebiet der gesuchten Region
-    /// entspricht. `name` allein reicht nicht: Bei „Mosel“ heißt der Ortsteil von Zwickau
+    /// entspricht. `name` allein reicht nicht: Bei „Mosel“ heisst der Ortsteil von Zwickau
     /// ebenfalls „Mosel“, liegt aber 400 km vom Weinbaugebiet entfernt.
     nonisolated static func matches(_ placemark: CLPlacemark, region: String) -> Bool {
         matches(

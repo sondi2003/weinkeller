@@ -80,7 +80,7 @@ enum LabelSchema {
                 "grape": ["type": "string", "description": "Rebsorten, kommagetrennt, in Originalschreibweise. Leer, wenn unbekannt."],
                 "region": ["type": "string", "description": "Region oder Appellation, z. B. \"Collioure\". Leer, wenn unbekannt."],
                 "country": ["type": "string", "description": "Herkunftsland auf Deutsch, z. B. \"Frankreich\". Auch ableiten, wenn nur die Appellation genannt ist. Leer, wenn unklar."],
-                "type": ["type": "string", "enum": ["red", "white", "sparkling", "rose", "mulled", "unknown"], "description": "Weintyp. \"mulled\" für Glühwein und verwandte Winter-Heißgetränke."],
+                "type": ["type": "string", "enum": ["red", "white", "sparkling", "rose", "mulled", "unknown"], "description": "Weintyp. \"mulled\" für Glühwein und verwandte Winter-Heissgetränke."],
                 "alcoholPercent": ["type": "number", "description": "Alkoholgehalt in Volumenprozent, 0 wenn unbekannt."],
                 "notes": ["type": "string", "description": "Kurze Notiz zu Terroir, Vinifikation und Ausbau (max. 2 Sätze), zwingend auf Deutsch – fremdsprachigen Etikett-Text übersetzen, nicht kopieren. Leer, wenn nichts dazu auf dem Etikett steht."],
                 "foodPairings": [

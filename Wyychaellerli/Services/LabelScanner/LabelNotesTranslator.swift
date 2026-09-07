@@ -13,7 +13,7 @@ import Translation
 /// Rückseitentext gern wörtlich. Deshalb wird hinterher **geprüft** statt gehofft.
 ///
 /// Reihenfolge, absichtlich vom Billigsten zum Teuersten:
-/// 1. Apples Übersetzung auf dem Gerät – kostenlos, offline, keine Anfrage nach außen.
+/// 1. Apples Übersetzung auf dem Gerät – kostenlos, offline, keine Anfrage nach aussen.
 ///    Braucht iOS 26 und ein bereits geladenes Sprachpaket.
 /// 2. Der aktive Cloud-Anbieter – kostet eine zusätzliche Anfrage, aber nur dann,
 ///    wenn die Notiz wirklich fremdsprachig ist.
@@ -77,11 +77,7 @@ enum LabelNotesTranslator {
     ///
     /// Ein fehlendes Paket wird bewusst **nicht** nachgeladen: Das ginge nur über einen
     /// Systemdialog aus einer View heraus, und der gehört nicht mitten in einen Scan.
-    ///
-    /// Nicht privat, weil die einmalige Nachübersetzung bestehender Notizen
-    /// (`NotesMigration`) ausschliesslich diesen Weg nutzen darf – ein Durchlauf über den
-    /// ganzen Keller würde sonst je nach Bestand dutzende Cloud-Anfragen auslösen.
-    static func appleTranslation(of text: String, from language: NLLanguage) async -> String? {
+    private static func appleTranslation(of text: String, from language: NLLanguage) async -> String? {
         #if canImport(Translation)
         guard #available(iOS 26.0, *) else { return nil }
         let source = Locale.Language(identifier: language.rawValue)

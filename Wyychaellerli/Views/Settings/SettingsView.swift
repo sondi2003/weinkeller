@@ -43,8 +43,6 @@ struct SettingsView: View {
                     Text("Steht bei deinen Weinbewertungen, damit beide Seiten sehen, von wem sie stammen. Den Namen kann iOS nicht selbst ermitteln, deshalb die Nachfrage.")
                 }
 
-                NotesMigrationSection()
-
                 CellarSharingSection()
 
                 Section {
@@ -69,11 +67,11 @@ struct SettingsView: View {
                     Text("Anbieter")
                 } footer: {
                     if settings.hasMultipleProviders {
-                        Text("Du hast mehrere Keys hinterlegt. Der bevorzugte wird für Empfehlungen verwendet. API-Keys liegen ausschließlich in der Keychain dieses Geräts.")
+                        Text("Du hast mehrere Keys hinterlegt. Der bevorzugte wird für Empfehlungen verwendet. API-Keys liegen ausschliesslich in der Keychain dieses Geräts.")
                     } else if settings.activeProvider == nil {
-                        Text("Der Wein-Berater braucht einen API-Key. Trage ihn bei einem Anbieter ein – er wird dann automatisch verwendet. Keys liegen ausschließlich in der Keychain dieses Geräts.")
+                        Text("Der Wein-Berater braucht einen API-Key. Trage ihn bei einem Anbieter ein – er wird dann automatisch verwendet. Keys liegen ausschliesslich in der Keychain dieses Geräts.")
                     } else {
-                        Text("Der Anbieter mit hinterlegtem Key wird automatisch verwendet. API-Keys liegen ausschließlich in der Keychain dieses Geräts und gehen nur an den jeweiligen Anbieter.")
+                        Text("Der Anbieter mit hinterlegtem Key wird automatisch verwendet. API-Keys liegen ausschliesslich in der Keychain dieses Geräts und gehen nur an den jeweiligen Anbieter.")
                     }
                 }
 

@@ -69,7 +69,7 @@ final class LabelScanViewModel {
 
     // MARK: Bild-Konvertierung
 
-    /// `UIImage` → `CGImage` + Ausrichtung, ggf. auf eine sinnvolle Größe verkleinert.
+    /// `UIImage` → `CGImage` + Ausrichtung, ggf. auf eine sinnvolle Grösse verkleinert.
     private static func scanImage(from photo: Photo) -> ScanImage? {
         let resized = photo.image.resizedForRecognition(maxDimension: 2400)
         guard let cgImage = resized.cgImage else { return nil }
@@ -100,8 +100,8 @@ extension CGImagePropertyOrientation {
 }
 
 extension UIImage {
-    /// Verkleinert sehr große Fotos, damit die Texterkennung schnell bleibt.
-    /// Behält die Orientierung bei, die Vision anschließend berücksichtigt.
+    /// Verkleinert sehr grosse Fotos, damit die Texterkennung schnell bleibt.
+    /// Behält die Orientierung bei, die Vision anschliessend berücksichtigt.
     func resizedForRecognition(maxDimension: CGFloat) -> UIImage {
         let largest = max(size.width, size.height)
         guard largest > maxDimension, let cgImage else { return self }

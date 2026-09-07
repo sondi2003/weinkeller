@@ -159,7 +159,7 @@ private struct LabelPhotoSlot: View {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(Color(.secondarySystemGroupedBackground))
                     if let photo {
-                        // Color.clear gibt die Größe vor, das Overlay füllt sie und wird beschnitten.
+                        // Color.clear gibt die Grösse vor, das Overlay füllt sie und wird beschnitten.
                         Color.clear
                             .overlay {
                                 Image(uiImage: photo.image)

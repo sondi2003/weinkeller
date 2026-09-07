@@ -155,7 +155,7 @@ struct CalloutBox: View {
     }
 }
 
-/// Karten-Hintergrund für Cards außerhalb von Listen.
+/// Karten-Hintergrund für Cards ausserhalb von Listen.
 struct CardBackground: ViewModifier {
     func body(content: Content) -> some View {
         content

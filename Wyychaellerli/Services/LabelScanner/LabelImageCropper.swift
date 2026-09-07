@@ -18,7 +18,7 @@ struct LabelCropResult: Sendable {
 ///
 /// 1. Dokument-Segmentierung (Vision, ML-basiert): findet die Etikettenkante auch auf
 ///    dunklem, gewölbtem Glas. Das Ergebnis wird perspektivisch entzerrt.
-/// 2. Sonst Rechteck-Erkennung: Wenn ein erkanntes Rechteck den Großteil des Textes enthält.
+/// 2. Sonst Rechteck-Erkennung: Wenn ein erkanntes Rechteck den Grossteil des Textes enthält.
 /// 3. Sonst: Umriss aller Textzeilen plus Rand – aber nur, wenn das Bild nicht ohnehin
 ///    schon fast nur aus Etikett besteht.
 /// 4. Sonst: das ganze Bild.
@@ -101,7 +101,7 @@ enum LabelImageCropper {
     /// Zwei Prüfungen halten Fehltreffer ab:
     /// - **Fläche**: Deckt das Viereck fast das ganze Bild, ist nichts gefunden worden
     ///   (das passiert bei bereits zugeschnittenen Bildern). Dann lieber nicht schneiden.
-    /// - **Text**: Das Viereck muss den Großteil der erkannten Zeilen enthalten, sonst
+    /// - **Text**: Das Viereck muss den Grossteil der erkannten Zeilen enthalten, sonst
     ///   wurde etwas anderes gefunden – ein Buch, ein Tisch, ein Blatt Papier daneben.
     private static func detectLabelDocument(in image: ScanImage, containing textBoxes: [CGRect]) -> VNRectangleObservation? {
         guard !textBoxes.isEmpty else { return nil }
@@ -160,7 +160,7 @@ enum LabelImageCropper {
         return best.observation
     }
 
-    /// Vergrößert das Viereck um seinen Schwerpunkt, damit Ränder nicht abgeschnitten werden.
+    /// Vergrössert das Viereck um seinen Schwerpunkt, damit Ränder nicht abgeschnitten werden.
     private static func grown(_ o: VNRectangleObservation, by factor: CGFloat) -> Quad {
         let corners = [o.topLeft, o.topRight, o.bottomLeft, o.bottomRight]
         let centroid = CGPoint(

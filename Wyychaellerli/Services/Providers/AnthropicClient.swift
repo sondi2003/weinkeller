@@ -6,7 +6,7 @@ import Foundation
 /// Auth:     `x-api-key: <key>` + `anthropic-version: 2023-06-01`
 ///
 /// Hinweise zum Standardmodell `claude-opus-5`:
-/// - Adaptives Thinking ist standardmäßig aktiv; der `thinking`-Parameter wird deshalb weggelassen.
+/// - Adaptives Thinking ist standardmässig aktiv; der `thinking`-Parameter wird deshalb weggelassen.
 /// - Server-seitige Fallbacks (`fallbacks: "default"`) sind aktiviert: sollte ein Safety-Filter
 ///   die Anfrage ablehnen, beantwortet Anthropic sie im selben Call mit einem Ersatzmodell.
 ///   Bei einem Wein-Berater praktisch irrelevant, kostet aber nichts. Wer das nicht möchte,
@@ -33,7 +33,7 @@ struct AnthropicClient: AIProviderClient {
     ) async throws -> String {
         // Adaptives Thinking zählt zum max_tokens-Budget. Ein zu knappes Budget führt dazu, dass das
         // Modell das Schema nur noch mit Minimal-Inhalten füllt („placeholder“, "x", 0). Deshalb
-        // großzügiges Limit und moderater Denkaufwand – für ein Wein-Pairing reicht das völlig.
+        // grosszügiges Limit und moderater Denkaufwand – für ein Wein-Pairing reicht das völlig.
         var outputConfig: [String: Any] = [
             "format": [
                 "type": "json_schema",

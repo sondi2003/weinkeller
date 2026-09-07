@@ -238,7 +238,30 @@ final class PersistenceController: @unchecked Sendable {
 
     /// Bereits bestehende Freigabe zu einem Keller, falls vorhanden.
     func existingShare(for cellar: Cellar) -> CKShare? {
-        try? container.fetchShares(matching: [cellar.objectID])[cellar.objectID]
+        // Zuerst über das Objekt. Das ist der genaue Weg, setzt aber voraus, dass die
+        // Zuordnung Objekt → Datensatz auf diesem Gerät schon steht.
+        if let matched = try? container.fetchShares(matching: [cellar.objectID])[cellar.objectID] {
+            return matched
+        }
+        // Auf einem **zweiten Gerät derselben Apple-ID** kam damit nichts zurück, obwohl die
+        // Freigabe bestand: Der Keller wird beim Freigeben in eine eigene Zone verschoben,
+        // und die Zuordnung des lokalen Objekts dorthin ist nicht sofort da. Der Speicher
+        // selbst kennt die Freigabe aber. Da es nur einen eigenen Keller gibt, ist die
+        // erste Freigabe im privaten Speicher die richtige.
+        return sharesInPrivateStore().first
+    }
+
+    /// Alle Freigaben, die der private Speicher kennt.
+    func sharesInPrivateStore() -> [CKShare] {
+        guard let privateStore else { return [] }
+        let shares = (try? container.fetchShares(in: privateStore)) ?? []
+        // Mitgeloggt, weil sich sonst nicht unterscheiden lässt, ob die Freigabe fehlt
+        // oder nur ihre Teilnehmerliste noch nicht angekommen ist.
+        for share in shares {
+            let others = share.participants.filter { $0.role != .owner }.count
+            Self.logger.info("Freigabe im privaten Speicher, \(others) Teilnehmer ausser dem Eigentümer.")
+        }
+        return shares
     }
 
     /// Nimmt eine Einladung an, die über den Freigabe-Link geöffnet wurde.

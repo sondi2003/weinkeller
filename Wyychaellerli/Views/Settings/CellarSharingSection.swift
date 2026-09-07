@@ -135,7 +135,13 @@ struct CellarSharingSection: View {
         }
         isGuest = false
         // Bewusst ohne Anlegen: Das blosse Öffnen der Einstellungen soll keinen Keller erzeugen.
-        share = Cellar.own(in: context).flatMap { PersistenceController.shared.existingShare(for: $0) }
+        if let cellar = Cellar.own(in: context) {
+            share = PersistenceController.shared.existingShare(for: cellar)
+        } else {
+            // Zweites Gerät, auf dem der Keller noch nicht eingetroffen ist: Die Freigabe
+            // kann trotzdem schon im Speicher liegen.
+            share = PersistenceController.shared.sharesInPrivateStore().first
+        }
     }
 
     /// Übersetzt die technischen CloudKit-Meldungen in etwas Lesbares.

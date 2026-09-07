@@ -6,13 +6,13 @@ import UIKit
 /// Vorher lief das über Apples Dokumentenscanner (`VNDocumentCameraViewController`).
 /// Der ist auf Papier ausgelegt: Er sucht ein helles Blatt vor dunklem Grund und liefert
 /// nur sein eigenes Ergebnis zurück, nie das Originalbild. Bei einem Etikett auf einer
-/// runden, dunklen Flasche rastet sein Rahmen regelmäßig auf der Flaschenkontur statt auf
+/// runden, dunklen Flasche rastet sein Rahmen regelmässig auf der Flaschenkontur statt auf
 /// dem Etikett ein – dann steckt Glas und Hintergrund im Bild und muss von Hand
 /// nachgeschnitten werden. Und weil das Original verworfen ist, kann die App das
 /// nachträglich nicht mehr geradebiegen.
 ///
 /// Deshalb hier eine schlichte Aufnahme des ganzen Bildes. Die Etikettenkante findet
-/// anschließend `LabelImageCropper` mit Apples Dokument-Segmentierung auf dem vollen Foto.
+/// anschliessend `LabelImageCropper` mit Apples Dokument-Segmentierung auf dem vollen Foto.
 struct CameraCaptureView: UIViewControllerRepresentable {
 
     static var isSupported: Bool {

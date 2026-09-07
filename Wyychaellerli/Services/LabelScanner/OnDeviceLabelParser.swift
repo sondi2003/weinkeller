@@ -63,7 +63,7 @@ struct GeneratedWineLabel {
     @Guide(description: "Herkunftsland auf Deutsch, z. B. Frankreich. Leer wenn unklar.")
     var country: String
 
-    @Guide(description: "Weintyp: genau einer von red, white, sparkling, rose, mulled, unknown. mulled steht für Glühwein und ähnliche Winter-Heißgetränke und geht vor der Farbangabe.")
+    @Guide(description: "Weintyp: genau einer von red, white, sparkling, rose, mulled, unknown. mulled steht für Glühwein und ähnliche Winter-Heissgetränke und geht vor der Farbangabe.")
     var type: String
 
     @Guide(description: "Alkoholgehalt in Volumenprozent, 0 wenn unbekannt")
