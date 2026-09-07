@@ -83,27 +83,39 @@ final class Rack: NSManagedObject, Identifiable {
     /// erste über iCloud eingetroffen ist. Behalten wird das **älteste**; die Fächer der
     /// übrigen wandern hinüber. Ist ein Fach dort schon belegt, wird die Flasche nur aus
     /// dem Regal genommen – der Bestand bleibt in jedem Fall unangetastet.
+    ///
+    /// Waren die Regale unterschiedlich gross, wächst das behaltene so weit mit, dass jedes
+    /// übernommene Fach im Raster liegt. Ohne das läge eine Flasche zwar als verortet in der
+    /// Datenbank, wäre aber in keinem Fach zu sehen.
     @discardableResult
     static func mergeDuplicates(in context: NSManagedObjectContext, for cellar: Cellar) -> (moved: Int, released: Int) {
         let racks = all(in: context, for: cellar)
         guard let keeper = racks.first, racks.count > 1 else { return (0, 0) }
 
         var taken = Set(keeper.placedSlots.map(\.position))
+        var neededRows = keeper.rowCount
+        var neededColumns = keeper.columnCount
         var moved = 0
         var released = 0
         for extra in racks.dropFirst() {
             for slot in extra.placedSlots {
-                if taken.contains(slot.position) {
+                let position = slot.position
+                let fits = position.row < rowRange.upperBound && position.column < columnRange.upperBound
+                if taken.contains(position) || !fits {
                     context.delete(slot)
                     released += 1
                 } else {
                     slot.rack = keeper
-                    taken.insert(slot.position)
+                    taken.insert(position)
+                    neededRows = max(neededRows, position.row + 1)
+                    neededColumns = max(neededColumns, position.column + 1)
                     moved += 1
                 }
             }
             context.delete(extra)
         }
+        keeper.rows = Int64(neededRows)
+        keeper.columns = Int64(neededColumns)
         context.saveChanges()
         return (moved, released)
     }

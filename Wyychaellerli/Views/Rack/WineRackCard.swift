@@ -23,6 +23,15 @@ struct WineRackCard: View {
 
     private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
 
+    /// Nur die Fächer im **gezeigten** Regal.
+    ///
+    /// Solange zwei Regale desselben Kellers nebeneinander liegen, gehören manche Fächer des
+    /// Weins zum anderen Regal. Ungefiltert würden deren Positionen hier im falschen Raster
+    /// aufleuchten und ins Leere zeigen.
+    private func ownSlots(in rack: Rack) -> [Slot] {
+        wine.placedSlots.filter { $0.rack == rack }
+    }
+
     var body: some View {
         if let rack, wine.placedCount > 0 || wine.canPlaceAnotherBottle {
             VStack(alignment: .leading, spacing: 12) {
@@ -35,13 +44,13 @@ struct WineRackCard: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if wine.placedCount > 0 {
+                if !ownSlots(in: rack).isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         RackGridView(
                             rows: rack.rowCount,
                             columns: rack.columnCount,
                             occupancy: rack.occupancy(),
-                            highlighted: Set(wine.placedSlots.map(\.position)),
+                            highlighted: Set(ownSlots(in: rack).map(\.position)),
                             tile: rack.columnCount > 10 ? 30 : 38
                         ) { position in
                             guard let slot = rack.occupancy()[position], slot.wine == wine else { return }
@@ -49,7 +58,7 @@ struct WineRackCard: View {
                         }
                         .padding(.vertical, 6)
                     }
-                    Text(positionsLine)
+                    Text(positionsLine(in: rack))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -98,8 +107,8 @@ struct WineRackCard: View {
         return "\(wine.placedCount) von \(wine.quantity) verortet"
     }
 
-    private var positionsLine: String {
-        let labels = wine.placedSlots.map(\.position.label)
+    private func positionsLine(in rack: Rack) -> String {
+        let labels = ownSlots(in: rack).map(\.position.label)
         if labels.count == 1 { return "Fach \(labels[0]). Tippen entnimmt die Flasche." }
         return "Fächer \(labels.joined(separator: ", ")). Tippen entnimmt die Flasche."
     }
