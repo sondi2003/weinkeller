@@ -11,6 +11,7 @@ struct CellarView: View {
     ) private var fetchedWines: FetchedResults<Wine>
     @State private var viewModel = CellarViewModel()
     @State private var isShowingRatings = false
+    @State private var isShowingRack = false
     /// Wein, der gerade bewertet wird – nach dem Austrinken der letzten Flasche.
     @State private var wineToRate: Wine?
 
@@ -30,6 +31,9 @@ struct CellarView: View {
             .toolbar { toolbarContent }
             .sheet(isPresented: $isShowingRatings) {
                 RatingsOverviewView()
+            }
+            .sheet(isPresented: $isShowingRack) {
+                RackView()
             }
             .searchable(text: $viewModel.searchText, prompt: "Name, Rebsorte, Region, Jahrgang")
             .sheet(item: $viewModel.addMode) { mode in
@@ -217,6 +221,11 @@ struct CellarView: View {
                     Label("Nur was dran ist", systemImage: "clock.badge.exclamationmark")
                 }
                 Divider()
+                Button {
+                    isShowingRack = true
+                } label: {
+                    Label("Regal", systemImage: "square.grid.3x3")
+                }
                 Button {
                     isShowingRatings = true
                 } label: {

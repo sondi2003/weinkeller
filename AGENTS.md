@@ -168,6 +168,16 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - „Bestand erhöhen“ bucht auf den bestehenden Eintrag, holt ihn bei Bedarf aus dem Archiv (`isArchived = false`) und ergänzt **fehlende** Etikettfotos aus dem frischen Scan, ersetzt aber nie vorhandene. „Trotzdem neu anlegen“ setzt `ignoresDuplicates` und blendet den Hinweis für diesen Vorgang aus.
 - Nur im Modus `.add`. Beim Bearbeiten wäre der eigene Eintrag der Treffer.
 
+## Regal
+
+- **`Rack`** ist ein Raster aus `rows` × `columns`, **`Slot`** eine Flasche an einer Position. Beide hängen am **Keller**, nicht frei im Raum: Die Freigabe teilt den Objektbaum ab dem Keller, ein Regal daneben wäre bei der Partnerin unsichtbar.
+- **Leere Fächer haben kein Objekt.** Ein `Slot` entsteht erst beim Einräumen; frei ist, wofür kein Slot existiert. Damit kostet ein grosses Regal nichts, und Zeilen oder Spalten lassen sich jederzeit ändern. Beim Verkleinern nennt `RackEditorView` die Zahl der Flaschen ausserhalb des Rasters, bevor deren Fächer geräumt werden.
+- **Die Stückzahl am Wein bleibt massgebend, Verorten ist freiwillig.** `placedCount` ≤ `quantity`, die Differenz ist `unplacedCount`. Der umgekehrte Weg – Stückzahl aus den Fächern ableiten – hätte Minus-Knopf, Wein-Berater und Doppelerkennung mitgerissen, die alle `quantity` lesen.
+- Einstieg beim Einräumen ist das **Fach**, nicht der Wein: Man steht vor dem Regal, hat eine Flasche in der Hand und sucht ein freies Fach. `SlotFillerView` zeigt nur Weine mit `canPlaceAnotherBottle`, sonst stünde im Regal eine Flasche, die es im Keller nicht gibt.
+- **Zeilen in Listen müssen den Wein per `@ObservedObject` beobachten.** Beim Einräumen ändert sich nur eine *Beziehung* des Weins; ohne Beobachtung bleibt „2×“ stehen, obwohl schon eine Flasche im Regal liegt. Genau dieser Fehler ist beim ersten Test aufgetreten – deshalb `UnplacedWineRow` und `CandidateRow` als eigene Ansichten.
+- `RackGridView` ist bewusst dumm und ohne Datenzugriff, damit dieselbe Darstellung später auf der Detailseite mit hervorgehobenem Fach dienen kann. Das Pulsieren respektiert `accessibilityReduceMotion`.
+- Fachbeschriftung für Menschen: Zeile als Buchstabe, Spalte als Zahl ab 1 – „B3“ (`Position.label`).
+
 ## Bewertungen
 
 - **Eigene Entität `Rating`, nicht Felder am Wein.** In einem geteilten Keller bewerten beide Seiten unabhängig, oft gleichzeitig auf verschiedenen Geräten. Als Felder am Wein würde die zweite Bewertung die erste überschreiben, sobald CloudKit zusammenführt. Eine Bewertung je Person und Wein, nicht je Flasche.

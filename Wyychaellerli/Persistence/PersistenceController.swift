@@ -410,7 +410,102 @@ final class PersistenceController: @unchecked Sendable {
         wine.properties.append(ratingsRelation)
         rating.properties.append(ratedWineRelation)
 
-        model.entities = [cellar, wine, rating]
+        // Regal und Plätze.
+        //
+        // Beide hängen am Keller, nicht frei im Raum: Die Freigabe teilt den Objektbaum ab
+        // dem Keller. Ein Regal daneben wäre auf dem Gerät der Partnerin unsichtbar.
+        //
+        // **Leere Plätze bekommen kein Objekt.** Ein `Slot` entsteht erst, wenn eine Flasche
+        // hineinkommt. Das Raster ergibt sich aus `rows` × `columns`, freie Fächer sind
+        // schlicht die, für die kein Slot existiert. So kostet ein grosses Regal nichts,
+        // und Zeilen oder Spalten lassen sich jederzeit ändern.
+        let rack = NSEntityDescription()
+        rack.name = "Rack"
+        rack.managedObjectClassName = "RackEntity"
+        rack.properties = [
+            attribute("uuid", .UUIDAttributeType, optional: true),
+            attribute("name", .stringAttributeType, default: "Regal"),
+            attribute("rows", .integer64AttributeType, default: 1),
+            attribute("columns", .integer64AttributeType, default: 12),
+            attribute("createdAt", .dateAttributeType, optional: true)
+        ]
+
+        let slot = NSEntityDescription()
+        slot.name = "Slot"
+        slot.managedObjectClassName = "SlotEntity"
+        slot.properties = [
+            attribute("uuid", .UUIDAttributeType, optional: true),
+            attribute("row", .integer64AttributeType, default: 0),
+            attribute("column", .integer64AttributeType, default: 0),
+            attribute("placedAt", .dateAttributeType, optional: true)
+        ]
+
+        // Keller → Regale
+        let racksRelation = NSRelationshipDescription()
+        racksRelation.name = "racks"
+        racksRelation.destinationEntity = rack
+        racksRelation.minCount = 0
+        racksRelation.maxCount = 0
+        racksRelation.isOptional = true
+        racksRelation.deleteRule = .cascadeDeleteRule
+
+        let rackCellarRelation = NSRelationshipDescription()
+        rackCellarRelation.name = "cellar"
+        rackCellarRelation.destinationEntity = cellar
+        rackCellarRelation.minCount = 0
+        rackCellarRelation.maxCount = 1
+        rackCellarRelation.isOptional = true
+        rackCellarRelation.deleteRule = .nullifyDeleteRule
+
+        racksRelation.inverseRelationship = rackCellarRelation
+        rackCellarRelation.inverseRelationship = racksRelation
+
+        // Regal → Plätze
+        let slotsRelation = NSRelationshipDescription()
+        slotsRelation.name = "slots"
+        slotsRelation.destinationEntity = slot
+        slotsRelation.minCount = 0
+        slotsRelation.maxCount = 0
+        slotsRelation.isOptional = true
+        slotsRelation.deleteRule = .cascadeDeleteRule
+
+        let slotRackRelation = NSRelationshipDescription()
+        slotRackRelation.name = "rack"
+        slotRackRelation.destinationEntity = rack
+        slotRackRelation.minCount = 0
+        slotRackRelation.maxCount = 1
+        slotRackRelation.isOptional = true
+        slotRackRelation.deleteRule = .nullifyDeleteRule
+
+        slotsRelation.inverseRelationship = slotRackRelation
+        slotRackRelation.inverseRelationship = slotsRelation
+
+        // Wein → Plätze. Wird ein Wein gelöscht, werden seine Fächer wieder frei.
+        let wineSlotsRelation = NSRelationshipDescription()
+        wineSlotsRelation.name = "slots"
+        wineSlotsRelation.destinationEntity = slot
+        wineSlotsRelation.minCount = 0
+        wineSlotsRelation.maxCount = 0
+        wineSlotsRelation.isOptional = true
+        wineSlotsRelation.deleteRule = .cascadeDeleteRule
+
+        let slotWineRelation = NSRelationshipDescription()
+        slotWineRelation.name = "wine"
+        slotWineRelation.destinationEntity = wine
+        slotWineRelation.minCount = 0
+        slotWineRelation.maxCount = 1
+        slotWineRelation.isOptional = true
+        slotWineRelation.deleteRule = .nullifyDeleteRule
+
+        wineSlotsRelation.inverseRelationship = slotWineRelation
+        slotWineRelation.inverseRelationship = wineSlotsRelation
+
+        cellar.properties.append(racksRelation)
+        rack.properties.append(contentsOf: [rackCellarRelation, slotsRelation])
+        slot.properties.append(contentsOf: [slotRackRelation, slotWineRelation])
+        wine.properties.append(wineSlotsRelation)
+
+        model.entities = [cellar, wine, rating, rack, slot]
         return model
     }
 

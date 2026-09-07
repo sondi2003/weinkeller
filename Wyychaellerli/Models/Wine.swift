@@ -88,6 +88,8 @@ final class Wine: NSManagedObject, Identifiable {
     @NSManaged var cellar: Cellar?
     /// Bewertungen, eine je Person. Siehe `Rating`.
     @NSManaged var ratings: NSSet?
+    /// Belegte Fächer im Regal. Siehe `Slot`; leere Fächer haben kein Objekt.
+    @NSManaged var slots: NSSet?
 
     /// Rohwerte, die über berechnete Eigenschaften bequemer nutzbar sind.
     @NSManaged private var typeRaw: String
