@@ -102,6 +102,24 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Ints sind `Int64`. Beim Übergeben an UI-Bausteine mit `Int(...)` wandeln.
 - Views nutzen `@FetchRequest` und `@ObservedObject var wine: Wine` (nicht `@Bindable`, das ist für `@Observable`).
 
+## Zwei Apps nebeneinander: DEV und Verteilung
+
+- **Debug und Release haben getrennte Kennungen**, damit die aus Xcode installierte Fassung und die aus TestFlight gleichzeitig auf demselben iPhone liegen können:
+
+  | | Debug | Release |
+  |---|---|---|
+  | Bundle-ID | `ch.sondinetwork.wyychaellerli.dev` | `ch.sondinetwork.wyychaellerli` |
+  | Anzeigename | Wyychällerli DEV | Wyychällerli |
+  | Icon | `AppIconDev` (orangenes DEV-Band) | `AppIcon` |
+
+- `Tools/MakeAppIcon.swift` rendert **beide** Sätze in einem Durchlauf; die DEV-Fassung ist dieselbe Zeichnung plus Band. Änderungen am Design nur im Script.
+- **Der iCloud-Container bleibt für beide derselbe.** Getrennte Container sind nicht nötig, weil CloudKit ohnehin zwei Umgebungen führt: Aus Xcode installierte Builds sprechen **Development**, TestFlight- und App-Store-Builds sprechen **Production**. Die Daten sind damit von selbst getrennt.
+- **Daraus folgt die wichtigste Falle**: Der reale Bestand, der über Xcode-Builds erfasst wurde, liegt in **Development**. Ein Wechsel auf TestFlight beginnt mit einem **leeren** Keller. „Deploy Schema Changes“ überträgt das **Schema**, nicht die Datensätze – Records wandern nie von Development nach Production. Vor einem Umstieg braucht es also einen Weg, den Bestand mitzunehmen (Export/Import steht auf der Ideenliste).
+- Die Keychain-Gruppe ist für beide dieselbe, die API-Keys gelten also in beiden Apps.
+- Für die `.dev`-Bundle-ID muss im Entwicklerportal eine eigene App-ID bestehen, mit **demselben** iCloud-Container und Push.
+- `Config/Info.plist` enthält `ITSAppUsesNonExemptEncryption = false` (nur HTTPS, von der Exportregelung ausgenommen), sonst fragt App Store Connect bei jedem Build nach.
+- `Wyychaellerli/PrivacyInfo.xcprivacy` deklariert kein Tracking, keine erhobenen Daten und `UserDefaults` mit Grund `CA92.1`. Landet über den synchronisierten Ordner automatisch im Paket. Die **Datenschutzangaben in App Store Connect** sind davon unabhängig und Sache des Entwicklers – insbesondere die Übermittlung an den KI-Anbieter.
+
 ## Freigabe (CloudKit Sharing)
 
 - **Zwei Speicher**: `Weinkeller.sqlite` (Scope `.private`) und `Weinkeller-shared.sqlite` (Scope `.shared`), beide am selben CloudKit-Container. Der Pfad des privaten Speichers darf sich nie ändern, sonst ist der bestehende Keller weg.

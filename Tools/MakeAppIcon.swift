@@ -1,7 +1,13 @@
 #!/usr/bin/env swift
 //
-// Erzeugt die App-Icons (hell, dunkel, getönt) als 1024×1024-PNG und legt sie
-// in Wyychaellerli/Assets.xcassets/AppIcon.appiconset ab.
+// Erzeugt die App-Icons (hell, dunkel, getönt) als 1024×1024-PNG.
+//
+// Zwei Sätze:
+//   AppIcon.appiconset      – die App, wie sie verteilt wird
+//   AppIconDev.appiconset   – dieselbe Zeichnung mit DEV-Band, für den Debug-Build
+//
+// Beide liegen gleichzeitig auf dem Gerät (verschiedene Bundle-IDs), deshalb muss
+// man sie auf dem Homescreen auf einen Blick unterscheiden können.
 //
 // Aufruf aus dem Projektordner:
 //   swift Tools/MakeAppIcon.swift
@@ -15,11 +21,19 @@ enum Variant: String {
     case light = "AppIcon-Light"
     case dark = "AppIcon-Dark"
     case tinted = "AppIcon-Tinted"
+
+    var suffix: String {
+        switch self {
+        case .light:  return "Light"
+        case .dark:   return "Dark"
+        case .tinted: return "Tinted"
+        }
+    }
 }
 
 let size: CGFloat = 1024
-let outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    .appendingPathComponent("Wyychaellerli/Assets.xcassets/AppIcon.appiconset")
+let assetsDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    .appendingPathComponent("Wyychaellerli/Assets.xcassets")
 
 func color(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor {
     CGColor(colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!, components: [r, g, b, a])!
@@ -174,7 +188,31 @@ func drawGlass(_ ctx: CGContext, variant: Variant) {
 
 // MARK: - Rendern und speichern
 
-func render(_ variant: Variant) throws {
+/// Band mit „DEV“ über die untere Ecke – auch in der kleinsten Darstellung lesbar.
+func drawDevBadge(_ ctx: CGContext) {
+    let height = size * 0.26
+    let band = CGRect(x: 0, y: 0, width: size, height: height)
+    ctx.saveGState()
+    ctx.setFillColor(color(0.95, 0.55, 0.10, 0.95))
+    ctx.fill(band)
+    ctx.setFillColor(color(0, 0, 0, 0.18))
+    ctx.fill(CGRect(x: 0, y: height - 8, width: size, height: 8))
+    ctx.restoreGState()
+
+    let text = NSAttributedString(string: "DEV", attributes: [
+        .font: NSFont.systemFont(ofSize: size * 0.17, weight: .heavy),
+        .foregroundColor: NSColor.white,
+        .kern: size * 0.02
+    ])
+    let line = text.size()
+    let graphics = NSGraphicsContext(cgContext: ctx, flipped: false)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = graphics
+    text.draw(at: CGPoint(x: (size - line.width) / 2, y: (height - line.height) / 2))
+    NSGraphicsContext.restoreGraphicsState()
+}
+
+func render(_ variant: Variant, dev: Bool) throws {
     let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
     guard let ctx = CGContext(
         data: nil, width: Int(size), height: Int(size),
@@ -188,18 +226,23 @@ func render(_ variant: Variant) throws {
 
     drawBackground(ctx, variant: variant)
     drawGlass(ctx, variant: variant)
+    if dev { drawDevBadge(ctx) }
 
     guard let image = ctx.makeImage() else { throw NSError(domain: "MakeAppIcon", code: 2) }
     let rep = NSBitmapImageRep(cgImage: image)
     guard let png = rep.representation(using: .png, properties: [:]) else {
         throw NSError(domain: "MakeAppIcon", code: 3)
     }
-    let url = outputDirectory.appendingPathComponent("\(variant.rawValue).png")
-    try png.write(to: url)
-    print("✓ \(url.lastPathComponent)")
+    let set = assetsDirectory.appendingPathComponent(dev ? "AppIconDev.appiconset" : "AppIcon.appiconset")
+    let name = dev ? "AppIconDev-\(variant.suffix).png" : "\(variant.rawValue).png"
+    try png.write(to: set.appendingPathComponent(name))
+    print("✓ \(set.lastPathComponent)/\(name)")
 }
 
-try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
-for variant in [Variant.light, .dark, .tinted] {
-    try render(variant)
+for dev in [false, true] {
+    let set = assetsDirectory.appendingPathComponent(dev ? "AppIconDev.appiconset" : "AppIcon.appiconset")
+    try FileManager.default.createDirectory(at: set, withIntermediateDirectories: true)
+    for variant in [Variant.light, .dark, .tinted] {
+        try render(variant, dev: dev)
+    }
 }

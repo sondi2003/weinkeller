@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Kein Tracking, keine Werbe-IDs, keine Analyse-SDKs. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- Die App selbst sammelt nichts. Was an einen KI-Anbieter geht (Gericht plus
+	     Inventar bzw. der erkannte Etikett-Text), geht über den Schlüssel des Nutzers
+	     an dessen eigenes Konto. Ob das in den Datenschutzangaben von App Store Connect
+	     zu deklarieren ist, entscheidet der Entwickler dort – nicht diese Datei. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!-- Apple verlangt seit 2024 einen Grund für bestimmte Schnittstellen.
+	     Genutzt wird nur UserDefaults, und zwar ausschliesslich für eigene
+	     Einstellungen dieser App (Erscheinungsbild, Anzeigename, Modellnamen). -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
