@@ -9,9 +9,15 @@ struct CellarSharingSection: View {
     @Environment(\.managedObjectContext) private var context
 
     @State private var share: CKShare?
-    @State private var cloudContainer: CKContainer?
     @State private var isPreparing = false
-    @State private var isShowingSharingSheet = false
+    /// Was der Freigabe-Dialog braucht – als **ein** Wert.
+    ///
+    /// Vorher hingen Freigabe und Container an getrennten Zuständen und das Sheet prüfte
+    /// beide beim Aufbauen. Direkt nach dem Anlegen einer Freigabe meldet der Speicher
+    /// eine Änderung, `refresh()` lief los und setzte `share` kurz auf `nil` – der Inhalt
+    /// des Sheets wurde leer und es schloss sich sofort wieder. Beim zweiten Tippen war
+    /// die Freigabe gefunden und es klappte. Mit einem Wert kann das nicht mehr passieren.
+    @State private var presentation: SharePresentation?
     @State private var errorMessage: String?
     /// Ist der Keller von jemand anderem geteilt worden, gibt es hier nichts zu verwalten.
     @State private var isGuest = false
@@ -70,8 +76,11 @@ struct CellarSharingSection: View {
                 .padding(.vertical, 2)
 
                 Button {
-                    self.cloudContainer = CKContainer(identifier: PersistenceController.cloudContainerIdentifier)
-                    isShowingSharingSheet = true
+                    guard let share else { return }
+                    presentation = SharePresentation(
+                        share: share,
+                        container: CKContainer(identifier: PersistenceController.cloudContainerIdentifier)
+                    )
                 } label: {
                     Label("Freigabe verwalten", systemImage: "person.crop.circle.badge.checkmark")
                 }
@@ -104,11 +113,12 @@ struct CellarSharingSection: View {
                 Text("Lade eine Person mit eigener Apple-ID ein. Beide sehen denselben Bestand, auch wenn eine Flasche abgebucht wird.")
             }
         }
-        .sheet(isPresented: $isShowingSharingSheet) {
-            if let share, let cloudContainer {
-                CloudSharingView(share: share, container: cloudContainer, title: "Wyychällerli")
-                    .ignoresSafeArea()
-            }
+        .sheet(item: $presentation, onDismiss: {
+            // Teilnehmerliste kann sich geändert haben, auch durch „Freigabe beenden“.
+            refresh()
+        }) { presented in
+            CloudSharingView(share: presented.share, container: presented.container, title: "Wyychällerli")
+                .ignoresSafeArea()
         }
         .task { refresh() }
         // Die Daten der Gegenseite treffen verzögert ein; dann neu bewerten.
@@ -117,15 +127,13 @@ struct CellarSharingSection: View {
         )) { _ in
             refresh()
         }
-        .onChange(of: isShowingSharingSheet) { _, isShowing in
-            // Nach dem Schliessen kann sich die Teilnehmerliste geändert haben.
-            if !isShowing { refresh() }
-        }
     }
 
     // MARK: Aktionen
 
     private func refresh() {
+        // Während der Dialog offen ist, nichts anfassen – er verwaltet die Freigabe selbst.
+        guard presentation == nil else { return }
         isSharedStoreMissing = !PersistenceController.shared.isSharedStoreAvailable
         // Gibt es einen Keller aus der geteilten Ablage, sind wir Gast.
         if Cellar.sharedWithMe(in: context) != nil {
@@ -177,18 +185,30 @@ struct CellarSharingSection: View {
         do {
             // Eine bereits angelegte Freigabe wiederverwenden, sonst entstehen Dubletten.
             if let existing = share {
-                cloudContainer = CKContainer(identifier: PersistenceController.cloudContainerIdentifier)
                 // Freigaben aus früheren Versionen haben noch keinen Titel.
-                share = await PersistenceController.shared.ensuringTitle(on: existing)
-                isShowingSharingSheet = true
+                let titled = await PersistenceController.shared.ensuringTitle(on: existing)
+                share = titled
+                presentation = SharePresentation(
+                    share: titled,
+                    container: CKContainer(identifier: PersistenceController.cloudContainerIdentifier)
+                )
                 return
             }
             let (newShare, container) = try await PersistenceController.shared.share(cellar)
             share = newShare
-            cloudContainer = container
-            isShowingSharingSheet = true
+            presentation = SharePresentation(share: newShare, container: container)
         } catch {
             errorMessage = Self.friendlyMessage(for: error)
         }
     }
+}
+
+// MARK: - Was der Freigabe-Dialog braucht
+
+/// Freigabe und Container zusammen, damit das Sheet an einen konkreten Wert gebunden ist
+/// und nicht mitten in der Darstellung leer werden kann.
+private struct SharePresentation: Identifiable {
+    let share: CKShare
+    let container: CKContainer
+    var id: String { share.recordID.recordName }
 }
