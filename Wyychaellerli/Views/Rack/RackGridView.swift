@@ -13,14 +13,18 @@ struct RackGridView: View {
     let occupancy: [Position: Slot]
     /// Diese Plätze werden hervorgehoben und pulsieren.
     var highlighted: Set<Position> = []
+    /// Diese Plätze sind ausgewählt (Mehrfachauswahl beim Einräumen).
+    var selected: Set<Position> = []
     /// Kantenlänge eines Fachs.
     var tile: CGFloat = 44
+    /// Enger, wenn das ganze Regal auf die Breite passen soll.
+    var spacing: CGFloat = 6
     var onTap: ((Position) -> Void)?
+    /// Wird beim Wischen über ein Fach gemeldet. Nur gesetzt, wenn Wischen erlaubt ist.
+    var onDragOver: ((Position) -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pulse = false
-
-    private let spacing: CGFloat = 6
 
     var body: some View {
         VStack(spacing: spacing) {
@@ -32,6 +36,9 @@ struct RackGridView: View {
                 }
             }
         }
+        // Wischen über mehrere Fächer. Die Rasterweite ist bekannt, deshalb lässt sich
+        // die Position aus dem Berührungspunkt rechnen – zuverlässiger als Treffer je Feld.
+        .gesture(dragSelection, isEnabled: onDragOver != nil)
         .onAppear {
             guard !reduceMotion, !highlighted.isEmpty else { return }
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
@@ -40,19 +47,38 @@ struct RackGridView: View {
         }
     }
 
+    private var dragSelection: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                let step = tile + spacing
+                let column = Int(value.location.x / step)
+                let row = Int(value.location.y / step)
+                guard row >= 0, row < rows, column >= 0, column < columns else { return }
+                onDragOver?(Position(row: row, column: column))
+            }
+    }
+
     @ViewBuilder
     private func cell(at position: Position) -> some View {
         let slot = occupancy[position]
         let isHighlighted = highlighted.contains(position)
+        let isSelected = selected.contains(position)
         let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
 
         Button {
             onTap?(position)
         } label: {
             ZStack {
-                shape.fill(fill(for: slot, highlighted: isHighlighted))
-                shape.strokeBorder(border(for: slot, highlighted: isHighlighted), lineWidth: isHighlighted ? 2 : 1)
-                if let slot, let wine = slot.wine {
+                shape.fill(isSelected ? Color.accentColor : fill(for: slot, highlighted: isHighlighted))
+                shape.strokeBorder(
+                    isSelected ? Color.accentColor : border(for: slot, highlighted: isHighlighted),
+                    lineWidth: isHighlighted || isSelected ? 2 : 1
+                )
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: tile * 0.4, weight: .bold))
+                        .foregroundStyle(.white)
+                } else if let slot, let wine = slot.wine {
                     Image(systemName: wine.type.symbolName)
                         .font(.system(size: tile * 0.42))
                         .foregroundStyle(isHighlighted ? Color.accentColor : wine.type.color)
@@ -84,6 +110,7 @@ struct RackGridView: View {
     }
 
     private func label(for position: Position, slot: Slot?) -> String {
+        if selected.contains(position) { return "Fach \(position.label), ausgewählt" }
         guard let wine = slot?.wine else { return "Fach \(position.label), frei" }
         return "Fach \(position.label), \(wine.name)"
     }

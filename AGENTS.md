@@ -182,6 +182,8 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
   - Minus-Knopf in Detailseite und Kellerliste: Sind noch Flaschen ohne Platz da, wird direkt abgebucht (schneller Weg bleibt schnell). Liegen **alle** im Regal, öffnet sich `WineRackSheet(mode: .take)`, damit klar ist, welches Fach frei wird.
   - `consumeBottle()` ohne Fach (Wein-Berater, Sonderfälle) räumt zur Not das **zuletzt eingeräumte** Fach mit. Sonst zeigte das Regal eine Flasche, die es nicht mehr gibt.
 - `WineRackSheet` bedient Entnehmen und Einräumen mit derselben Darstellung; nur die bedienbaren Fächer unterscheiden sich. Nicht bedienbare Fächer bleiben sichtbar, damit man sich im Regal zurechtfindet.
+- **Einräumen geht mehrfach, per Wischen.** Flaschen desselben Weins liegen meist nebeneinander. Die Auswahl ist auf `unplacedCount` gedeckelt; mehr Fächer als Flaschen lassen sich nicht wählen. Wischen wählt nur **aus**, nie ab – beim Zurückwischen würde man sonst versehentlich löschen; abwählen geht per Tipp.
+- **Wischen und seitliches Scrollen vertragen sich nicht.** Deshalb rechnet `WineRackSheet` im Einräum-Modus die Fachgrösse so, dass das ganze Regal auf die Breite passt (engerer Abstand von 4 pt, Schwelle 22 pt). Erst wenn selbst das nicht reicht, wird gescrollt und es bleibt beim Tippen. Ein 12 Fächer breites Regal fiel mit den ursprünglichen Werten knapp in den Scroll-Zweig, und das Wischen war damit tot.
 
 ## Bewertungen
 
