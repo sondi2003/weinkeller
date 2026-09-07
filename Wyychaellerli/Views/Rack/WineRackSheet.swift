@@ -44,7 +44,7 @@ struct WineRackSheet: View {
     /// Beim Einräumen ausgewählte Fächer, höchstens so viele wie Flaschen ohne Platz.
     @State private var selection: Set<Position> = []
 
-    private var rack: Rack? { racks.first }
+    private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
 
     /// Wie viele Fächer noch gewählt werden dürfen.
     private var remaining: Int { max(0, wine.unplacedCount - selection.count) }

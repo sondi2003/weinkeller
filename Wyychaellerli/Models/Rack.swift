@@ -62,10 +62,22 @@ final class Rack: NSManagedObject, Identifiable {
         placedSlots.filter { Int($0.row) >= newRows || Int($0.column) >= newColumns }
     }
 
+    /// Das Regal **dieses** Kellers aus einer bereits geholten Liste.
+    ///
+    /// Wichtig auf dem Gerät des Gasts: Dort können ein leerer eigener Keller und der
+    /// geteilte nebeneinander liegen. Ohne diese Zuordnung gewönne womöglich ein Regal,
+    /// das gar nicht zum angezeigten Bestand gehört.
+    static func preferred(from racks: [Rack], in context: NSManagedObjectContext) -> Rack? {
+        guard let cellar = Cellar.current(in: context) else { return racks.first }
+        return racks.first { $0.cellar == cellar } ?? racks.first
+    }
+
     /// Das Regal des Kellers, angelegt falls noch keines da ist.
     @discardableResult
     static func findOrCreate(in context: NSManagedObjectContext, cellar: Cellar) -> Rack {
-        if let existing = all(in: context).first { return existing }
+        // Am Keller festgemacht, damit der Gast nicht ein zweites Regal anlegt, während
+        // das des Eigentümers noch unterwegs ist.
+        if let existing = all(in: context).first(where: { $0.cellar == cellar }) { return existing }
         let rack = Rack(context: context)
         // Muss in denselben Speicher wie der Keller, sonst sieht die andere Seite es nie.
         if let store = cellar.objectID.persistentStore {

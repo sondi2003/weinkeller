@@ -23,7 +23,7 @@ struct RackView: View {
     /// Belegtes Fach, das gerade angetippt wurde.
     @State private var selectedSlot: Slot?
 
-    private var rack: Rack? { racks.first }
+    private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
 
     var body: some View {
         NavigationStack {

@@ -21,7 +21,7 @@ struct WineRackCard: View {
     @State private var pendingSlot: Slot?
     @State private var isPlacing = false
 
-    private var rack: Rack? { racks.first }
+    private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
 
     var body: some View {
         if let rack, wine.placedCount > 0 || wine.canPlaceAnotherBottle {

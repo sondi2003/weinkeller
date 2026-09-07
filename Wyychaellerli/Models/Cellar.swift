@@ -44,6 +44,14 @@ final class Cellar: NSManagedObject {
         store.url?.lastPathComponent == PersistenceController.sharedStoreFileName
     }
 
+    /// Der aktuell massgebende Keller, **ohne** ihn anzulegen.
+    ///
+    /// Beim Gast ist das der geteilte, sonst der eigene. Wird überall dort gebraucht, wo
+    /// nur gelesen wird – etwa um zu entscheiden, welches Regal gemeint ist.
+    static func current(in context: NSManagedObjectContext) -> Cellar? {
+        sharedWithMe(in: context) ?? own(in: context)
+    }
+
     /// Der Keller, in den neue Flaschen gehören.
     ///
     /// Wurde ein Keller mit uns geteilt, landen neue Flaschen dort – sonst sähe die
