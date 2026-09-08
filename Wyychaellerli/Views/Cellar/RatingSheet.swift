@@ -40,15 +40,26 @@ struct RatingSheet: View {
 
                 Section {
                     FlowLayout(spacing: 8) {
-                        ForEach(RatingTag.allCases) { tag in
+                        ForEach(RatingTag.positives) { tag in
                             tagChip(tag)
                         }
                     }
                     .padding(.vertical, 2)
                 } header: {
-                    Text("Woran lag es?")
+                    Text("Was war gut?")
                 } footer: {
-                    Text("Freiwillig. Hilft später beim Vergleich und beim Wein-Berater.")
+                    Text("Freiwillig, mehrere möglich. Hilft später beim Vergleich und beim Wein-Berater.")
+                }
+
+                Section {
+                    FlowLayout(spacing: 8) {
+                        ForEach(RatingTag.negatives) { tag in
+                            tagChip(tag)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                } header: {
+                    Text("Was hat gestört?")
                 }
 
                 Section("Notiz") {

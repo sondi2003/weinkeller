@@ -83,6 +83,17 @@ final class Rating: NSManagedObject, Identifiable {
 /// auffällt, und kosten einen Fingertipp.
 enum RatingTag: String, CaseIterable, Identifiable {
 
+    // Lob – gleich viele wie Kritik, sonst lädt die Auswahl nur zum Nörgeln ein.
+    case wantAgain = "Gerne wieder"
+    case balanced = "Harmonisch"
+    case fruity = "Fruchtig"
+    case fresh = "Schön frisch"
+    case easy = "Süffig"
+    case velvety = "Samtig"
+    case bold = "Kräftig"
+    case longFinish = "Langer Abgang"
+
+    // Kritik
     case tooSour = "Zu sauer"
     case tooTannic = "Zu herb"
     case tooSweet = "Zu süss"
@@ -90,10 +101,18 @@ enum RatingTag: String, CaseIterable, Identifiable {
     case oddAroma = "Aroma passt nicht"
     case tooHeavy = "Zu schwer"
     case tooThin = "Zu dünn"
-    case balanced = "Harmonisch"
+    case corked = "Korkig"
 
     var id: String { rawValue }
 
-    /// `true` bei einem Lob – für die farbliche Unterscheidung.
-    var isPositive: Bool { self == .balanced }
+    /// `true` bei einem Lob – für Gruppierung und Farbe.
+    var isPositive: Bool {
+        switch self {
+        case .wantAgain, .balanced, .fruity, .fresh, .easy, .velvety, .bold, .longFinish: return true
+        case .tooSour, .tooTannic, .tooSweet, .weakAroma, .oddAroma, .tooHeavy, .tooThin, .corked: return false
+        }
+    }
+
+    static var positives: [RatingTag] { allCases.filter(\.isPositive) }
+    static var negatives: [RatingTag] { allCases.filter { !$0.isPositive } }
 }
