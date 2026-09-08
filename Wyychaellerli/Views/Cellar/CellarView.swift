@@ -17,12 +17,38 @@ struct CellarView: View {
     @State private var isShowingRack = false
     /// Wein, der gerade bewertet wird – nach dem Austrinken der letzten Flasche.
     @State private var wineToRate: Wine?
+    /// Wein, dessen Löschen noch bestätigt werden muss. Löschen ist endgültig und geht
+    /// über iCloud auf alle Geräte – deshalb nie mit einem einzigen Wisch.
+    @State private var wineToDelete: Wine?
 
     /// FetchedResults als Array, damit Filter und Zusammenfassung damit rechnen können.
     private var wines: [Wine] { Array(fetchedWines) }
 
     var body: some View {
         NavigationStack {
+            // Getrennt, weil die lange Modifier-Kette den Typprüfer sonst überfordert.
+            rootContent
+                .confirmationDialog(
+                    "Wein löschen?",
+                    isPresented: Binding(
+                        get: { wineToDelete != nil },
+                        set: { if !$0 { wineToDelete = nil } }
+                    ),
+                    titleVisibility: .visible,
+                    presenting: wineToDelete
+                ) { wine in
+                    Button("Endgültig löschen", role: .destructive) {
+                        viewModel.delete(wine, in: context)
+                        wineToDelete = nil
+                    }
+                    Button("Abbrechen", role: .cancel) { wineToDelete = nil }
+                } message: { wine in
+                    Text("„\(wine.name) \(String(wine.vintage))“ wird mit Etikett, Bewertungen und Regalplatz entfernt – auch auf den anderen Geräten. Zum Aufbewahren lieber archivieren.")
+                }
+        }
+    }
+
+    private var rootContent: some View {
             Group {
                 if wines.isEmpty {
                     emptyCellar
@@ -57,7 +83,7 @@ struct CellarView: View {
                 // Der natürliche Moment zum Bewerten: Die Flasche ist gerade ausgetrunken.
                 Button("Bewerten") { wineToRate = wine }
                 Button("Archivieren") { viewModel.archive(wine) }
-                Button("Löschen", role: .destructive) { viewModel.delete(wine, in: context) }
+                Button("Löschen", role: .destructive) { wineToDelete = wine }
                 Button("Im Keller behalten", role: .cancel) { }
             } message: { wine in
                 Text("„\(wine.name) \(String(wine.vintage))“ ist jetzt leer. Was soll damit passieren?")
@@ -69,7 +95,6 @@ struct CellarView: View {
                 WineRackSheet(wine: wine, mode: .take)
             }
             .sensoryFeedback(.decrease, trigger: viewModel.consumeCount)
-        }
     }
 
     // MARK: Liste
@@ -123,7 +148,7 @@ struct CellarView: View {
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
-                                viewModel.delete(wine, in: context)
+                                wineToDelete = wine
                             } label: {
                                 Label("Löschen", systemImage: "trash")
                             }

@@ -246,6 +246,7 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 
 ## Bekannte Stolperfallen
 
+- **Ein Wein wird nie ohne Rückfrage gelöscht.** Löschen ist endgültig und wandert über iCloud auf alle Geräte. Alle drei Wege – Wischgeste in der Liste, der Dialog nach der letzten Flasche, der Knopf auf der Detailseite – münden in einer Bestätigung („Endgültig löschen“). In `CellarView` läuft das über `wineToDelete`; neue Löschwege dort anschliessen, nicht direkt `viewModel.delete` rufen.
 - **Ausrichtungen nie pauschal auf Hochformat setzen.** App Store Connect lehnt den Upload ab (Fehler 90474), wenn das iPad nicht alle vier Ausrichtungen unterstützt – ausser man schaltet Multitasking mit `UIRequiresFullScreen` ab. Deshalb getrennt: `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone` nur Hochformat, `…_iPad` alle vier. Ist am 8.9.2026 einmal passiert, als in Xcode unter „General“ die Häkchen gesetzt wurden – das setzt den gemeinsamen Schlüssel für beide Gerätefamilien.
 
 - `Text("\(intValue)")` lokalisiert Zahlen (Jahrgang wird zu „2'024“). Für Jahrgänge `String(vintage)` verwenden.
