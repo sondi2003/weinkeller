@@ -12,7 +12,8 @@ struct AdvisorView: View {
     private var fetchedWines: FetchedResults<Wine>
     @State private var viewModel = PairingViewModel()
     @FocusState private var dishFieldFocused: Bool
-    @State private var openedBottleCount = 0
+    /// Abbuchen mit demselben Ablauf wie in der Kellerliste (Fach, letzte Flasche, Bewerten).
+    @State private var consumer = BottleConsumer()
 
     private var wines: [Wine] { Array(fetchedWines) }
 
@@ -55,7 +56,10 @@ struct AdvisorView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .sensoryFeedback(.success, trigger: viewModel.response)
-            .sensoryFeedback(.decrease, trigger: openedBottleCount)
+            .bottleConsumerFlow(consumer)
+            .navigationDestination(for: Wine.self) { wine in
+                WineDetailView(wine: wine)
+            }
         }
     }
 
@@ -248,10 +252,7 @@ struct AdvisorView: View {
             ForEach(response.sortedRecommendations) { recommendation in
                 let wine = matchingWine(for: recommendation)
                 RecommendationCard(recommendation: recommendation, wine: wine) {
-                    if let wine, wine.quantity > 0 {
-                        wine.consumeBottle()
-                        openedBottleCount += 1
-                    }
+                    if let wine { consumer.consume(wine) }
                 }
             }
         }
@@ -303,10 +304,7 @@ struct AdvisorView: View {
 
             ForEach(viewModel.labelMatches) { match in
                 LabelMatchCard(wine: match.wine, terms: match.terms) {
-                    if match.wine.quantity > 0 {
-                        match.wine.consumeBottle()
-                        openedBottleCount += 1
-                    }
+                    consumer.consume(match.wine)
                 }
             }
 
@@ -412,13 +410,7 @@ private struct LabelMatchCard: View {
             HStack {
                 StockBadge(quantity: Int(wine.quantity))
                 Spacer()
-                Button(action: onOpenBottle) {
-                    Label("Flasche öffnen", systemImage: "wineglass")
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .controlSize(.small)
-                .disabled(wine.isOutOfStock)
+                WineActionButtons(wine: wine, onOpenBottle: onOpenBottle)
             }
         }
         .cardStyle()

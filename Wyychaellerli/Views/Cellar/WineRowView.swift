@@ -1,9 +1,12 @@
 import SwiftUI
 
 /// Eine Zeile in der Kellerliste: Icon, Name, Jahrgang/Region, Bestand und Minus-Button.
+///
+/// `@ObservedObject`, nicht `let`: Wird die Flasche anderswo abgebucht (Berater,
+/// Detailseite, anderes Gerät), muss die Zeile den neuen Bestand von selbst zeigen.
 struct WineRowView: View {
 
-    let wine: Wine
+    @ObservedObject var wine: Wine
     let onConsume: () -> Void
 
     var body: some View {

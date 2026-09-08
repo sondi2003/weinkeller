@@ -1,6 +1,37 @@
 import SwiftUI
 
-/// Eine Empfehlung: Rang, Wein, Begründung, Serviertipp und „Flasche öffnen“.
+/// „Details“ und „Flasche öffnen“ nebeneinander, in Berater-Karten.
+///
+/// „Flasche öffnen“ bucht ab – das war nicht allen klar, manche erwarteten die
+/// Detailseite. Deshalb steht der Weg dorthin jetzt daneben, und der Knopf heisst
+/// „Trinken“, damit die Wirkung im Wort steckt.
+struct WineActionButtons: View {
+
+    @ObservedObject var wine: Wine
+    let onOpenBottle: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            NavigationLink(value: wine) {
+                Label("Details", systemImage: "info.circle")
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+
+            Button(action: onOpenBottle) {
+                Label("Trinken", systemImage: "wineglass")
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+            .disabled(wine.isOutOfStock)
+            .accessibilityLabel("Eine Flasche \(wine.name) trinken")
+        }
+    }
+}
+
+/// Eine Empfehlung: Rang, Wein, Begründung, Serviertipp, „Details“ und „Trinken“.
 struct RecommendationCard: View {
 
     let recommendation: PairingRecommendation
@@ -60,13 +91,7 @@ struct RecommendationCard: View {
                 if let wine {
                     StockBadge(quantity: Int(wine.quantity))
                     Spacer()
-                    Button(action: onOpenBottle) {
-                        Label("Flasche öffnen", systemImage: "wineglass")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.small)
-                    .disabled(wine.isOutOfStock)
+                    WineActionButtons(wine: wine, onOpenBottle: onOpenBottle)
                 } else {
                     Label("Nicht im Keller gefunden", systemImage: "questionmark.circle")
                         .font(.footnote)
