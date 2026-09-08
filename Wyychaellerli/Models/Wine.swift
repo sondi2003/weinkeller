@@ -101,6 +101,13 @@ final class Wine: NSManagedObject, Identifiable {
     /// „place“ = Region gefunden, „country“ = nur das Land, „none“ = erfolglos gesucht,
     /// leer = noch nie gesucht.
     @NSManaged var geocodePrecision: String
+    /// Kennung des Weins bei wineapi.io; leer = noch nie nachgeschlagen.
+    @NSManaged var wineAPIWineID: String
+    /// Das dort gefundene Profil als JSON (`WineAPIProfile`).
+    @NSManaged var wineAPIProfileJSON: String
+    /// Speiseempfehlungen von WineAPI, eine je Zeile – siehe `wineAPIPairings`.
+    @NSManaged var wineAPIPairingsRaw: String
+    @NSManaged var wineAPIFetchedAt: Date?
 
     // MARK: Anlegen
 
@@ -409,7 +416,7 @@ final class Wine: NSManagedObject, Identifiable {
             region: [region, country].filter { !$0.isEmpty }.joined(separator: ", "),
             type: type.displayName,
             notes: String(notes.prefix(300)),
-            labelPairings: foodPairings,
+            labelPairings: allPairings,
             drinkWindow: drinkWindowText,
             rating: ratingText,
             quantity: Int(quantity)

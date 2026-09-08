@@ -28,6 +28,7 @@ struct WineDetailView: View {
                 if !wine.foodPairings.isEmpty {
                     pairingCard
                 }
+                WineAPICard(wine: wine)
                 WineOriginMapView(wine: wine)
                 if !wine.notes.isEmpty {
                     notesCard

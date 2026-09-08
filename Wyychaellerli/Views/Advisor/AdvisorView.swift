@@ -135,7 +135,7 @@ struct AdvisorView: View {
             }
         } else {
             VStack(spacing: 4) {
-                Text("Ohne API-Key wird nur geprüft, ob ein Etikett das Gericht ausdrücklich nennt.")
+                Text("Ohne API-Key wird nur geprüft, ob ein Etikett oder WineAPI das Gericht ausdrücklich nennt.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -271,8 +271,8 @@ struct AdvisorView: View {
                     Text("Zuerst ohne KI gesucht")
                         .font(.subheadline.weight(.semibold))
                     Text(outcome == .nothingStored
-                         ? "Bei keiner Flasche sind Speiseempfehlungen vom Etikett erfasst. Beim Scannen werden sie automatisch übernommen, sofern sie auf dem Etikett stehen."
-                         : "Kein Etikett nennt „\(viewModel.labelMatchDish)“.")
+                         ? "Bei keiner Flasche sind Speiseempfehlungen erfasst. Beim Scannen werden sie vom Etikett übernommen, und auf der Detailseite lassen sie sich bei WineAPI nachschlagen."
+                         : "Weder ein Etikett noch WineAPI nennt „\(viewModel.labelMatchDish)“.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -290,7 +290,7 @@ struct AdvisorView: View {
     private var labelMatchSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Laut Etikett passend zu „\(viewModel.labelMatchDish)“")
+                Text("Passend zu „\(viewModel.labelMatchDish)“")
                     .font(.headline)
                 Spacer()
                 Text("ohne KI")

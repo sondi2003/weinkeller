@@ -230,6 +230,15 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Testen ohne Gerät: App einmal starten (registriert die Intents), dann Kurzbefehle-App im Simulator öffnen, dort erscheint „Wein empfehlen“ unter „Wyychällerli“. Metadaten prüfen: `Metadata.appintents/extract.actionsdata` im gebauten `.app`.
 - CarPlay braucht keine eigene Arbeit und ist als eigene App auch nicht erlaubt (die App passt in keine zugelassene CarPlay-Kategorie). Siri im Auto nutzt denselben Intent.
 
+## WineAPI (wineapi.io)
+
+- **Was es ist:** KI plus Websuche hinter einer REST-API, kein kuratierter Katalog (steht so in deren Datenschutzerklärung: OpenRouter und Websuche). Unbekannte Weine werden beim Nachschlagen angelegt (`autoAdded`) und im Hintergrund ergänzt (`X-Update-Status: pending`, `Retry-After`). Free-Tarif: 100 Anfragen/Tag, privat; Etikett-Erkennung per Bild erst ab Pro (100 $/Monat) – brauchen wir nicht, den Scan machen wir selbst. Spezifikation: `https://api.wineapi.io/spec`.
+- **Dateien:** `Services/WineAPI/WineAPIClient.swift` (HTTP, `identify/text` → `wines/{id}` mit begrenztem Nachfassen: max. 2 Wiederholungen, je ≤ 15 s), `WineAPIProfile.swift` (Codable-Modell, wird als JSON am Wein gespeichert), `WineAPILookup.swift` (Anfrage aus den Weindaten bauen, auf dem Gerät übersetzen, speichern). Key in der Keychain unter `wineapi`, Seite `Views/Settings/WineAPISettingsView.swift`, Karte `Views/Cellar/WineAPICard.swift` – nur sichtbar mit Key.
+- **Am Wein:** `wineAPIWineID`, `wineAPIProfileJSON`, `wineAPIPairingsRaw`, `wineAPIFetchedAt`. Neue Felder → vor dem nächsten TestFlight **Deploy Schema Changes** in der CloudKit-Konsole (siehe Datenschicht).
+- **`confidence` kommt je nach Endpunkt als Zahl oder als Text** („high“/„medium“/„low“) – `WineAPIProfile.Pairing` dekodiert beides. Die Skala von `averageRating` ist nicht dokumentiert; Sterne nur, wenn der Wert ≤ 5 ist.
+- **Berater:** `Wine.allPairings` = Etikett + WineAPI, ohne Doppelte. `LabelPairingMatcher` und der KI-Prompt (`inventoryItem.labelPairings`) arbeiten damit. Deshalb müssen WineAPI-Pairings **deutsch** gespeichert sein: `WineAPILookup.germanize` übersetzt die Liste als eine Zeile mit „ ; “ getrennt (einzelne Begriffe sind für die Spracherkennung zu kurz) und übernimmt sie nur, wenn die Zahl der Teile stimmt. Fehlt das Sprachpaket, bleibt Englisch – dann findet „Lamm“ kein „lamb“.
+- Die Karte zeigt, **was WineAPI gefunden hat** (Weingut · Name · Jahrgang) und warnt unter 80 % Sicherheit – der Dienst rät bei kleinen Schweizer Winzern gern.
+
 ## Einführung (Walkthrough)
 
 - `Views/Walkthrough/WalkthroughView.swift` zeigt sechs Seiten als `fullScreenCover`; die Bilder liegen in `WalkthroughIllustrations.swift` und sind **gezeichnet** (Formen, SF Symbols, `BottleIcon`), keine Screenshots – so veralten sie nicht mit jeder Oberflächenänderung und folgen Hell/Dunkel.
