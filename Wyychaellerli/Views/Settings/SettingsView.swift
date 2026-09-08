@@ -9,6 +9,8 @@ struct SettingsView: View {
     @Environment(AISettings.self) private var settings
     @Environment(CurrentRater.self) private var rater
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
+    /// `false` öffnet die Einführung erneut (siehe `ContentView`).
+    @AppStorage(OnboardingView.completedKey) private var hasCompletedOnboarding = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -89,6 +91,18 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("Siri")
+                }
+
+                Section {
+                    Button {
+                        hasCompletedOnboarding = false
+                    } label: {
+                        Label("Einführung nochmals anzeigen", systemImage: "book")
+                    }
+                } header: {
+                    Text("Hilfe")
+                } footer: {
+                    Text("Die kurze Einführung vom ersten Start: Etikett scannen, Keller, Regal, Wein-Berater und Freigabe.")
                 }
 
             }

@@ -16,6 +16,7 @@ Privater Weinkeller-Assistent für iPhone und iPad. Verwaltet den Flaschenbestan
 - **Trinkreife** – Beim Scannen schätzt die KI aus Jahrgang, Rebsorte und Region, wann der Wein am besten getrunken wird; steht die Spanne auf dem Etikett, wird sie übernommen. Die App sagt immer dazu, was davon geschätzt ist. Flaschen, die dieses Jahr dran sind oder es schon länger wären, tragen einen Hinweis in der Liste, und ein Filter zeigt nur diese. Der Wein-Berater bevorzugt sie bei sonst gleicher Eignung.
 - **Erscheinungsbild** – In den Einstellungen wählbar zwischen System, Hell und Dunkel. Die Wahl gilt nur für dieses Gerät, damit iPhone und iPad unterschiedlich eingestellt sein können.
 - **Teilen** – Der Keller lässt sich über iCloud für eine zweite Person mit eigener Apple-ID freigeben. Einladung in den Einstellungen erzeugen und per Nachricht verschicken; beide sehen danach denselben Bestand, auch beim Abbuchen einer Flasche.
+- **Einführung** – Beim ersten Start erklärt ein kurzer Walkthrough mit nachgezeichneten Bildern die wesentlichen Punkte: Etikett scannen, Bestand verwalten, Regal einräumen, Wein-Berater und Freigabe. Er lässt sich jederzeit über die Einstellungen („Hilfe“) erneut anzeigen.
 - **Einstellungen** – API-Key und Modellname pro Anbieter, dazu ein eigenes Modell für Siri. Keys lassen sich jederzeit wieder entfernen. Der Anbieter mit hinterlegtem Key ist automatisch aktiv; bei mehreren Keys lässt sich ein bevorzugter wählen. Keys liegen in der Keychain, nie in UserDefaults.
 
 ## Voraussetzungen

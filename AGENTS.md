@@ -230,6 +230,13 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Testen ohne Gerät: App einmal starten (registriert die Intents), dann Kurzbefehle-App im Simulator öffnen, dort erscheint „Wein empfehlen“ unter „Wyychällerli“. Metadaten prüfen: `Metadata.appintents/extract.actionsdata` im gebauten `.app`.
 - CarPlay braucht keine eigene Arbeit und ist als eigene App auch nicht erlaubt (die App passt in keine zugelassene CarPlay-Kategorie). Siri im Auto nutzt denselben Intent.
 
+## Einführung (Walkthrough)
+
+- `Views/Onboarding/`: `OnboardingView` (sechs Seiten als `TabView` im Page-Stil, eigene Seitenpunkte, „Überspringen“ und „Weiter“/„Los geht's“), `OnboardingIllustrations.swift` (`OnboardingPage` mit Titel, Text und Zeichnung je Seite) und `SketchDrawing.swift` (die Zeichenwerkzeuge).
+- **Gesehen-Zustand** in `UserDefaults` unter `OnboardingView.completedKey` („onboarding.completed“), bewusst pro Gerät wie das Erscheinungsbild. `ContentView` zeigt die Einführung als `fullScreenCover`, sobald der Splash weg ist und der Wert `false` ist; die Einstellungen setzen ihn unter „Hilfe“ wieder auf `false`, um sie erneut zu öffnen. Bestehende Installationen sehen sie nach dem Update deshalb einmal.
+- **Die Bilder sind gezeichnet, keine Screenshots.** Jede Seite ist eine `Canvas` in einem festen Zeichnungsraum von 300 × 225 Punkten, den `SketchIllustrationView` auf die Breite skaliert. `SketchPen` zieht jede Linie doppelt und leicht wackelig (`Path.sketched`, deterministisch über `SketchRandom` mit festem Startwert – sonst zittert die Zeichnung bei jedem Layout). Farben aus `SketchPalette` (Papier und Tinte adaptiv, Weinfarben aus `WineType.color`), Flaschen über `BottleShape` aus `RackGridView.swift`. SF Symbols liegen als Views über der Canvas (`OnboardingPage.symbols`), weil sie sich dort nicht nachzeichnen lassen.
+- Screenshots wären nach jeder UI-Änderung veraltet und in Hell und Dunkel doppelt zu pflegen; die Zeichnungen folgen dem Farbschema von selbst. Ändert sich ein Ablauf (z. B. das Plus-Menü), Text **und** Zeichnung der Seite anpassen.
+
 ## Bekannte Stolperfallen
 
 - `Text("\(intValue)")` lokalisiert Zahlen (Jahrgang wird zu „2'024“). Für Jahrgänge `String(vintage)` verwenden.

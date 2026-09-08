@@ -12,6 +12,19 @@ struct ContentView: View {
     @State private var selectedTab: AppTab = .cellar
     @State private var isShowingSplash = true
 
+    /// Ob die Einführung schon gesehen wurde. Die Einstellungen setzen den Wert auf
+    /// `false`, um sie erneut zu zeigen.
+    @AppStorage(OnboardingView.completedKey) private var hasCompletedOnboarding = false
+
+    /// Die Einführung kommt erst, wenn der Startbildschirm weg ist – sonst schiebt sie
+    /// sich noch während der Animation darüber.
+    private var isShowingOnboarding: Binding<Bool> {
+        Binding(
+            get: { !isShowingSplash && !hasCompletedOnboarding },
+            set: { if !$0 { hasCompletedOnboarding = true } }
+        )
+    }
+
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
@@ -38,6 +51,11 @@ struct ContentView: View {
             try? await Task.sleep(for: SplashView.displayDuration)
             withAnimation(.easeInOut(duration: 0.5)) {
                 isShowingSplash = false
+            }
+        }
+        .fullScreenCover(isPresented: isShowingOnboarding) {
+            OnboardingView {
+                hasCompletedOnboarding = true
             }
         }
     }
