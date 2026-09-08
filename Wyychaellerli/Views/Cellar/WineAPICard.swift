@@ -83,14 +83,10 @@ struct WineAPICard: View {
     @ViewBuilder
     private func profileBody(_ profile: WineAPIProfile) -> some View {
         // Was WineAPI meint, gefunden zu haben – damit ein Fehlgriff auffällt.
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(matchedName(profile))
                 .font(.subheadline.weight(.semibold))
-            if let confidence = profile.matchConfidence, confidence < 0.8 {
-                Label("Zuordnung unsicher (\(Int(confidence * 100)) %) – bitte Name und Jahrgang vergleichen.", systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
+            matchCheck(profile)
         }
 
         if profile.hasRating, let rating = profile.averageRating {
@@ -111,15 +107,7 @@ struct WineAPICard: View {
 
         let scores = profile.usableScores
         if !scores.isEmpty {
-            FlowLayout(spacing: 6) {
-                ForEach(Array(scores.prefix(6).enumerated()), id: \.offset) { _, score in
-                    Text(scoreText(score))
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemFill), in: Capsule())
-                }
-            }
+            scoresRow(scores)
         }
 
         if let text = profile.displayDescription {
@@ -132,6 +120,7 @@ struct WineAPICard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            notesButton(text)
         }
 
         let facts = factLine(profile)
@@ -147,22 +136,11 @@ struct WineAPICard: View {
                 .foregroundStyle(.secondary)
         }
 
-        let pairings = profile.displayPairings
-        if !pairings.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Passt laut WineAPI zu")
-                    .font(.footnote.weight(.semibold))
-                FlowLayout(spacing: 8) {
-                    ForEach(pairings, id: \.self) { pairing in
-                        Text(pairing)
-                            .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(wine.type.color.opacity(0.12), in: Capsule())
-                            .foregroundStyle(wine.type.color)
-                    }
-                }
-            }
+        if !profile.displayPairings.isEmpty {
+            // Die Empfehlungen selbst stehen in der Karte „Passt zu“ weiter oben.
+            Label("\(profile.displayPairings.count) Speiseempfehlungen – siehe „Passt zu“", systemImage: "fork.knife")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
 
         HStack {
@@ -177,20 +155,136 @@ struct WineAPICard: View {
         .foregroundStyle(.tertiary)
     }
 
+    // MARK: Ist es wirklich dieser Wein?
+
+    /// Vergleicht die eigenen Angaben mit dem Treffer. Man kann selbst nicht beurteilen,
+    /// ob WineAPI richtig liegt – aber ob Jahrgang und Weingut übereinstimmen, schon.
+    @ViewBuilder
+    private func matchCheck(_ profile: WineAPIProfile) -> some View {
+        let differences = differences(profile)
+        if differences.isEmpty {
+            Label("Weingut, Name und Jahrgang stimmen mit deinen Angaben überein.", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(.green)
+        } else {
+            VStack(alignment: .leading, spacing: 3) {
+                Label("Bitte prüfen – das weicht von deinen Angaben ab:", systemImage: "exclamationmark.triangle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+                ForEach(differences, id: \.self) { line in
+                    Text(line)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Passt es nicht, wähle im Menü „Zuordnung verwerfen“ und ergänze Weingut oder Jahrgang, bevor du erneut nachschlägst.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        if let confidence = profile.matchConfidence {
+            Text("Sicherheit laut WineAPI: \(Int((confidence * 100).rounded())) %")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func differences(_ profile: WineAPIProfile) -> [String] {
+        var lines: [String] = []
+        if wine.vintage > 0, let found = profile.vintage, found > 0, Int(wine.vintage) != found {
+            lines.append("Jahrgang: bei dir \(wine.vintage), gefunden \(found)")
+        }
+        if !wine.producer.isEmpty, let winery = profile.winery?.name, !winery.isEmpty,
+           !looselyEqual(wine.producer, winery) {
+            lines.append("Weingut: bei dir „\(wine.producer)“, gefunden „\(winery)“")
+        }
+        if !looselyEqual(wine.name, profile.name), !looselyEqual(wine.producer + " " + wine.name, profile.name) {
+            lines.append("Name: bei dir „\(wine.name)“, gefunden „\(profile.name)“")
+        }
+        return lines
+    }
+
+    /// Gleich genug: Gross-/Kleinschreibung, Akzente und Beiwerk zählen nicht,
+    /// und ein Name darf im anderen enthalten sein („Barolo“ in „Barolo Riserva“).
+    private func looselyEqual(_ a: String, _ b: String) -> Bool {
+        let na = normalized(a), nb = normalized(b)
+        guard !na.isEmpty, !nb.isEmpty else { return true }
+        return na == nb || na.contains(nb) || nb.contains(na)
+    }
+
+    private func normalized(_ text: String) -> String {
+        text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    // MARK: Kritikerpunkte
+
+    /// Quer blätterbar, eine Karte je Kritiker. Verkostungstexte liefert WineAPI nicht,
+    /// nur Punkte und allenfalls ein Wort wie „Gold“.
+    private func scoresRow(_ scores: [WineAPIProfile.Score]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(scores.count == 1 ? "Kritikerwertung" : "\(scores.count) Kritikerwertungen")
+                .font(.footnote.weight(.semibold))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(scores.enumerated()), id: \.offset) { _, score in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(score.score.map { $0.truncatingRemainder(dividingBy: 1) == 0 ? String(Int($0)) : String($0) }
+                                 ?? score.scoreText ?? "–")
+                                .font(.title3.weight(.bold).monospacedDigit())
+                            Text(score.reviewer)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            if let date = score.reviewDate {
+                                Text(date.formatted(.dateTime.year()))
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .padding(10)
+                        .frame(minWidth: 96, alignment: .leading)
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: In die Notizen
+
+    /// Fehlen Notizen vom Scan, übernimmt ein Tipp die Beschreibung – oder hängt sie an.
+    @ViewBuilder
+    private func notesButton(_ text: String) -> some View {
+        let alreadyThere = wine.notes.contains(text.prefix(40))
+        if alreadyThere {
+            Label("In den Notizen", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            Button {
+                withAnimation {
+                    wine.notes = wine.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? text
+                        : wine.notes + "\n\n" + text
+                    context.saveChanges()
+                }
+            } label: {
+                Label(wine.notes.isEmpty ? "In die Notizen übernehmen" : "An die Notizen anhängen", systemImage: "note.text.badge.plus")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+    }
+
     private func matchedName(_ profile: WineAPIProfile) -> String {
         var parts: [String] = []
         if let winery = profile.winery?.name, !winery.isEmpty { parts.append(winery) }
         parts.append(profile.name)
         if let vintage = profile.vintage, vintage > 0 { parts.append(String(vintage)) }
         return parts.joined(separator: " · ")
-    }
-
-    private func scoreText(_ score: WineAPIProfile.Score) -> String {
-        if let value = score.score {
-            let number = value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
-            return "\(score.reviewer) \(number)"
-        }
-        return "\(score.reviewer) \(score.scoreText ?? "")"
     }
 
     private func factLine(_ profile: WineAPIProfile) -> String {

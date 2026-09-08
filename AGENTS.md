@@ -237,7 +237,9 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - **Am Wein:** `wineAPIWineID`, `wineAPIProfileJSON`, `wineAPIPairingsRaw`, `wineAPIFetchedAt`. Neue Felder → vor dem nächsten TestFlight **Deploy Schema Changes** in der CloudKit-Konsole (siehe Datenschicht).
 - **`confidence` kommt je nach Endpunkt als Zahl oder als Text** („high“/„medium“/„low“) – `WineAPIProfile.Pairing` dekodiert beides. Die Skala von `averageRating` ist nicht dokumentiert; Sterne nur, wenn der Wert ≤ 5 ist.
 - **Berater:** `Wine.allPairings` = Etikett + WineAPI, ohne Doppelte. `LabelPairingMatcher` und der KI-Prompt (`inventoryItem.labelPairings`) arbeiten damit. Deshalb müssen WineAPI-Pairings **deutsch** gespeichert sein: `WineAPILookup.germanize` übersetzt die Liste als eine Zeile mit „ ; “ getrennt (einzelne Begriffe sind für die Spracherkennung zu kurz) und übernimmt sie nur, wenn die Zahl der Teile stimmt. Fehlt das Sprachpaket, bleibt Englisch – dann findet „Lamm“ kein „lamb“.
-- Die Karte zeigt, **was WineAPI gefunden hat** (Weingut · Name · Jahrgang) und warnt unter 80 % Sicherheit – der Dienst rät bei kleinen Schweizer Winzern gern.
+- Die Karte zeigt, **was WineAPI gefunden hat** (Weingut · Name · Jahrgang) und **vergleicht es mit den eigenen Angaben**: Jahrgang, Weingut und Name werden lose verglichen (Akzente, Gross/Klein, Enthaltensein zählen nicht); Abweichungen stehen als Zeilen „bei dir … / gefunden …“. Richard kann selbst nicht beurteilen, ob WineAPI richtig liegt – der Vergleich ist das, was er beurteilen kann.
+- **Speiseempfehlungen stehen nicht in der WineAPI-Karte**, sondern in der gemeinsamen Karte „Passt zu“ (Gruppen „Laut Etikett“ / „Laut WineAPI“) mit dem Satz, dass der Berater beide durchsucht. Richard hatte sonst erwartet, sie müssten erst „übernommen“ werden.
+- Kritikerwertungen: quer blätterbar, je Kritiker eine Kachel. **Verkostungstexte liefert die API nicht**, nur `score`/`scoreText`/`reviewer`/`reviewDate`. Die Beschreibung lässt sich mit einem Knopf in die Notizen übernehmen oder anhängen (erkannt an den ersten 40 Zeichen).
 
 ## Einführung (Walkthrough)
 

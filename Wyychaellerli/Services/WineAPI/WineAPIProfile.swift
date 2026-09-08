@@ -22,6 +22,7 @@ struct WineAPIProfile: Codable, Equatable, Sendable {
         var score: Double?
         var scoreText: String?
         var reviewer: String
+        var reviewDate: Date?
     }
 
     struct Pairing: Codable, Equatable, Sendable {
