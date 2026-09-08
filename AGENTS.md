@@ -230,6 +230,13 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Testen ohne Gerät: App einmal starten (registriert die Intents), dann Kurzbefehle-App im Simulator öffnen, dort erscheint „Wein empfehlen“ unter „Wyychällerli“. Metadaten prüfen: `Metadata.appintents/extract.actionsdata` im gebauten `.app`.
 - CarPlay braucht keine eigene Arbeit und ist als eigene App auch nicht erlaubt (die App passt in keine zugelassene CarPlay-Kategorie). Siri im Auto nutzt denselben Intent.
 
+## Einführung (Walkthrough)
+
+- `Views/Walkthrough/WalkthroughView.swift` zeigt sechs Seiten als `fullScreenCover`; die Bilder liegen in `WalkthroughIllustrations.swift` und sind **gezeichnet** (Formen, SF Symbols, `BottleIcon`), keine Screenshots – so veralten sie nicht mit jeder Oberflächenänderung und folgen Hell/Dunkel.
+- Gesehen-Merker: `UserDefaults` unter `WalkthroughView.seenKey` („walkthrough.seen“). `ContentView` öffnet die Einführung 400 ms nach dem Splash, sonst überlagern sich beide. Einstellungen → Hilfe zeigt sie erneut, ohne den Merker anzutasten.
+- Seiten ohne Tippen prüfen: `SIMCTL_CHILD_WALKTHROUGH_PAGE=3 xcrun simctl launch … ch.sondinetwork.wyychaellerli.dev` – nur im Debug-Build ausgewertet.
+- Texte beschreiben **Wege**, nicht Knöpfe („unter dem Menü oben links“, „oben rechts auf +“). Ändert sich die Toolbar, hier nachziehen.
+
 ## Bekannte Stolperfallen
 
 - `Text("\(intValue)")` lokalisiert Zahlen (Jahrgang wird zu „2'024“). Für Jahrgänge `String(vintage)` verwenden.

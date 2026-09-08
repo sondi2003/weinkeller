@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Environment(AISettings.self) private var settings
     @Environment(CurrentRater.self) private var rater
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
+    @State private var isShowingWalkthrough = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -78,7 +79,7 @@ struct SettingsView: View {
                 Section {
                     Label {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("„Hey Siri, Wein-Berater in Weinkeller“")
+                            Text("„Hey Siri, Wein-Berater in Wyychällerli“")
                                 .font(.footnote.weight(.semibold))
                             Text("Siri fragt danach, was es zu essen gibt, und liest die Empfehlung vor. Der App-Name muss im Satz vorkommen, das verlangt Apple. Für Siri wird das schnellere Modell verwendet.")
                                 .font(.footnote)
@@ -91,8 +92,23 @@ struct SettingsView: View {
                     Text("Siri")
                 }
 
+                Section {
+                    Button {
+                        isShowingWalkthrough = true
+                    } label: {
+                        Label("Einführung nochmals anzeigen", systemImage: "questionmark.circle")
+                    }
+                } header: {
+                    Text("Hilfe")
+                } footer: {
+                    Text("Die sechs Seiten vom ersten Start: Scannen, Bestand, Regal, Berater und Teilen.")
+                }
+
             }
             .navigationTitle("Einstellungen")
+            .fullScreenCover(isPresented: $isShowingWalkthrough) {
+                WalkthroughView()
+            }
         }
     }
 

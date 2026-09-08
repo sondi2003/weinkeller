@@ -11,6 +11,8 @@ struct ContentView: View {
 
     @State private var selectedTab: AppTab = .cellar
     @State private var isShowingSplash = true
+    @AppStorage(WalkthroughView.seenKey) private var hasSeenWalkthrough = false
+    @State private var isShowingWalkthrough = false
 
     var body: some View {
         ZStack {
@@ -39,6 +41,14 @@ struct ContentView: View {
             withAnimation(.easeInOut(duration: 0.5)) {
                 isShowingSplash = false
             }
+            // Die Einführung kommt erst, wenn der Splash weg ist – sonst überlagern sie sich.
+            if !hasSeenWalkthrough {
+                try? await Task.sleep(for: .milliseconds(400))
+                isShowingWalkthrough = true
+            }
+        }
+        .fullScreenCover(isPresented: $isShowingWalkthrough) {
+            WalkthroughView()
         }
     }
 }
