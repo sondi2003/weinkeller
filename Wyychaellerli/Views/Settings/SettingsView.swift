@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(CurrentRater.self) private var rater
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
     @State private var isShowingWalkthrough = false
+    @State private var didResetTips = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -98,10 +99,17 @@ struct SettingsView: View {
                     } label: {
                         Label("Einführung nochmals anzeigen", systemImage: "questionmark.circle")
                     }
+                    Button {
+                        QuickTips.showAgain()
+                        didResetTips = true
+                    } label: {
+                        Label(didResetTips ? "Tipps werden wieder gezeigt" : "Tipps nochmals zeigen", systemImage: "lightbulb")
+                    }
+                    .disabled(didResetTips)
                 } header: {
                     Text("Hilfe")
                 } footer: {
-                    Text("Die sechs Seiten vom ersten Start: Scannen, Bestand, Regal, Berater und Teilen.")
+                    Text("Die Einführung sind die sechs Seiten vom ersten Start. Die Tipps sind die kleinen Hinweise am Ort – im Regal, beim Scannen, an der Liste –, die nach dem ersten Mal verschwinden.")
                 }
 
             }

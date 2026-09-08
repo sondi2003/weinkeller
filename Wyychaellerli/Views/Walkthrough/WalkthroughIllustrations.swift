@@ -122,7 +122,7 @@ struct ScanIllustration: View {
                 TextLine(width: 70)
                 TextLine(width: 52)
                 HStack(spacing: 5) {
-                    Text("🇫🇷").font(.caption)
+                    Text("🇨🇭").font(.caption)
                     TextLine(width: 38)
                 }
             }

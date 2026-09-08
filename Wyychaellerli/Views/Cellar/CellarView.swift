@@ -1,8 +1,11 @@
 import SwiftUI
 import CoreData
+import TipKit
 
 /// Tab 1: Liste aller Weine mit Bestand, Schnell-Abbuchung und Hinzufügen.
 struct CellarView: View {
+
+    private let consumeTip = ConsumeTip()
 
     @Environment(\.managedObjectContext) private var context
     @FetchRequest(
@@ -80,6 +83,12 @@ struct CellarView: View {
                 summaryHeader
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     .listRowBackground(Color.clear)
+                // Erst wenn es etwas abzubuchen gibt; im leeren Keller wäre er nur Rauschen.
+                if !groups.isEmpty {
+                    TipView(consumeTip)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .listRowBackground(Color.clear)
+                }
             }
 
             if groups.isEmpty {
@@ -108,6 +117,7 @@ struct CellarView: View {
                     ForEach(group.wines) { wine in
                         NavigationLink(value: wine) {
                             WineRowView(wine: wine) {
+                                consumeTip.invalidate(reason: .actionPerformed)
                                 viewModel.consume(wine)
                             }
                         }

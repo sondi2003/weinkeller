@@ -1,5 +1,6 @@
 import CoreData
 import SwiftUI
+import TipKit
 
 /// Das Regal: ansehen, einräumen, Fach räumen.
 ///
@@ -16,6 +17,8 @@ struct RackView: View {
         animation: .default
     )
     private var racks: FetchedResults<Rack>
+
+    private let rackTip = RackSwipeTip()
 
     @State private var isEditingRack = false
     /// Freies Fach, für das gerade ein Wein gewählt wird.
@@ -125,6 +128,8 @@ struct RackView: View {
 
     private var unplacedSection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            TipView(rackTip)
+                .padding(.bottom, 4)
             Text("Noch nicht im Regal")
                 .font(.headline)
             Text("Tippe auf einen Wein und wähle dann so viele Fächer, wie er Flaschen hat – nebeneinander oder verteilt. Oder tippe auf ein freies Fach für eine einzelne Flasche.")
@@ -132,6 +137,7 @@ struct RackView: View {
                 .foregroundStyle(.secondary)
             ForEach(unplacedWines) { wine in
                 Button {
+                    rackTip.invalidate(reason: .actionPerformed)
                     placingWine = wine
                 } label: {
                     UnplacedWineRow(wine: wine)

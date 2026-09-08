@@ -1,11 +1,14 @@
 import PhotosUI
 import SwiftUI
+import TipKit
 
 /// Sheet: Etikett vorne und hinten erfassen, Text erkennen, Felder zuordnen.
 /// Liefert das Ergebnis über `onResult` an das Formular zurück.
 struct LabelScanView: View {
 
     let onResult: (LabelScanResult) -> Void
+
+    private let scanTip = ScanWholeBottleTip()
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AISettings.self) private var settings
@@ -19,18 +22,26 @@ struct LabelScanView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    TipView(scanTip)
+
                     HStack(alignment: .top, spacing: 12) {
                         LabelPhotoSlot(
                             side: .front,
                             symbol: "tag",
                             photo: $viewModel.front,
-                            onScan: { scanningSide = .front }
+                            onScan: {
+                                scanTip.invalidate(reason: .actionPerformed)
+                                scanningSide = .front
+                            }
                         )
                         LabelPhotoSlot(
                             side: .back,
                             symbol: "text.alignleft",
                             photo: $viewModel.back,
-                            onScan: { scanningSide = .back }
+                            onScan: {
+                                scanTip.invalidate(reason: .actionPerformed)
+                                scanningSide = .back
+                            }
                         )
                     }
 

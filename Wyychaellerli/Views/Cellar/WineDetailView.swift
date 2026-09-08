@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import TipKit
 
 /// Detailansicht eines Weins mit Bestandsverwaltung, Notizen, Archiv und Löschen.
 struct WineDetailView: View {
@@ -7,6 +8,8 @@ struct WineDetailView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var wine: Wine
+
+    private let backLabelTip = BackLabelTip()
 
     @State private var isEditing = false
     @State private var isConfirmingDelete = false
@@ -77,8 +80,16 @@ struct WineDetailView: View {
             if labelPages.isEmpty {
                 WineTypeIcon(type: wine.type, size: 84)
             } else {
-                LabelPager(pages: labelPages, wineName: wine.name)
-                    .padding(.bottom, 8)
+                // Der Tipp nur, wenn es eine Rückseite gibt – sonst gäbe es nichts zu wischen.
+                // (Die Variante mit optionalem Tipp gibt es erst ab iOS 26.)
+                if labelPages.count > 1 {
+                    LabelPager(pages: labelPages, wineName: wine.name)
+                        .padding(.bottom, 8)
+                        .popoverTip(backLabelTip, arrowEdge: .top)
+                } else {
+                    LabelPager(pages: labelPages, wineName: wine.name)
+                        .padding(.bottom, 8)
+                }
             }
             if !wine.producer.isEmpty {
                 Text(wine.producer)

@@ -237,6 +237,13 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Seiten ohne Tippen prüfen: `SIMCTL_CHILD_WALKTHROUGH_PAGE=3 xcrun simctl launch … ch.sondinetwork.wyychaellerli.dev` – nur im Debug-Build ausgewertet.
 - Texte beschreiben **Wege**, nicht Knöpfe („unter dem Menü oben links“, „oben rechts auf +“). Ändert sich die Toolbar, hier nachziehen.
 
+## Tipps am Ort (TipKit)
+
+- `Views/Components/QuickTips.swift`: vier Tipps – Abbuchen (Kellerliste, nur wenn Weine da sind), ganze Flasche fotografieren (Scan-Sheet), Wein antippen und wischen (Regal, über der Liste der unverorteten Weine), Rückseite (Detailseite, `popoverTip` am Etikett, nur mit zwei Seiten). `Tips.configure` läuft im `init` der App mit `.displayFrequency(.immediate)` – die Tipps liegen auf verschiedenen Seiten und konkurrieren nicht.
+- Jeder Tipp wird mit `.invalidate(reason: .actionPerformed)` erledigt, sobald die Sache einmal gemacht wurde – nicht erst beim Wegtippen.
+- **„Tipps nochmals zeigen“ ohne Neustart:** `Tips.resetDatastore()` muss vor `configure` laufen, das geht zur Laufzeit nicht. Deshalb trägt jede Tipp-`id` eine Generation (`tips.generation` in UserDefaults); hochzählen macht alle Tipps für TipKit zu neuen. Nicht auf die Standard-`id` (Typname) zurückbauen.
+- `popoverTip` mit **optionalem** Tipp gibt es erst ab iOS 26 – bei Ziel 17 stattdessen mit `if` verzweigen.
+
 ## Bekannte Stolperfallen
 
 - `Text("\(intValue)")` lokalisiert Zahlen (Jahrgang wird zu „2'024“). Für Jahrgänge `String(vintage)` verwenden.

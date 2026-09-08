@@ -21,6 +21,10 @@ struct WyychaellerliApp: App {
     /// Hell, dunkel oder dem System folgen. Gilt für die ganze App.
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
 
+    init() {
+        QuickTips.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
