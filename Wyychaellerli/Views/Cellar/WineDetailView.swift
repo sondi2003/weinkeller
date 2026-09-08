@@ -25,10 +25,9 @@ struct WineDetailView: View {
                 stockCard
                 WineRackCard(wine: wine)
                 RatingCard(wine: wine) { isRating = true }
-                if !wine.allPairings.isEmpty {
+                if !wine.foodPairings.isEmpty {
                     pairingCard
                 }
-                WineAPICard(wine: wine)
                 WineOriginMapView(wine: wine)
                 if !wine.notes.isEmpty {
                     notesCard
@@ -212,34 +211,13 @@ struct WineDetailView: View {
 
     // MARK: Speiseempfehlung vom Etikett
 
-    /// Speiseempfehlungen vom Etikett und von WineAPI in **einer** Karte, nach Quelle
-    /// gruppiert. Beide Listen durchsucht der Wein-Berater – das steht auch dran, damit
-    /// niemand meint, die WineAPI-Begriffe müssten erst „übernommen“ werden.
+    /// Nur sichtbar, wenn auf dem Etikett tatsächlich etwas dazu steht.
     private var pairingCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Passt zu", systemImage: "fork.knife")
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Passt laut Etikett zu", systemImage: "fork.knife")
                 .font(.headline)
-            if !wine.foodPairings.isEmpty {
-                pairingGroup(title: "Laut Etikett", symbol: "tag", terms: wine.foodPairings)
-            }
-            if !wine.wineAPIPairings.isEmpty {
-                pairingGroup(title: "Laut WineAPI", symbol: "globe", terms: wine.wineAPIPairings)
-            }
-            Text("Der Wein-Berater durchsucht beide Listen – ohne KI-Anfrage.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-
-    private func pairingGroup(title: String, symbol: String, terms: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: symbol)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
             FlowLayout(spacing: 8) {
-                ForEach(terms, id: \.self) { pairing in
+                ForEach(wine.foodPairings, id: \.self) { pairing in
                     Text(pairing)
                         .font(.subheadline)
                         .padding(.horizontal, 12)
@@ -249,6 +227,8 @@ struct WineDetailView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
     // MARK: Notizen

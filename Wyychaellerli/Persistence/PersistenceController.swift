@@ -347,10 +347,6 @@ final class PersistenceController: @unchecked Sendable {
             attribute("geocodedQuery", .stringAttributeType, default: ""),
             attribute("geocodedPlaceName", .stringAttributeType, default: ""),
             attribute("geocodePrecision", .stringAttributeType, default: ""),
-            attribute("wineAPIWineID", .stringAttributeType, default: ""),
-            attribute("wineAPIProfileJSON", .stringAttributeType, default: ""),
-            attribute("wineAPIPairingsRaw", .stringAttributeType, default: ""),
-            attribute("wineAPIFetchedAt", .dateAttributeType, optional: true),
             attribute("createdAt", .dateAttributeType, optional: true)
         ]
 

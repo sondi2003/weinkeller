@@ -72,20 +72,19 @@ final class PairingViewModel {
         error = nil
         if !forceAI {
             response = nil
-            // Etikett und WineAPI zusammen: beides liegt lokal vor und kostet nichts.
             let matches = wines.compactMap { wine -> LabelMatch? in
-                let terms = LabelPairingMatcher.matchingTerms(dish: dish, pairings: wine.allPairings)
+                let terms = LabelPairingMatcher.matchingTerms(dish: dish, pairings: wine.foodPairings)
                 return terms.isEmpty ? nil : LabelMatch(wine: wine, terms: terms)
             }
             labelMatches = matches
             labelMatchDish = dish
             if !matches.isEmpty {
                 labelCheckOutcome = .matched
-                // Treffer in den gespeicherten Empfehlungen: keine Anfrage nötig.
+                // Treffer auf dem Etikett: keine Anfrage nötig.
                 return
             }
             // Unterscheiden, ob nichts passt oder schlicht nichts erfasst ist.
-            labelCheckOutcome = wines.contains { !$0.allPairings.isEmpty } ? .noMatch : .nothingStored
+            labelCheckOutcome = wines.contains { !$0.foodPairings.isEmpty } ? .noMatch : .nothingStored
         }
 
         guard settings.activeProvider != nil else {

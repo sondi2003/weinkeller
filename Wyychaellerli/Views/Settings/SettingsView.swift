@@ -11,7 +11,6 @@ struct SettingsView: View {
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
     @State private var isShowingWalkthrough = false
     @State private var didResetTips = false
-    @State private var hasWineAPIKey = WineAPIClient.storedKey != nil
 
     var body: some View {
         @Bindable var settings = settings
@@ -79,27 +78,6 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        WineAPISettingsView()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "globe")
-                                .foregroundStyle(Color.accentColor)
-                                .frame(width: 26)
-                            Text("WineAPI")
-                            Spacer()
-                            Text(hasWineAPIKey ? "Key hinterlegt" : "Kein Key")
-                                .font(.caption)
-                                .foregroundStyle(hasWineAPIKey ? .secondary : .tertiary)
-                        }
-                    }
-                } header: {
-                    Text("Weindaten aus dem Netz")
-                } footer: {
-                    Text("Bewertungen, Beschreibung, Preise und Speiseempfehlungen von wineapi.io – pro Wein auf der Detailseite nachschlagbar. Kostenloser Key, kein Zwang.")
-                }
-
-                Section {
                     Label {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("„Hey Siri, Wein-Berater in Wyychällerli“")
@@ -136,7 +114,6 @@ struct SettingsView: View {
 
             }
             .navigationTitle("Einstellungen")
-            .onAppear { hasWineAPIKey = WineAPIClient.storedKey != nil }
             .fullScreenCover(isPresented: $isShowingWalkthrough) {
                 WalkthroughView()
             }
