@@ -25,6 +25,7 @@ struct WineDetailView: View {
                 stockCard
                 WineRackCard(wine: wine)
                 RatingCard(wine: wine) { isRating = true }
+                factsCard
                 if !wine.foodPairings.isEmpty {
                     pairingCard
                 }
@@ -207,6 +208,70 @@ struct WineDetailView: View {
             }
         }
         .cardStyle()
+    }
+
+    // MARK: Angaben
+
+    /// Alles, was über den Wein erfasst ist, als Liste – der Kopf zeigt davon nur eine
+    /// Kurzzeile, und die verschluckt Land oder Rebsorte, sobald es eng wird.
+    private var factsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Angaben")
+                .font(.headline)
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 7) {
+                ForEach(facts, id: \.label) { fact in
+                    GridRow {
+                        Text(fact.label)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .gridColumnAlignment(.leading)
+                        Text(fact.value)
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private struct Fact {
+        let label: String
+        let value: String
+    }
+
+    /// Nur, was tatsächlich erfasst ist – leere Zeilen wären nur Rauschen.
+    private var facts: [Fact] {
+        var result: [Fact] = []
+        if !wine.producer.isEmpty { result.append(Fact(label: "Produzent", value: wine.producer)) }
+        if wine.vintage > 0 { result.append(Fact(label: "Jahrgang", value: String(wine.vintage))) }
+        result.append(Fact(label: "Weinart", value: wine.type.displayName))
+        if !wine.grape.isEmpty { result.append(Fact(label: "Rebsorte", value: wine.grape)) }
+        if !wine.region.isEmpty { result.append(Fact(label: "Region", value: wine.region)) }
+        if !wine.country.isEmpty {
+            let flag = CountryFlag.emoji(for: wine.country).map { "\($0) " } ?? ""
+            result.append(Fact(label: "Land", value: flag + wine.country))
+        }
+        if let alcohol = alcoholFromNotes { result.append(Fact(label: "Alkohol", value: alcohol)) }
+        if !wine.drinkWindowText.isEmpty {
+            result.append(Fact(label: "Trinkreife", value: wine.drinkWindowText + (wine.drinkWindowFromLabel ? " (Etikett)" : " (geschätzt)")))
+        }
+        if let date = wine.createdAt {
+            result.append(Fact(label: "Erfasst", value: date.formatted(date: .abbreviated, time: .omitted)))
+        }
+        return result
+    }
+
+    /// Der Alkoholgehalt wird nicht als Feld gespeichert, sondern beim Scannen in die
+    /// Notizen geschrieben („Alkohol: 13,5 % vol.“). Hier wird er wieder herausgelesen.
+    private var alcoholFromNotes: String? {
+        guard let range = wine.notes.range(of: #"Alkohol:\s*([0-9]+(?:[.,][0-9])?)\s*%"#, options: .regularExpression) else {
+            return nil
+        }
+        let match = String(wine.notes[range])
+        guard let numberRange = match.range(of: #"[0-9]+(?:[.,][0-9])?"#, options: .regularExpression) else { return nil }
+        return "\(match[numberRange]) % Vol."
     }
 
     // MARK: Speiseempfehlung vom Etikett

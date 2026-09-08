@@ -201,6 +201,8 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Der Berater bekommt `rating` im Inventar-JSON und **gewichtet** es (Regel 5b). Schwach bewertete Flaschen werden nie ausgeschlossen: Passt eine trotzdem am besten zum Gericht, soll sie mit Hinweis empfohlen werden.
 - `RatingsOverviewView` (Menü in der Kellerliste) listet bewertete Weine nach Kaufhinweis gruppiert – **einschliesslich archivierter und leerer Flaschen**, denn genau die sind schon getrunken und damit die interessanten für den nächsten Einkauf.
 - Gefragt wird beim Austrinken der letzten Flasche (Knopf „Bewerten“ im vorhandenen Dialog) und jederzeit über die Detailseite.
+- **`RatingCard` ist kompakt** (seit 8.9.2026): Kopfzeile mit Mittelwert und **einem** kleinen Knopf rechts (Stern = bewerten, Stift = ändern), je Person eine Zeile mit Sternen, dann das Urteil. Gründe und Notizen liegen in einer `DisclosureGroup`. Keinen breiten Knopf mehr einbauen – die Karte nahm vorher ein Drittel der Detailseite ein.
+- **`factsCard` auf der Detailseite** listet alles Erfasste als Tabelle (Produzent, Jahrgang, Weinart, Rebsorte, Region, Land mit Flagge, Alkohol, Trinkreife, Erfasst-Datum). Der Kopf zeigt nur die Kurzzeile. Alkohol ist **kein** Feld: Der Scan schreibt „Alkohol: 13,5 % vol.“ in die Notizen, `alcoholFromNotes` liest es dort per Regex wieder heraus. Wird Alkohol je ein eigenes Feld, diese Stelle mit umbauen.
 
 ## Trinkreife
 
@@ -246,6 +248,7 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 
 ## Bekannte Stolperfallen
 
+- **WineAPI (wineapi.io) wurde am 8.9.2026 eingebaut, getestet und wieder ausgebaut** (Commits `85784f1`, `5cd6f22`, per Revert zurückgenommen). Grund: Der Dienst – KI plus Websuche, kein kuratierter Katalog – ordnete bei Richards Flaschen jedes Mal ein anderes Weingut zu. Entscheidung: beim eigenen Scan und dem eigenen KI-Berater bleiben. Nicht erneut vorschlagen; bei Bedarf steht der Stand in der Git-Geschichte.
 - **Ein Wein wird nie ohne Rückfrage gelöscht.** Löschen ist endgültig und wandert über iCloud auf alle Geräte. Alle drei Wege – Wischgeste in der Liste, der Dialog nach der letzten Flasche, der Knopf auf der Detailseite – münden in einer Bestätigung („Endgültig löschen“). In `CellarView` läuft das über `wineToDelete`; neue Löschwege dort anschliessen, nicht direkt `viewModel.delete` rufen.
 - **Ausrichtungen nie pauschal auf Hochformat setzen.** App Store Connect lehnt den Upload ab (Fehler 90474), wenn das iPad nicht alle vier Ausrichtungen unterstützt – ausser man schaltet Multitasking mit `UIRequiresFullScreen` ab. Deshalb getrennt: `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone` nur Hochformat, `…_iPad` alle vier. Ist am 8.9.2026 einmal passiert, als in Xcode unter „General“ die Häkchen gesetzt wurden – das setzt den gemeinsamen Schlüssel für beide Gerätefamilien.
 
