@@ -2,14 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Die App nutzt nur HTTPS; das ist von der Exportregelung ausgenommen.
-	     Ohne diesen Schlüssel fragt App Store Connect bei jedem Build erneut nach. -->
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>CKSharingSupported</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Die Kamera wird genutzt, um Weinetiketten zu fotografieren und die Angaben automatisch auszulesen.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
