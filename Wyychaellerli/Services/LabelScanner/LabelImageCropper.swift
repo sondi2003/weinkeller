@@ -6,12 +6,15 @@ import ImageIO
 import Vision
 
 /// Ergebnis des Zuschnitts – mit Diagnose, welche Strategie gegriffen hat.
-struct LabelCropResult: Sendable {
+struct LabelCropResult: @unchecked Sendable {
     enum Strategy: String, Sendable { case document, rectangle, textBounds, fullImage }
     let jpegData: Data
     let strategy: Strategy
     /// Drehung in Grad (0, 90, 180, 270), die angewendet wurde, damit der Text lesbar liegt.
     let rotation: Int
+    /// Das aufrechte Etikett in Lese-Auflösung (längste Kante bis 2400 px), aus dem
+    /// vollen Foto geschnitten – für den zweiten Durchgang der Texterkennung.
+    let ocrImage: CGImage?
 }
 
 /// Schneidet ein Flaschenfoto aufs Etikett zu und dreht es so, dass der Text lesbar ist.
@@ -36,7 +39,11 @@ enum LabelImageCropper {
 
     static func cropLabel(from image: ScanImage, textLines: [RecognizedLine]) async -> LabelCropResult? {
         await Task.detached(priority: .userInitiated) {
-            let source = CIImage(cgImage: image.cgImage).oriented(image.orientation)
+            // Erkannt wird auf der verkleinerten Fassung, geschnitten aus dem vollen Foto:
+            // Die Vision-Koordinaten sind normiert und gelten für beide. So behält ein
+            // kleines Etikett auf einer schmalen Flasche seine Pixel.
+            let source = image.original.map { CIImage(cgImage: $0).oriented(image.orientation) }
+                ?? CIImage(cgImage: image.cgImage).oriented(image.orientation)
             let extent = source.extent
             // Kurze Fragmente (z. B. "•LE" von der Kapsel) würden den Umriss unnötig aufblähen.
             let textBoxes = textLines
@@ -82,9 +89,21 @@ enum LabelImageCropper {
                 colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
                 options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.85]
             ) else { return nil }
-            return LabelCropResult(jpegData: jpeg, strategy: strategy, rotation: rotation)
+
+            // Fürs zweite Lesen: nur wenn wirklich geschnitten wurde – das ganze Bild
+            // wurde ja schon gelesen.
+            var ocrImage: CGImage?
+            if strategy != .fullImage {
+                let readable = downscaled(upright, maxDimension: ocrDimension)
+                ocrImage = context.createCGImage(readable, from: readable.extent)
+            }
+            return LabelCropResult(jpegData: jpeg, strategy: strategy, rotation: rotation, ocrImage: ocrImage)
         }.value
     }
+
+    /// Längste Kante des Zuschnitts fürs zweite Lesen – dieselbe Grösse wie das ganze
+    /// Foto im ersten Durchgang, jetzt aber nur fürs Etikett.
+    private static let ocrDimension: CGFloat = 2400
 
     // MARK: Etikettenkante
 

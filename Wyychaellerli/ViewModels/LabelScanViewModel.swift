@@ -73,9 +73,12 @@ final class LabelScanViewModel {
     private static func scanImage(from photo: Photo) -> ScanImage? {
         let resized = photo.image.resizedForRecognition(maxDimension: 2400)
         guard let cgImage = resized.cgImage else { return nil }
+        // Das volle Foto kommt mit: Daraus wird das Etikett geschnitten und ein zweites
+        // Mal gelesen. Die Ausrichtung ist dieselbe, `resizedForRecognition` behält sie.
         return ScanImage(
             cgImage: cgImage,
-            orientation: CGImagePropertyOrientation(resized.imageOrientation)
+            orientation: CGImagePropertyOrientation(resized.imageOrientation),
+            original: photo.image.cgImage
         )
     }
 }

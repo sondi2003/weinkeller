@@ -29,20 +29,22 @@ struct LabelScanService: Sendable {
         var backLabelImageData: Data?
 
         if let front {
-            let lines = try await LabelTextRecognizer.recognizeLines(in: front)
-            sections.append(("Vorderseite", lines))
+            var lines = try await LabelTextRecognizer.recognizeLines(in: front)
             if let crop = await LabelImageCropper.cropLabel(from: front, textLines: lines) {
                 labelImageData = crop.jpegData
                 Self.logger.info("Etikett vorne: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
+                lines = await Self.rereadingLabel(lines, crop: crop, side: "vorne")
             }
+            sections.append(("Vorderseite", lines))
         }
         if let back {
-            let lines = try await LabelTextRecognizer.recognizeLines(in: back)
-            sections.append(("Rückseite", lines))
+            var lines = try await LabelTextRecognizer.recognizeLines(in: back)
             if let crop = await LabelImageCropper.cropLabel(from: back, textLines: lines) {
                 backLabelImageData = crop.jpegData
                 Self.logger.info("Etikett hinten: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
+                lines = await Self.rereadingLabel(lines, crop: crop, side: "hinten")
             }
+            sections.append(("Rückseite", lines))
         }
 
         let text = LabelTextRecognizer.combinedText(sections)
@@ -69,6 +71,23 @@ struct LabelScanService: Sendable {
             labelImageData: labelImageData,
             backLabelImageData: backLabelImageData
         )
+    }
+
+    /// Zweiter Durchgang auf dem Zuschnitt.
+    ///
+    /// Im ersten Durchgang ist das Etikett nur ein Ausschnitt des ganzen Fotos – auf
+    /// einer schmalen Flasche ein kleiner. Der Zuschnitt aus dem vollen Foto hat für
+    /// dieselben Buchstaben ein Vielfaches an Pixeln. Gelesen wird beides; es gewinnt,
+    /// was mehr sichere Zeichen liefert – so kann der zweite Durchgang nie schaden.
+    private static func rereadingLabel(_ first: [RecognizedLine], crop: LabelCropResult, side: String) async -> [RecognizedLine] {
+        guard let ocrImage = crop.ocrImage else { return first }
+        guard let second = try? await LabelTextRecognizer.recognizeLines(in: ScanImage(cgImage: ocrImage, orientation: .up)) else {
+            return first
+        }
+        let firstScore = LabelTextRecognizer.score(of: first)
+        let secondScore = LabelTextRecognizer.score(of: second)
+        logger.info("Zweites Lesen \(side): ganzes Foto \(Int(firstScore)), Zuschnitt \(Int(secondScore)) Punkte")
+        return secondScore > firstScore ? second : first
     }
 
     /// Wählt die beste verfügbare Zuordnung und fällt bei Fehlern eine Stufe zurück.

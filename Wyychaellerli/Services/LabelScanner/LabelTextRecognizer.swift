@@ -9,8 +9,12 @@ import Vision
 /// Ein Bild plus Ausrichtung, sicher über Actor-Grenzen hinweg übergebbar.
 /// `CGImage` ist unveränderlich, daher unbedenklich.
 struct ScanImage: @unchecked Sendable {
+    /// Verkleinerte Fassung (längste Kante 2400 px) – schnell genug für die Erkennung.
     let cgImage: CGImage
     let orientation: CGImagePropertyOrientation
+    /// Das Foto in voller Auflösung, falls vorhanden. Daraus wird das Etikett
+    /// geschnitten, damit kleine Etiketten beim zweiten Lesen genug Pixel haben.
+    var original: CGImage? = nil
 }
 
 /// Eine erkannte Textzeile mit ihrer Position (normalisiert, Ursprung unten links – Vision-Konvention).
@@ -67,7 +71,7 @@ enum LabelTextRecognizer {
             for preparation in Preparation.allCases {
                 guard let prepared = prepare(source, with: preparation, context: context) else { continue }
                 let lines = try recognize(prepared)
-                let score = lines.reduce(0.0) { $0 + Double($1.text.count) * Double($1.confidence) }
+                let score = score(of: lines)
                 if score > bestScore {
                     bestScore = score
                     best = lines
@@ -77,6 +81,12 @@ enum LabelTextRecognizer {
             logger.info("Texterkennung: „\(bestPreparation.rawValue)“ mit \(best.count) Zeilen")
             return best
         }.value
+    }
+
+    /// Wie viel lesbarer Text: Zeichen, gewichtet mit der Sicherheit. Dient dem Vergleich
+    /// von Varianten und Durchgängen – mehr sichere Zeichen gewinnen.
+    static func score(of lines: [RecognizedLine]) -> Double {
+        lines.reduce(0.0) { $0 + Double($1.text.count) * Double($1.confidence) }
     }
 
     // MARK: Aufbereitung
