@@ -10,6 +10,10 @@ struct PartyHistoryView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
 
+    /// Eintrag, dessen Löschen noch bestätigt werden muss.
+    @State private var winToDelete: PartyWin?
+    @State private var isConfirmingDeleteAll = false
+
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(key: "date", ascending: false)],
         animation: .default
@@ -36,10 +40,29 @@ struct PartyHistoryView: View {
                     }
                 } else {
                     List {
-                        ForEach(wins) { win in
-                            row(win)
+                        Section {
+                            ForEach(wins) { win in
+                                row(win)
+                                    .swipeActions {
+                                        Button(role: .destructive) {
+                                            winToDelete = win
+                                        } label: {
+                                            Label("Löschen", systemImage: "trash")
+                                        }
+                                    }
+                            }
+                        } footer: {
+                            Text("Zum Löschen nach links wischen. Die Historie gehört zum Keller – was du hier entfernst, verschwindet auch auf den anderen Geräten.")
                         }
-                        .onDelete(perform: delete)
+
+                        Section {
+                            Button(role: .destructive) {
+                                isConfirmingDeleteAll = true
+                            } label: {
+                                Label("Alle Einträge löschen", systemImage: "trash")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
                     }
                 }
             }
@@ -49,6 +72,35 @@ struct PartyHistoryView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fertig") { dismiss() }
                 }
+                if !wins.isEmpty {
+                    ToolbarItem(placement: .primaryAction) {
+                        EditButton()
+                    }
+                }
+            }
+            .confirmationDialog(
+                "Eintrag löschen?",
+                isPresented: Binding(
+                    get: { winToDelete != nil },
+                    set: { if !$0 { winToDelete = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: winToDelete
+            ) { win in
+                Button("Löschen", role: .destructive) { delete(win) }
+                Button("Abbrechen", role: .cancel) { winToDelete = nil }
+            } message: { win in
+                Text("„\(win.displayTitle) – \(win.wineName)“ wird entfernt, auch auf den anderen Geräten.")
+            }
+            .confirmationDialog(
+                "Alle Einträge löschen?",
+                isPresented: $isConfirmingDeleteAll,
+                titleVisibility: .visible
+            ) {
+                Button("Alle \(wins.count) löschen", role: .destructive) { deleteAll() }
+                Button("Abbrechen", role: .cancel) { }
+            } message: {
+                Text("Die ganze Party-Historie wird entfernt – auf allen Geräten. Der Bestand im Keller bleibt unberührt.")
             }
         }
     }
@@ -97,9 +149,17 @@ struct PartyHistoryView: View {
         .padding(.vertical, 2)
     }
 
-    private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            context.delete(wins[index])
+    private func delete(_ win: PartyWin) {
+        context.delete(win)
+        context.saveChanges()
+        winToDelete = nil
+    }
+
+    /// Nur die Einträge **dieses** Kellers – auf dem Gerät des Gasts liegen daneben
+    /// womöglich die des eigenen, leeren Kellers.
+    private func deleteAll() {
+        for win in wins {
+            context.delete(win)
         }
         context.saveChanges()
     }
