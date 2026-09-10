@@ -13,6 +13,9 @@ final class Cellar: NSManagedObject {
 
     @NSManaged var uuid: UUID?
     @NSManaged var name: String
+    /// Gesalzener Hash des Party-Codes – siehe `PartyLock`. Am Keller, damit der
+    /// Party-Modus auf jedem Gerät startbar ist, das diesen Keller hat.
+    @NSManaged var partyCodeHash: String
     @NSManaged var createdAt: Date?
     @NSManaged var wines: NSSet?
 

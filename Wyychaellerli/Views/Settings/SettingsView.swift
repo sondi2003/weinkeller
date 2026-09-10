@@ -11,7 +11,8 @@ struct SettingsView: View {
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
     @State private var isShowingWalkthrough = false
     @State private var didResetTips = false
-    @State private var hasPartyCode = PartyLock.isConfigured
+    @Environment(\.managedObjectContext) private var context
+    @State private var hasPartyCode = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -137,7 +138,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Einstellungen")
             // Beim Zurückkommen von der Party-Seite kann sich der Zustand geändert haben.
-            .onAppear { hasPartyCode = PartyLock.isConfigured }
+            .onAppear { hasPartyCode = PartyLock.isConfigured(in: context) }
             .fullScreenCover(isPresented: $isShowingWalkthrough) {
                 WalkthroughView()
             }

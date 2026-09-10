@@ -308,6 +308,8 @@ final class PersistenceController: @unchecked Sendable {
     private static func makeModel() -> NSManagedObjectModel {
         let model = NSManagedObjectModel()
 
+        // `partyCodeHash` am Keller statt in der Keychain: Der Party-Modus soll auf jedem
+        // Gerät startbar sein, das diesen Keller hat – auch auf dem der Partnerin.
         let cellar = NSEntityDescription()
         cellar.name = "Cellar"
         cellar.managedObjectClassName = "CellarEntity"
@@ -321,6 +323,7 @@ final class PersistenceController: @unchecked Sendable {
         cellar.properties = [
             attribute("uuid", .UUIDAttributeType, optional: true),
             attribute("name", .stringAttributeType, default: "Mein Weinkeller"),
+            attribute("partyCodeHash", .stringAttributeType, default: ""),
             attribute("createdAt", .dateAttributeType, optional: true)
         ]
 

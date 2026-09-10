@@ -6,7 +6,9 @@ import SwiftUI
 /// in der Hand einfach einen neuen setzen.
 struct PartySettingsView: View {
 
-    @State private var isConfigured = PartyLock.isConfigured
+    @Environment(\.managedObjectContext) private var context
+
+    @State private var isConfigured = false
     @State private var currentCode = ""
     @State private var newCode = ""
     @State private var repeatCode = ""
@@ -58,19 +60,24 @@ struct PartySettingsView: View {
                 }
             }
 
-            if let biometry = PartyLock.biometryName {
-                Section {
+            Section {
+                Label {
+                    Text("Der Code gehört zum Keller, nicht zum Gerät: Er gilt auch auf deinem iPad und – wenn du den Keller teilst – bei der anderen Person. Wer ihn ändert, ändert ihn für alle.")
+                } icon: {
+                    Image(systemName: "icloud")
+                }
+                if let biometry = PartyLock.biometryName {
                     Label {
                         Text("Vergisst du den Code, kommst du mit \(biometry) aus dem Party-Modus heraus. Deine Gäste nicht.")
                     } icon: {
                         Image(systemName: biometry == "Face ID" ? "faceid" : "touchid")
                     }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                } header: {
-                    Text("Notausgang")
                 }
+            } header: {
+                Text("Gut zu wissen")
             }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
 
             Section {
                 Label {
@@ -86,6 +93,7 @@ struct PartySettingsView: View {
         }
         .navigationTitle("Party-Modus")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { isConfigured = PartyLock.isConfigured(in: context) }
         .confirmationDialog("Code entfernen?", isPresented: $isConfirmingRemoval, titleVisibility: .visible) {
             Button("Entfernen", role: .destructive) { remove() }
             Button("Abbrechen", role: .cancel) { }
@@ -101,7 +109,7 @@ struct PartySettingsView: View {
     }
 
     private func save() {
-        if isConfigured, !PartyLock.matches(currentCode) {
+        if isConfigured, !PartyLock.matches(currentCode, in: context) {
             show("Der bisherige Code stimmt nicht.", error: true)
             return
         }
@@ -113,22 +121,18 @@ struct PartySettingsView: View {
             show("Die beiden Eingaben sind nicht gleich.", error: true)
             return
         }
-        do {
-            try PartyLock.set(newCode)
-            isConfigured = true
-            currentCode = ""; newCode = ""; repeatCode = ""
-            show("Code gespeichert.", error: false)
-        } catch {
-            show("Der Code konnte nicht gespeichert werden: \(error.localizedDescription)", error: true)
-        }
+        PartyLock.set(newCode, in: context)
+        isConfigured = true
+        currentCode = ""; newCode = ""; repeatCode = ""
+        show("Code gespeichert. Er gilt auf allen Geräten mit diesem Keller.", error: false)
     }
 
     private func remove() {
-        guard !isConfigured || PartyLock.matches(currentCode) else {
+        guard !isConfigured || PartyLock.matches(currentCode, in: context) else {
             show("Zum Entfernen zuerst den bisherigen Code eingeben.", error: true)
             return
         }
-        try? PartyLock.remove()
+        PartyLock.remove(in: context)
         isConfigured = false
         currentCode = ""; newCode = ""; repeatCode = ""
         show("Code entfernt.", error: false)

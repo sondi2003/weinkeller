@@ -14,7 +14,16 @@ struct PartyHistoryView: View {
         sortDescriptors: [NSSortDescriptor(key: "date", ascending: false)],
         animation: .default
     )
-    private var wins: FetchedResults<PartyWin>
+    private var fetched: FetchedResults<PartyWin>
+
+    /// Nur die Ergebnisse **dieses** Kellers.
+    ///
+    /// Auf dem Gerät der eingeladenen Person liegen ein leerer eigener und der geteilte
+    /// Keller nebeneinander – ungefiltert stünden dort zwei Historien durcheinander.
+    private var wins: [PartyWin] {
+        guard let cellar = Cellar.current(in: context) else { return Array(fetched) }
+        return fetched.filter { $0.cellar == cellar }
+    }
 
     var body: some View {
         NavigationStack {
@@ -23,7 +32,7 @@ struct PartyHistoryView: View {
                     ContentUnavailableView {
                         Label("Noch keine Party", systemImage: "party.popper")
                     } description: {
-                        Text("Wenn deine Gäste abgestimmt haben, steht die Siegerflasche hier – mit Anlass, Datum und Stimmen.")
+                        Text("Wenn deine Gäste abgestimmt haben, steht die Siegerflasche hier – mit Anlass, Datum und Stimmen. Die Historie gehört zum Keller und ist auf allen Geräten gleich.")
                     }
                 } else {
                     List {

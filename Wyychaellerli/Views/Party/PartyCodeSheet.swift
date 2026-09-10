@@ -1,3 +1,4 @@
+import CoreData
 import SwiftUI
 
 /// Code-Abfrage – zum Starten des Party-Modus und zum Verlassen.
@@ -11,6 +12,7 @@ struct PartyCodeSheet: View {
     let onSuccess: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var context
     @State private var code = ""
     @State private var isWrong = false
     @FocusState private var isFocused: Bool
@@ -87,7 +89,7 @@ struct PartyCodeSheet: View {
     }
 
     private func check() {
-        if PartyLock.matches(code) {
+        if PartyLock.matches(code, in: context) {
             succeed()
         } else {
             isWrong = true

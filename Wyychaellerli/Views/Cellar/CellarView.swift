@@ -296,7 +296,7 @@ struct CellarView: View {
                 Divider()
                 Button {
                     // Ohne Code kein Party-Modus – sonst gäbe es keinen Weg zurück.
-                    if PartyLock.isConfigured {
+                    if PartyLock.isConfigured(in: context) {
                         isUnlockingParty = true
                     } else {
                         isMissingPartyCode = true
