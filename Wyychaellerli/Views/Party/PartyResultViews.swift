@@ -82,9 +82,25 @@ struct PartyPodiumView: View {
     @Bindable var model: PartyViewModel
     let onFinish: () -> Void
 
+    /// Löst den Konfettiregen aus, sobald das Podest erscheint.
+    @State private var celebrate = false
+
     private var places: [(wine: Wine, votes: Int)] { model.podium() }
 
     var body: some View {
+        content
+            .overlay {
+                if celebrate {
+                    ConfettiView()
+                }
+            }
+            .onAppear {
+                celebrate = true
+            }
+            .sensoryFeedback(.success, trigger: celebrate)
+    }
+
+    private var content: some View {
         ScrollView {
             VStack(spacing: 22) {
                 if let winner = model.winner {
