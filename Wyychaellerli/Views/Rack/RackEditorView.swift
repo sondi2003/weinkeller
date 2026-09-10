@@ -9,6 +9,9 @@ import SwiftUI
 struct RackEditorView: View {
 
     @ObservedObject var rack: Rack
+    /// Das letzte Regal darf nicht gelöscht werden – sonst stünde man ohne da.
+    var canDelete = false
+    var onDelete: () -> Void = {}
 
     @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -16,6 +19,7 @@ struct RackEditorView: View {
     @State private var name = ""
     @State private var rows = 1
     @State private var columns = 12
+    @State private var isConfirmingDelete = false
 
     private var losingSlots: [Slot] {
         rack.slotsOutsideGrid(rows: rows, columns: columns)
@@ -24,8 +28,14 @@ struct RackEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Name") {
+                Section {
                     TextField("Regal", text: $name)
+                } header: {
+                    Text("Name")
+                } footer: {
+                    if (rack.cellar?.rackCount ?? 1) > 1 {
+                        Text("Steht bei mehreren Regalen an jedem Fach – „\(name.isEmpty ? "Regal" : name) · B3“.")
+                    }
                 }
 
                 Section {
@@ -53,6 +63,20 @@ struct RackEditorView: View {
                     }
                 } header: {
                     Text("Vorschau")
+                }
+
+                if canDelete {
+                    Section {
+                        Button(role: .destructive) {
+                            isConfirmingDelete = true
+                        } label: {
+                            Label("Regal löschen", systemImage: "trash")
+                        }
+                    } footer: {
+                        Text(rack.usedCount == 0
+                             ? "Das Regal ist leer und wird einfach entfernt."
+                             : "\(rack.usedCount) \(rack.usedCount == 1 ? "Flasche wird" : "Flaschen werden") aus dem Regal genommen. Der Bestand im Keller bleibt unverändert.")
+                    }
                 }
 
                 if !losingSlots.isEmpty {
@@ -85,7 +109,22 @@ struct RackEditorView: View {
                 rows = rack.rowCount
                 columns = rack.columnCount
             }
+            .confirmationDialog("Regal löschen?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
+                Button("Löschen", role: .destructive) { delete() }
+                Button("Abbrechen", role: .cancel) { }
+            } message: {
+                Text("„\(rack.name)“ wird entfernt, auch auf den anderen Geräten. Die Flaschen bleiben im Keller, sie sind danach nur nicht mehr verortet.")
+            }
         }
+    }
+
+    /// Löscht das Regal samt seiner Fächer. Der Bestand am Wein bleibt – die Flaschen
+    /// gelten danach nur als nicht verortet.
+    private func delete() {
+        context.delete(rack)
+        context.saveChanges()
+        onDelete()
+        dismiss()
     }
 
     private func save() {

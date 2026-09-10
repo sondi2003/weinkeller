@@ -28,6 +28,15 @@ final class Slot: NSManagedObject, Identifiable {
 
     var position: Position { Position(row: Int(row), column: Int(column)) }
 
+    /// „B3“, und bei mehreren Regalen „Küche · B3“.
+    ///
+    /// Mit nur einem Regal wäre der Name überall nur Wiederholung; mit zweien ist „B3“
+    /// allein mehrdeutig und schickt einen an den falschen Ort.
+    var displayLabel: String {
+        guard let rack, (rack.cellar?.rackCount ?? 1) > 1 else { return position.label }
+        return "\(rack.name) · \(position.label)"
+    }
+
     /// Stellt eine Flasche ins Fach.
     @discardableResult
     static func place(
@@ -71,4 +80,9 @@ extension Wine {
     /// `true`, solange noch eine Flasche eingeräumt werden kann.
     /// Mehr Plätze als Flaschen darf es nie geben.
     var canPlaceAnotherBottle: Bool { unplacedCount > 0 }
+
+    /// Wo die Flaschen liegen: „Küche · B3, Keller · A1“. Leer, wenn nicht verortet.
+    var storageSummary: String {
+        placedSlots.map(\.displayLabel).joined(separator: ", ")
+    }
 }

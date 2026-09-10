@@ -165,6 +165,14 @@ struct PartyPodiumView: View {
                     .background(Color.accentColor.opacity(0.15), in: Capsule())
                     .foregroundStyle(Color.accentColor)
             }
+
+            // Jetzt muss jemand die Flasche holen – hier gehört das Fach hin, nicht
+            // während der Abstimmung.
+            if !wine.storageSummary.isEmpty {
+                Label("Liegt in \(wine.storageSummary)", systemImage: "square.grid.3x3")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(20)

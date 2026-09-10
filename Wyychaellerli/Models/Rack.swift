@@ -30,6 +30,9 @@ final class Rack: NSManagedObject, Identifiable {
     static let rowRange = 1...12
     static let columnRange = 1...20
 
+    /// Mehr Regale werden im Umschalter unübersichtlich, und niemand hat sie im Kopf.
+    static let maximumCount = 4
+
     var rowCount: Int { max(1, Int(rows)) }
     var columnCount: Int { max(1, Int(columns)) }
     var capacity: Int { rowCount * columnCount }
@@ -62,14 +65,20 @@ final class Rack: NSManagedObject, Identifiable {
         placedSlots.filter { Int($0.row) >= newRows || Int($0.column) >= newColumns }
     }
 
-    /// Das Regal **dieses** Kellers aus einer bereits geholten Liste.
+    /// Die Regale **dieses** Kellers aus einer bereits geholten Liste, ältestes zuerst.
     ///
     /// Wichtig auf dem Gerät des Gasts: Dort können ein leerer eigener Keller und der
-    /// geteilte nebeneinander liegen. Ohne diese Zuordnung gewönne womöglich ein Regal,
-    /// das gar nicht zum angezeigten Bestand gehört.
+    /// geteilte nebeneinander liegen. Ohne diese Zuordnung erschienen Regale, die gar
+    /// nicht zum angezeigten Bestand gehören.
+    static func inCurrentCellar(from racks: [Rack], in context: NSManagedObjectContext) -> [Rack] {
+        guard let cellar = Cellar.current(in: context) else { return racks }
+        let mine = racks.filter { $0.cellar == cellar }
+        return mine.isEmpty ? racks.filter { $0.cellar == nil } : mine
+    }
+
+    /// Das Regal **dieses** Kellers aus einer bereits geholten Liste.
     static func preferred(from racks: [Rack], in context: NSManagedObjectContext) -> Rack? {
-        guard let cellar = Cellar.current(in: context) else { return racks.first }
-        return racks.first { $0.cellar == cellar } ?? racks.first
+        inCurrentCellar(from: racks, in: context).first
     }
 
     /// Alle Regale dieses Kellers, ältestes zuerst.
@@ -77,47 +86,87 @@ final class Rack: NSManagedObject, Identifiable {
         all(in: context).filter { $0.cellar == cellar }
     }
 
-    /// Führt mehrere Regale desselben Kellers zusammen.
+    /// Regale desselben Kellers, die **denselben Namen** tragen.
     ///
-    /// Das passiert, wenn auf einem zweiten Gerät „Regal anlegen“ getippt wird, bevor das
-    /// erste über iCloud eingetroffen ist. Behalten wird das **älteste**; die Fächer der
-    /// übrigen wandern hinüber. Ist ein Fach dort schon belegt, wird die Flasche nur aus
-    /// dem Regal genommen – der Bestand bleibt in jedem Fall unangetastet.
+    /// Seit es mehrere Regale geben darf, ist „zwei Regale“ kein Fehler mehr. Der echte
+    /// Doppelanlage-Fall – zwei Geräte legen gleichzeitig eines an, bevor das erste über
+    /// iCloud eintrifft – erkennt man daran, dass beide gleich heissen.
+    static func duplicatesByName(in context: NSManagedObjectContext, for cellar: Cellar) -> [[Rack]] {
+        Dictionary(grouping: all(in: context, for: cellar), by: \.name)
+            .values
+            .filter { $0.count > 1 }
+            .sorted { ($0.first?.name ?? "") < ($1.first?.name ?? "") }
+    }
+
+    /// Führt gleichnamige Regale desselben Kellers zusammen.
+    ///
+    /// Behalten wird das **älteste** je Name; die Fächer der übrigen wandern hinüber.
+    /// Ist ein Fach dort schon belegt, wird die Flasche nur aus dem Regal genommen –
+    /// der Bestand bleibt in jedem Fall unangetastet.
     ///
     /// Waren die Regale unterschiedlich gross, wächst das behaltene so weit mit, dass jedes
     /// übernommene Fach im Raster liegt. Ohne das läge eine Flasche zwar als verortet in der
     /// Datenbank, wäre aber in keinem Fach zu sehen.
     @discardableResult
     static func mergeDuplicates(in context: NSManagedObjectContext, for cellar: Cellar) -> (moved: Int, released: Int) {
-        let racks = all(in: context, for: cellar)
-        guard let keeper = racks.first, racks.count > 1 else { return (0, 0) }
-
-        var taken = Set(keeper.placedSlots.map(\.position))
-        var neededRows = keeper.rowCount
-        var neededColumns = keeper.columnCount
         var moved = 0
         var released = 0
-        for extra in racks.dropFirst() {
-            for slot in extra.placedSlots {
-                let position = slot.position
-                let fits = position.row < rowRange.upperBound && position.column < columnRange.upperBound
-                if taken.contains(position) || !fits {
-                    context.delete(slot)
-                    released += 1
-                } else {
-                    slot.rack = keeper
-                    taken.insert(position)
-                    neededRows = max(neededRows, position.row + 1)
-                    neededColumns = max(neededColumns, position.column + 1)
-                    moved += 1
+
+        for group in duplicatesByName(in: context, for: cellar) {
+            guard let keeper = group.first else { continue }
+            var taken = Set(keeper.placedSlots.map(\.position))
+            var neededRows = keeper.rowCount
+            var neededColumns = keeper.columnCount
+
+            for extra in group.dropFirst() {
+                for slot in extra.placedSlots {
+                    let position = slot.position
+                    let fits = position.row < rowRange.upperBound && position.column < columnRange.upperBound
+                    if taken.contains(position) || !fits {
+                        context.delete(slot)
+                        released += 1
+                    } else {
+                        slot.rack = keeper
+                        taken.insert(position)
+                        neededRows = max(neededRows, position.row + 1)
+                        neededColumns = max(neededColumns, position.column + 1)
+                        moved += 1
+                    }
                 }
+                context.delete(extra)
             }
-            context.delete(extra)
+            keeper.rows = Int64(neededRows)
+            keeper.columns = Int64(neededColumns)
         }
-        keeper.rows = Int64(neededRows)
-        keeper.columns = Int64(neededColumns)
+
         context.saveChanges()
         return (moved, released)
+    }
+
+    /// Ein weiteres Regal anlegen – bis zur Höchstzahl.
+    @discardableResult
+    static func create(
+        in context: NSManagedObjectContext,
+        cellar: Cellar,
+        name: String,
+        rows: Int = 1,
+        columns: Int = 12
+    ) -> Rack? {
+        guard all(in: context, for: cellar).count < maximumCount else { return nil }
+        let rack = Rack(context: context)
+        // Muss in denselben Speicher wie der Keller, sonst sieht die andere Seite es nie.
+        if let store = cellar.objectID.persistentStore {
+            context.assign(rack, to: store)
+        }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        rack.uuid = UUID()
+        rack.cellar = cellar
+        rack.name = trimmed.isEmpty ? "Regal" : trimmed
+        rack.rows = Int64(rows)
+        rack.columns = Int64(columns)
+        rack.createdAt = .now
+        context.saveChanges()
+        return rack
     }
 
     /// Das Regal des Kellers, angelegt falls noch keines da ist.

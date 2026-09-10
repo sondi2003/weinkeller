@@ -15,6 +15,8 @@ struct PartyView: View {
     let onFinish: () -> Void
 
     @State private var isConfirmingAbort = false
+    /// Ob das Gerät gerade auf diese App festgenagelt ist.
+    @State private var guidedAccess = GuidedAccessMonitor()
 
     init(model: PartyViewModel, onFinish: @escaping () -> Void) {
         _model = State(initialValue: model)
@@ -61,6 +63,13 @@ struct PartyView: View {
                 .font(.headline)
                 .foregroundStyle(Color.accentColor)
             Spacer()
+            // Grünes Schild = das Gerät kann nicht verlassen werden.
+            if guidedAccess.isActive {
+                Image(systemName: "lock.shield.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.green)
+                    .accessibilityLabel("Geführter Zugriff läuft")
+            }
             Text(phaseTitle)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -99,7 +108,7 @@ struct PartyView: View {
         case .candidates:
             PartyCandidatesView(model: model)
         case .guests:
-            PartyGuestsView(model: model)
+            PartyGuestsView(model: model, isGuidedAccessActive: guidedAccess.isActive)
         case .handover:
             PartyHandoverView(model: model)
         case .voting:

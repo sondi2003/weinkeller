@@ -59,6 +59,14 @@ struct PartyCandidatesView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
+                                    // Beim Zusammenstellen hilfreich: Steht die Flasche
+                                    // überhaupt griffbereit, oder muss jemand in den Keller?
+                                    if !wine.storageSummary.isEmpty {
+                                        Label(wine.storageSummary, systemImage: "square.grid.3x3")
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                            .lineLimit(1)
+                                    }
                                 }
                                 Spacer(minLength: 4)
                                 Image(systemName: model.isSelected(wine) ? "checkmark.circle.fill" : "circle")
@@ -125,6 +133,8 @@ struct PartyCandidatesView: View {
 struct PartyGuestsView: View {
 
     @Bindable var model: PartyViewModel
+    /// Läuft der geführte Zugriff? Wenn nicht, wird hier der Weg dorthin gezeigt.
+    var isGuidedAccessActive = false
 
     @State private var name = ""
     @FocusState private var isFocused: Bool
@@ -180,6 +190,13 @@ struct PartyGuestsView: View {
                     }
                 } header: {
                     Text("Anwesend (\(model.state.guests.count))")
+                }
+
+                // Kurz vor dem Weitergeben ist der richtige Moment für den Hinweis.
+                Section {
+                    GuidedAccessCard(isActive: isGuidedAccessActive)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        .listRowBackground(Color.clear)
                 }
             }
 

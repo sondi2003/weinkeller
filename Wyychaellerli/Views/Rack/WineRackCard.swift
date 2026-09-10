@@ -21,19 +21,26 @@ struct WineRackCard: View {
     @State private var pendingSlot: Slot?
     @State private var isPlacing = false
 
-    private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
+    private var cellarRacks: [Rack] { Rack.inCurrentCellar(from: Array(racks), in: context) }
 
-    /// Nur die Fächer im **gezeigten** Regal.
+    /// Nur die Fächer in **diesem** Regal.
     ///
-    /// Solange zwei Regale desselben Kellers nebeneinander liegen, gehören manche Fächer des
-    /// Weins zum anderen Regal. Ungefiltert würden deren Positionen hier im falschen Raster
-    /// aufleuchten und ins Leere zeigen.
+    /// Jedes Raster darf nur die eigenen Positionen hervorheben – sonst leuchtete im
+    /// Küchenregal ein Fach auf, das im Keller steht.
     private func ownSlots(in rack: Rack) -> [Slot] {
         wine.placedSlots.filter { $0.rack == rack }
     }
 
+    /// Regale, in denen dieser Wein tatsächlich liegt – in der Reihenfolge der Regale.
+    private var racksWithBottles: [Rack] {
+        cellarRacks.filter { !ownSlots(in: $0).isEmpty }
+    }
+
+    /// Ob der Regalname dazugeschrieben werden muss.
+    private var showsRackNames: Bool { cellarRacks.count > 1 }
+
     var body: some View {
-        if let rack, wine.placedCount > 0 || wine.canPlaceAnotherBottle {
+        if !cellarRacks.isEmpty, wine.placedCount > 0 || wine.canPlaceAnotherBottle {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Im Regal")
@@ -44,23 +51,32 @@ struct WineRackCard: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if !ownSlots(in: rack).isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        RackGridView(
-                            rows: rack.rowCount,
-                            columns: rack.columnCount,
-                            occupancy: rack.occupancy(),
-                            highlighted: Set(ownSlots(in: rack).map(\.position)),
-                            tile: rack.columnCount > 10 ? 30 : 38
-                        ) { position in
-                            guard let slot = rack.occupancy()[position], slot.wine == wine else { return }
-                            pendingSlot = slot
+                // Ein Raster je Regal, in dem der Wein liegt. Bei mehreren Regalen steht
+                // der Name darüber – „B3“ allein schickt einen sonst an den falschen Ort.
+                ForEach(racksWithBottles) { entry in
+                    VStack(alignment: .leading, spacing: 6) {
+                        if showsRackNames {
+                            Text(entry.name)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 6)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            RackGridView(
+                                rows: entry.rowCount,
+                                columns: entry.columnCount,
+                                occupancy: entry.occupancy(),
+                                highlighted: Set(ownSlots(in: entry).map(\.position)),
+                                tile: entry.columnCount > 10 ? 30 : 38
+                            ) { position in
+                                guard let slot = entry.occupancy()[position], slot.wine == wine else { return }
+                                pendingSlot = slot
+                            }
+                            .padding(.vertical, 6)
+                        }
+                        Text(positionsLine(in: entry))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
-                    Text(positionsLine(in: rack))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
 
                 if wine.canPlaceAnotherBottle {
@@ -82,7 +98,7 @@ struct WineRackCard: View {
                 WineRackSheet(wine: wine, mode: .place)
             }
             .confirmationDialog(
-                pendingSlot.map { "Fach \($0.position.label)" } ?? "",
+                pendingSlot.map { "Fach \($0.displayLabel)" } ?? "",
                 isPresented: Binding(
                     get: { pendingSlot != nil },
                     set: { if !$0 { pendingSlot = nil } }
@@ -108,6 +124,7 @@ struct WineRackCard: View {
     }
 
     private func positionsLine(in rack: Rack) -> String {
+        // Der Regalname steht schon in der Überschrift – hier genügt das Fach.
         let labels = ownSlots(in: rack).map(\.position.label)
         if labels.count == 1 { return "Fach \(labels[0]). Tippen entnimmt die Flasche." }
         return "Fächer \(labels.joined(separator: ", ")). Tippen entnimmt die Flasche."

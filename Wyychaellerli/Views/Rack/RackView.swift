@@ -28,8 +28,22 @@ struct RackView: View {
     /// Wein aus der Liste „Noch nicht im Regal“, dessen Flaschen gerade verortet werden.
     @State private var placingWine: Wine?
     @State private var mergeResult: String?
+    /// Welches Regal gerade gezeigt wird. `nil` = das erste.
+    @State private var selectedRackID: UUID?
+    @State private var isAddingRack = false
 
-    private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
+    /// Alle Regale dieses Kellers, ältestes zuerst.
+    private var cellarRacks: [Rack] { Rack.inCurrentCellar(from: Array(racks), in: context) }
+
+    /// Das gezeigte Regal – das gewählte, sonst das erste.
+    private var rack: Rack? {
+        guard let selectedRackID, let match = cellarRacks.first(where: { $0.uuid == selectedRackID }) else {
+            return cellarRacks.first
+        }
+        return match
+    }
+
+    private var canAddRack: Bool { cellarRacks.count < Rack.maximumCount }
 
     var body: some View {
         NavigationStack {
@@ -55,6 +69,12 @@ struct RackView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fertig") { dismiss() }
                 }
+                // Der Umschalter sitzt im Titel, damit der Bildschirm fürs Raster frei bleibt.
+                if cellarRacks.count > 1 || canAddRack, !cellarRacks.isEmpty {
+                    ToolbarItem(placement: .principal) {
+                        rackMenu
+                    }
+                }
                 if rack != nil {
                     ToolbarItem(placement: .primaryAction) {
                         Button("Bearbeiten") { isEditingRack = true }
@@ -62,7 +82,22 @@ struct RackView: View {
                 }
             }
             .sheet(isPresented: $isEditingRack) {
-                if let rack { RackEditorView(rack: rack) }
+                if let rack {
+                    RackEditorView(rack: rack, canDelete: cellarRacks.count > 1) {
+                        // Nach dem Löschen aufs erste verbleibende Regal wechseln.
+                        selectedRackID = nil
+                    }
+                }
+            }
+            .sheet(isPresented: $isAddingRack) {
+                NewRackView { name, rows, columns in
+                    let created = Rack.create(
+                        in: context,
+                        cellar: Cellar.active(in: context),
+                        name: name, rows: rows, columns: columns
+                    )
+                    selectedRackID = created?.uuid
+                }
             }
             .sheet(item: $fillingPosition) { position in
                 if let rack { SlotFillerView(rack: rack, position: position) }
@@ -82,9 +117,43 @@ struct RackView: View {
                 Button("Fach räumen") { clear(slot) }
                 Button("Abbrechen", role: .cancel) { }
             } message: { slot in
-                Text("Fach \(slot.position.label). „Fach räumen“ nimmt die Flasche nur aus dem Regal, der Bestand bleibt gleich.")
+                Text("Fach \(slot.displayLabel). „Fach räumen“ nimmt die Flasche nur aus dem Regal, der Bestand bleibt gleich.")
             }
         }
+    }
+
+    // MARK: Umschalter
+
+    /// Regale wechseln und neue anlegen – bis zu `Rack.maximumCount`.
+    private var rackMenu: some View {
+        Menu {
+            Picker("Regal", selection: Binding(
+                get: { rack?.uuid },
+                set: { selectedRackID = $0 }
+            )) {
+                ForEach(cellarRacks) { entry in
+                    Text("\(entry.name) · \(entry.usedCount)/\(entry.capacity)")
+                        .tag(entry.uuid)
+                }
+            }
+            if canAddRack {
+                Divider()
+                Button {
+                    isAddingRack = true
+                } label: {
+                    Label("Neues Regal", systemImage: "plus")
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(rack?.name ?? "Regal")
+                    .font(.headline)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(.primary)
+        }
+        .accessibilityLabel("Regal wählen, aktuell \(rack?.name ?? "keines")")
     }
 
     // MARK: Inhalt
@@ -149,16 +218,16 @@ struct RackView: View {
         .cardStyle()
     }
 
-    /// Mehrere Regale für denselben Keller – entstanden, wenn auf zwei Geräten angelegt
-    /// wurde, bevor das erste eingetroffen war.
+    /// **Gleichnamige** Regale – entstanden, wenn zwei Geräte gleichzeitig eines anlegen.
+    ///
+    /// Seit es mehrere Regale geben darf, ist „zwei Regale“ für sich kein Fehler mehr.
+    /// Nur wenn zwei denselben Namen tragen, ist es die versehentliche Doppelanlage.
     private var duplicateCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Mehrere Regale gefunden", systemImage: "exclamationmark.triangle.fill")
+            Label("Gleichnamige Regale gefunden", systemImage: "exclamationmark.triangle.fill")
                 .font(.headline)
                 .foregroundStyle(.orange)
-            Text(duplicateCount == 1
-                 ? "Es gibt ein zweites Regal für diesen Keller. Das passiert, wenn auf einem anderen Gerät eines angelegt wurde, bevor deines dort ankam."
-                 : "Es gibt \(duplicateCount) weitere Regale für diesen Keller. Das passiert, wenn auf anderen Geräten eines angelegt wurde, bevor deines dort ankam.")
+            Text("Es gibt \(duplicateCount == 1 ? "zwei Regale" : "mehrere Regale") mit demselben Namen. Das passiert, wenn auf zwei Geräten gleichzeitig eines angelegt wurde, bevor das erste über iCloud ankam. Willst du wirklich zwei getrennte Regale, gib ihnen unter „Bearbeiten“ verschiedene Namen.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Button {
@@ -181,9 +250,10 @@ struct RackView: View {
 
     // MARK: Daten
 
+    /// Wie viele Namen doppelt vergeben sind.
     private var duplicateCount: Int {
         guard let cellar = Cellar.current(in: context) else { return 0 }
-        return max(0, Rack.all(in: context, for: cellar).count - 1)
+        return Rack.duplicatesByName(in: context, for: cellar).count
     }
 
     private func merge() {

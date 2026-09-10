@@ -44,7 +44,24 @@ struct WineRackSheet: View {
     /// Beim Einräumen ausgewählte Fächer, höchstens so viele wie Flaschen ohne Platz.
     @State private var selection: Set<Position> = []
 
-    private var rack: Rack? { Rack.preferred(from: Array(racks), in: context) }
+    /// Beim Einräumen frei wählbar, beim Entnehmen das Regal der gezeigten Flaschen.
+    @State private var selectedRackID: UUID?
+
+    private var cellarRacks: [Rack] { Rack.inCurrentCellar(from: Array(racks), in: context) }
+
+    /// Regale, die zur Auswahl stehen: beim Entnehmen nur die, in denen der Wein liegt.
+    private var availableRacks: [Rack] {
+        guard mode == .take else { return cellarRacks }
+        let withBottles = cellarRacks.filter { entry in wine.placedSlots.contains { $0.rack == entry } }
+        return withBottles.isEmpty ? cellarRacks : withBottles
+    }
+
+    private var rack: Rack? {
+        guard let selectedRackID, let match = availableRacks.first(where: { $0.uuid == selectedRackID }) else {
+            return availableRacks.first
+        }
+        return match
+    }
 
     /// Wie viele Fächer noch gewählt werden dürfen.
     private var remaining: Int { max(0, wine.unplacedCount - selection.count) }
@@ -64,6 +81,12 @@ struct WineRackSheet: View {
             }
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                // Beim Entnehmen dorthin springen, wo die Flasche wirklich liegt.
+                if mode == .take, selectedRackID == nil {
+                    selectedRackID = wine.placedSlots.first?.rack?.uuid
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Abbrechen") { dismiss() }
@@ -79,7 +102,7 @@ struct WineRackSheet: View {
                 }
             }
             .confirmationDialog(
-                pendingSlot.map { "Fach \($0.position.label)" } ?? "",
+                pendingSlot.map { "Fach \($0.displayLabel)" } ?? "",
                 isPresented: Binding(
                     get: { pendingSlot != nil },
                     set: { if !$0 { pendingSlot = nil } }
@@ -103,12 +126,30 @@ struct WineRackSheet: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
+                // Bei mehreren Regalen zuerst das Regal wählen, dann die Fächer.
+                if availableRacks.count > 1 {
+                    Picker("Regal", selection: Binding(
+                        get: { rack.uuid },
+                        set: { newValue in
+                            selectedRackID = newValue
+                            // Eine angefangene Auswahl gehört zum alten Regal.
+                            selection.removeAll()
+                        }
+                    )) {
+                        ForEach(availableRacks) { entry in
+                            Text(entry.name).tag(entry.uuid)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
                 grid(rack)
 
                 if mode == .take, !wine.placedSlots.isEmpty {
+                    // Über alle Regale hinweg, damit man auch die Flaschen anderswo sieht.
                     Text(wine.placedSlots.count == 1
-                         ? "Diese Flasche liegt in Fach \(wine.placedSlots[0].position.label)."
-                         : "Fächer: \(wine.placedSlots.map(\.position.label).joined(separator: ", "))")
+                         ? "Diese Flasche liegt in Fach \(wine.placedSlots[0].displayLabel)."
+                         : "Fächer: \(wine.placedSlots.map(\.displayLabel).joined(separator: ", "))")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

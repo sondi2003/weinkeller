@@ -15,6 +15,10 @@ final class Cellar: NSManagedObject {
     @NSManaged var name: String
     @NSManaged var createdAt: Date?
     @NSManaged var wines: NSSet?
+    @NSManaged var racks: NSSet?
+
+    /// Wie viele Regale dieser Keller hat – entscheidet, ob Fächer den Regalnamen tragen.
+    var rackCount: Int { racks?.count ?? 0 }
 
     // MARK: Nachschlagen
 
