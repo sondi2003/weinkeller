@@ -13,6 +13,11 @@ struct SettingsView: View {
     @State private var didResetTips = false
     @Environment(\.managedObjectContext) private var context
     @State private var hasPartyCode = false
+    #if DEBUG
+    @State private var isCreatingSchema = false
+    @State private var schemaMessage: String?
+    @State private var schemaFailed = false
+    #endif
 
     var body: some View {
         @Bindable var settings = settings
@@ -135,6 +140,9 @@ struct SettingsView: View {
                     Text("Die Einführung sind die sechs Seiten vom ersten Start. Die Tipps sind die kleinen Hinweise am Ort – im Regal, beim Scannen, an der Liste –, die nach dem ersten Mal verschwinden.")
                 }
 
+                #if DEBUG
+                developmentSection
+                #endif
             }
             .navigationTitle("Einstellungen")
             // Beim Zurückkommen von der Party-Seite kann sich der Zustand geändert haben.
@@ -144,6 +152,53 @@ struct SettingsView: View {
             }
         }
     }
+
+    #if DEBUG
+    /// Nur in der DEV-Fassung: das Schema in CloudKit anlegen, bevor es nach Production
+    /// übertragen wird. Erspart das Raten, ob der Export schon durchgelaufen ist.
+    @ViewBuilder
+    private var developmentSection: some View {
+        Section {
+            Button {
+                Task { await createSchema() }
+            } label: {
+                HStack {
+                    Label("CloudKit-Schema erzeugen", systemImage: "arrow.up.doc")
+                    Spacer()
+                    if isCreatingSchema { ProgressView() }
+                }
+            }
+            .disabled(isCreatingSchema)
+
+            if let schemaMessage {
+                Text(schemaMessage)
+                    .font(.footnote)
+                    .foregroundStyle(schemaFailed ? .red : .green)
+            }
+        } header: {
+            Text("Entwicklung")
+        } footer: {
+            Text("Legt in der Development-Umgebung alle Record Types und Felder an – auch die, die noch nie beschrieben wurden. Danach in der CloudKit-Konsole „Deploy Schema Changes“. Braucht ein angemeldetes iCloud-Konto, im Simulator geht es nicht. Dieser Abschnitt erscheint nur in der DEV-Fassung.")
+        }
+    }
+
+    private func createSchema() async {
+        isCreatingSchema = true
+        schemaMessage = nil
+        defer { isCreatingSchema = false }
+        do {
+            // Das Erzeugen ist blockierend, deshalb weg vom Hauptthread.
+            try await Task.detached(priority: .userInitiated) {
+                try PersistenceController.shared.initializeCloudKitSchema()
+            }.value
+            schemaFailed = false
+            schemaMessage = "Schema erzeugt. Jetzt in der CloudKit-Konsole unter Development nachsehen und „Deploy Schema Changes“ ausführen."
+        } catch {
+            schemaFailed = true
+            schemaMessage = "Fehlgeschlagen: \(error.localizedDescription)"
+        }
+    }
+    #endif
 
     /// Kompakte Zeile pro Anbieter: Name, Zustand und ein Tipp führt zu den Details.
     private func providerRow(_ provider: AIProvider) -> some View {

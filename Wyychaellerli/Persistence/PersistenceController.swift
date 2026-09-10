@@ -174,6 +174,26 @@ final class PersistenceController: @unchecked Sendable {
         description.cloudKitContainerOptions = options
     }
 
+    // MARK: Schema für CloudKit erzeugen
+
+    #if DEBUG
+    /// Legt in der **Development**-Umgebung alle Record Types und Felder an, ohne dass
+    /// man vorher jede Funktion der App einmal benutzt haben muss.
+    ///
+    /// Ohne das entsteht ein Feld in CloudKit erst, wenn eine laufende App es zum ersten
+    /// Mal beschreibt **und** der Export durchgelaufen ist. Wer im Simulator testet (kein
+    /// iCloud-Konto) oder nicht lange genug wartet, sucht das Feld in der Konsole
+    /// vergeblich – und kann es nicht nach Production übertragen.
+    ///
+    /// Nur im Debug-Build: Apple warnt ausdrücklich davor, das in einer ausgelieferten
+    /// App aufzurufen. Es braucht ein angemeldetes iCloud-Konto und dauert je nach Modell
+    /// einige Sekunden.
+    func initializeCloudKitSchema() throws {
+        try container.initializeCloudKitSchema(options: [])
+        Self.logger.info("CloudKit-Schema in Development erzeugt.")
+    }
+    #endif
+
     // MARK: Freigabe
 
     enum SharingError: LocalizedError {
