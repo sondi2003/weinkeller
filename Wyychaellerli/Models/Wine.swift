@@ -353,9 +353,19 @@ final class Wine: NSManagedObject, Identifiable {
 
     // MARK: Darstellung
 
+    /// `true`, wenn ein Jahrgang bekannt ist.
+    ///
+    /// **0 heisst „nicht erkannt“, nicht „Jahr null“.** Steht auf dem Etikett kein
+    /// Jahrgang – oder war er nicht lesbar –, wird keiner erfunden, und angezeigt wird
+    /// er dann nirgends.
+    var hasVintage: Bool { vintage > 0 }
+
+    /// Jahrgang als Text, leer wenn keiner bekannt ist.
+    var vintageText: String { hasVintage ? String(vintage) : "" }
+
     /// Kurzform für Listen: "2019 · Grenache · Collioure".
     var subtitle: String {
-        [String(vintage), grape, region.isEmpty ? country : region]
+        [vintageText, grape, region.isEmpty ? country : region]
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
@@ -364,6 +374,11 @@ final class Wine: NSManagedObject, Identifiable {
     /// Anzeigename inklusive Produzent, falls vorhanden.
     var fullName: String {
         producer.isEmpty ? name : "\(producer) – \(name)"
+    }
+
+    /// Name mit Jahrgang für Dialoge: „Barolo 2018“ – ohne Jahrgang nur der Name.
+    var nameWithVintage: String {
+        hasVintage ? "\(name) \(vintage)" : name
     }
 
     // MARK: Herkunft

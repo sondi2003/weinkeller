@@ -33,7 +33,7 @@ struct BottleConsumerFlow: ViewModifier {
                 Button("Löschen", role: .destructive) { consumer.wineToDelete = wine }
                 Button("Im Keller behalten", role: .cancel) { }
             } message: { wine in
-                Text("„\(wine.name) \(String(wine.vintage))“ ist jetzt leer. Was soll damit passieren?")
+                Text("„\(wine.nameWithVintage)“ ist jetzt leer. Was soll damit passieren?")
             }
             .sheet(item: $consumer.wineToRate) { wine in
                 RatingSheet(wine: wine)
@@ -54,7 +54,7 @@ struct BottleConsumerFlow: ViewModifier {
                 }
                 Button("Abbrechen", role: .cancel) { consumer.wineToDelete = nil }
             } message: { wine in
-                Text("„\(wine.name) \(String(wine.vintage))“ wird mit Etikett, Bewertungen und Regalplatz entfernt – auch auf den anderen Geräten. Zum Aufbewahren lieber archivieren.")
+                Text("„\(wine.nameWithVintage)“ wird mit Etikett, Bewertungen und Regalplatz entfernt – auch auf den anderen Geräten. Zum Aufbewahren lieber archivieren.")
             }
             .sensoryFeedback(.decrease, trigger: consumer.consumeCount)
     }

@@ -66,8 +66,10 @@ struct WineFormView: View {
                         .onSubmit { focusedField = .grape }
 
                     Picker("Jahrgang", selection: $viewModel.vintage) {
-                        ForEach(WineFormViewModel.vintageRange.reversed(), id: \.self) { year in
-                            Text(String(year)).tag(year)
+                        // „Ohne Jahrgang“ muss wählbar sein: Manche Etiketten nennen
+                        // keinen, und geraten wird hier nichts.
+                        ForEach(WineFormViewModel.vintageChoices, id: \.self) { year in
+                            Text(year == 0 ? "Ohne Jahrgang" : String(year)).tag(year)
                         }
                     }
                 }

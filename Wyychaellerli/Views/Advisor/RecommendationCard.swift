@@ -54,9 +54,12 @@ struct RecommendationCard: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text(String(recommendation.vintage))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        // Kein Jahrgang bekannt: dann steht dort auch nichts.
+                        if recommendation.vintage > 0 {
+                            Text(String(recommendation.vintage))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 

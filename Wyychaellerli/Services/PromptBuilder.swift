@@ -122,7 +122,10 @@ enum PromptBuilder {
         - name: Name des Weins oder der Cuvée, ohne Produzent (z. B. "La Pinède"). Wenn es \
         keinen eigenen Namen gibt, nimm die Appellation oder Rebsorte als Name.
         - producer: Weingut, Domaine, Château, Cantina, Bodega, Weingut …
-        - vintage: Jahrgang als Zahl, 0 wenn keiner erkennbar ist.
+        - vintage: Jahrgang als vierstellige Zahl, **nur wenn er wörtlich im Text steht**. \
+        Niemals raten, niemals aus dem Zusammenhang ableiten, niemals das aktuelle Jahr \
+        einsetzen. Vorsicht bei Adressen: „2000 Neuchâtel“ ist eine Postleitzahl, kein \
+        Jahrgang. Steht keiner da, gib 0 zurück – das ist ein gültiges Ergebnis.
         - grape: Rebsorten kommagetrennt (z. B. "Grenache noir, Mourvèdre, Carignan"). \
         Nicht raten – nur, was auf dem Etikett steht oder aus der Appellation zwingend folgt.
         - region: Region oder Appellation (z. B. "Collioure", "Mosel", "Barolo").

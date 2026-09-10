@@ -62,7 +62,10 @@ final class WineFormViewModel {
         case .add:
             name = ""
             producer = ""
-            vintage = Calendar.current.component(.year, from: .now) - 2
+            // **Keine Vorgabe.** Vorher stand hier „aktuelles Jahr minus zwei“ – fand der
+            // Scan keinen Jahrgang, wurde diese Erfindung gespeichert. Lieber kein
+            // Jahrgang als ein falscher.
+            vintage = 0
             grape = ""
             region = ""
             country = ""
@@ -105,6 +108,11 @@ final class WineFormViewModel {
     static var vintageRange: ClosedRange<Int> {
         let current = Calendar.current.component(.year, from: .now)
         return 1950...current
+    }
+
+    /// Auswahl im Formular: „ohne Jahrgang“ (0) zuoberst, dann die Jahre absteigend.
+    static var vintageChoices: [Int] {
+        [0] + vintageRange.reversed()
     }
 
     var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }

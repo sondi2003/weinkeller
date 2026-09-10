@@ -76,7 +76,7 @@ enum LabelSchema {
             "properties": [
                 "name": ["type": "string", "description": "Name des Weins oder der Cuvée ohne Produzent, z. B. \"La Pinède\". Leer, wenn unbekannt."],
                 "producer": ["type": "string", "description": "Produzent, Weingut, Domaine oder Château. Leer, wenn unbekannt."],
-                "vintage": ["type": "integer", "description": "Jahrgang als vierstellige Zahl, 0 wenn nicht auf dem Etikett."],
+                "vintage": ["type": "integer", "description": "Jahrgang als vierstellige Zahl, nur wenn er wörtlich im Text steht. Nie raten, nie das aktuelle Jahr einsetzen, Postleitzahlen in Adressen nicht verwechseln. 0, wenn keiner auf dem Etikett steht."],
                 "grape": ["type": "string", "description": "Rebsorten, kommagetrennt, in Originalschreibweise. Leer, wenn unbekannt."],
                 "region": ["type": "string", "description": "Region oder Appellation, z. B. \"Collioure\". Leer, wenn unbekannt."],
                 "country": ["type": "string", "description": "Herkunftsland auf Deutsch, z. B. \"Frankreich\". Auch ableiten, wenn nur die Appellation genannt ist. Leer, wenn unklar."],

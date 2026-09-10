@@ -58,7 +58,7 @@ final class PersistenceController: @unchecked Sendable {
         // lokalen Speichers.
         container = NSPersistentCloudKitContainer(
             name: "Weinkeller",
-            managedObjectModel: PersistenceController.makeModel()
+            managedObjectModel: PersistenceController.model
         )
 
         guard let privateDescription = container.persistentStoreDescriptions.first else {
@@ -216,7 +216,7 @@ final class PersistenceController: @unchecked Sendable {
 
     /// Kurzfassung des Modells: Entitäten mit ihren Attributnamen, sortiert.
     private static func modelFingerprint() -> String {
-        makeModel().entities
+        model.entities
             .sorted { ($0.name ?? "") < ($1.name ?? "") }
             .map { entity in
                 let attributes = entity.properties.map(\.name).sorted().joined(separator: ",")
@@ -356,6 +356,15 @@ final class PersistenceController: @unchecked Sendable {
     }
 
     // MARK: Datenmodell
+
+    /// **Einmal gebaut, überall dasselbe.**
+    ///
+    /// Jede Instanz eines `NSManagedObjectModel` bringt ihre eigenen Entitäts-
+    /// beschreibungen mit. Gibt es zwei davon mit denselben Klassennamen – etwa weil
+    /// Tests eigene Stacks anlegen –, meldet Core Data „Failed to find a unique match
+    /// for an NSEntityDescription“ und rät beim Zuordnen. Ein gemeinsames Modell
+    /// schliesst das aus.
+    static let model = makeModel()
 
     private static func makeModel() -> NSManagedObjectModel {
         let model = NSManagedObjectModel()

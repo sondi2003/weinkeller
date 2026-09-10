@@ -14,7 +14,7 @@ enum HeuristicLabelParser {
         let lowered = joined.lowercased()
 
         var result = WineLabelExtraction()
-        result.vintage = firstMatch(#"\b(19[5-9]\d|20[0-4]\d)\b"#, in: joined).flatMap { Int($0) } ?? 0
+        result.vintage = detectVintage(in: lines)
         result.alcoholPercent = detectAlcohol(in: joined)
         result.type = detectType(in: lowered)
         result.grape = detectGrapes(in: lowered)
@@ -33,6 +33,46 @@ enum HeuristicLabelParser {
         "domaine", "château", "chateau", "weingut", "cantina", "bodega", "tenuta",
         "azienda", "clos ", "mas ", "quinta", "weinkellerei", "winery", "estate"
     ]
+
+    /// Der Jahrgang – oder 0, wenn keiner dasteht. **Es wird nie einer geraten.**
+    ///
+    /// Eine vierstellige Zahl allein genügt nicht: Auf Schweizer Etiketten steht die
+    /// Adresse des Winzers, und Postleitzahlen wie „1950 Sion“ oder „2000 Neuchâtel“
+    /// liegen mitten im Jahrgangsbereich. Solche Zeilen werden übersprungen –
+    /// erkennbar daran, dass direkt nach der Zahl ein grossgeschriebenes Wort folgt.
+    ///
+    /// Steht die Zahl hinter „Jahrgang“, „Millésime“ oder „Vintage“, zählt sie in
+    /// jedem Fall: Dann ist sie ausdrücklich als Jahrgang bezeichnet.
+    private static func detectVintage(in lines: [String]) -> Int {
+        let yearPattern = #"\b(19[5-9]\d|20[0-4]\d)\b"#
+
+        // 1. Ausdrücklich bezeichnet – das schlägt alles andere.
+        for line in lines {
+            let lowered = line.lowercased()
+            guard vintageKeywords.contains(where: lowered.contains) else { continue }
+            if let year = firstMatch(yearPattern, in: line).flatMap(Int.init) { return year }
+        }
+
+        // 2. Sonst die erste Zahl, die nicht nach Postleitzahl aussieht.
+        for line in lines {
+            guard let year = firstMatch(yearPattern, in: line).flatMap(Int.init) else { continue }
+            if looksLikePostalCode(String(year), in: line) { continue }
+            return year
+        }
+        return 0
+    }
+
+    private static let vintageKeywords = ["jahrgang", "millésime", "millesime", "vintage", "annata", "cosecha", "vendemmia"]
+
+    /// „2000 Neuchâtel“, „1950 Sion“ – Zahl am Wortanfang, danach ein Ortsname.
+    private static func looksLikePostalCode(_ year: String, in line: String) -> Bool {
+        guard let range = line.range(of: year) else { return false }
+        let after = line[range.upperBound...].trimmingCharacters(in: .whitespaces)
+        guard let firstWord = after.split(separator: " ").first, firstWord.count >= 3 else { return false }
+        // Ein Ortsname beginnt gross und besteht aus Buchstaben.
+        guard let initial = firstWord.first, initial.isUppercase else { return false }
+        return firstWord.allSatisfy { $0.isLetter || $0 == "-" }
+    }
 
     private static func detectAlcohol(in text: String) -> Double {
         // "14.5%", "14,5 %", "ALC. 14.5% BY VOL", "13% vol" – aber nicht "100% manuell".

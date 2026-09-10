@@ -61,7 +61,7 @@ struct WineDetailView: View {
                 dismiss()
             }
         } message: {
-            Text("„\(wine.name) \(String(wine.vintage))“ wird dauerhaft entfernt.")
+            Text("„\(wine.nameWithVintage)“ wird dauerhaft entfernt.")
         }
         .sensoryFeedback(.decrease, trigger: consumeCount)
     }

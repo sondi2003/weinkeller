@@ -46,7 +46,7 @@ struct CellarView: View {
                     }
                     Button("Abbrechen", role: .cancel) { wineToDelete = nil }
                 } message: { wine in
-                    Text("„\(wine.name) \(String(wine.vintage))“ wird mit Etikett, Bewertungen und Regalplatz entfernt – auch auf den anderen Geräten. Zum Aufbewahren lieber archivieren.")
+                    Text("„\(wine.nameWithVintage)“ wird mit Etikett, Bewertungen und Regalplatz entfernt – auch auf den anderen Geräten. Zum Aufbewahren lieber archivieren.")
                 }
         }
     }
@@ -97,7 +97,7 @@ struct CellarView: View {
                 Button("Löschen", role: .destructive) { wineToDelete = wine }
                 Button("Im Keller behalten", role: .cancel) { }
             } message: { wine in
-                Text("„\(wine.name) \(String(wine.vintage))“ ist jetzt leer. Was soll damit passieren?")
+                Text("„\(wine.nameWithVintage)“ ist jetzt leer. Was soll damit passieren?")
             }
             .sheet(item: $wineToRate) { wine in
                 RatingSheet(wine: wine)
