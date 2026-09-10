@@ -14,7 +14,6 @@ struct PartyView: View {
     /// Wird gerufen, wenn die Party beendet ist.
     let onFinish: () -> Void
 
-    @State private var isUnlocking = false
     @State private var isConfirmingAbort = false
 
     init(model: PartyViewModel, onFinish: @escaping () -> Void) {
@@ -39,14 +38,6 @@ struct PartyView: View {
             model.resolveCandidates(in: context)
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
-        .sheet(isPresented: $isUnlocking) {
-            PartyCodeSheet(
-                title: "Party beenden",
-                message: "Gib den Code ein, um den Party-Modus zu verlassen."
-            ) {
-                finish()
-            }
-        }
         .confirmationDialog(
             "Abstimmung verwerfen?",
             isPresented: $isConfirmingAbort,
@@ -74,7 +65,7 @@ struct PartyView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Button {
-                isUnlocking = true
+                Task { await unlock() }
             } label: {
                 Image(systemName: "lock.fill")
                     .font(.subheadline)
@@ -116,11 +107,20 @@ struct PartyView: View {
         case .draw:
             PartyDrawView(model: model)
         case .podium:
-            PartyPodiumView(model: model) { finish() }
+            // Auch vom Podest aus geht es nur über die Gerätesperre hinaus – sonst
+            // könnte ein Gast am Schluss einfach weiterklicken.
+            PartyPodiumView(model: model) { Task { await unlock() } }
         }
     }
 
     // MARK: Beenden
+
+    /// Gerätesperre abfragen. Beim Gast schlägt Face ID fehl (falsches Gesicht), und die
+    /// Code-Eingabe kennt er nicht – genau das ist der Riegel.
+    private func unlock() async {
+        guard await PartyLock.unlock(reason: "Party-Modus verlassen") else { return }
+        finish()
+    }
 
     /// Steht ein Sieger fest, wandert er in die Historie – sonst wird gefragt.
     private func finish() {

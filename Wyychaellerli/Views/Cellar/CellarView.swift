@@ -5,9 +5,6 @@ import TipKit
 /// Tab 1: Liste aller Weine mit Bestand, Schnell-Abbuchung und Hinzufügen.
 struct CellarView: View {
 
-    /// Damit der Hinweis „kein Party-Code“ direkt in die Einstellungen führen kann.
-    @Binding var selectedTab: AppTab
-
     private let consumeTip = ConsumeTip()
 
     @Environment(\.managedObjectContext) private var context
@@ -19,9 +16,8 @@ struct CellarView: View {
     @State private var viewModel = CellarViewModel()
     @State private var isShowingRatings = false
     @State private var isShowingRack = false
-    @State private var isUnlockingParty = false
     @State private var isShowingPartyHistory = false
-    @State private var isMissingPartyCode = false
+    @State private var isMissingDeviceLock = false
     /// Wein, der gerade bewertet wird – nach dem Austrinken der letzten Flasche.
     @State private var wineToRate: Wine?
     /// Wein, dessen Löschen noch bestätigt werden muss. Löschen ist endgültig und geht
@@ -74,19 +70,10 @@ struct CellarView: View {
             .sheet(isPresented: $isShowingPartyHistory) {
                 PartyHistoryView()
             }
-            .sheet(isPresented: $isUnlockingParty) {
-                PartyCodeSheet(
-                    title: "Party-Modus",
-                    message: "Gib den Code ein. Danach sehen deine Gäste nur noch die Abstimmung."
-                ) {
-                    party.start()
-                }
-            }
-            .alert("Noch kein Code festgelegt", isPresented: $isMissingPartyCode) {
-                Button("Zu den Einstellungen") { selectedTab = .settings }
-                Button("Abbrechen", role: .cancel) { }
+            .alert("Gerät ohne Sperre", isPresented: $isMissingDeviceLock) {
+                Button("Verstanden", role: .cancel) { }
             } message: {
-                Text("Der Party-Modus braucht einen Code – sonst kämst du nicht mehr heraus. Du legst ihn in den Einstellungen unter „Party-Modus“ fest.")
+                Text("Der Party-Modus lässt sich nur mit Face ID, Touch ID oder Gerätecode wieder verlassen. Richte in den iPhone-Einstellungen unter „Face ID & Code“ eine Sperre ein.")
             }
             .searchable(text: $viewModel.searchText, prompt: "Name, Rebsorte, Region, Jahrgang")
             .sheet(item: $viewModel.addMode) { mode in
@@ -295,11 +282,11 @@ struct CellarView: View {
                 }
                 Divider()
                 Button {
-                    // Ohne Code kein Party-Modus – sonst gäbe es keinen Weg zurück.
-                    if PartyLock.isConfigured(in: context) {
-                        isUnlockingParty = true
+                    // Ohne Gerätesperre kein Party-Modus – sonst käme man nicht heraus.
+                    if PartyLock.isAvailable {
+                        party.start()
                     } else {
-                        isMissingPartyCode = true
+                        isMissingDeviceLock = true
                     }
                 } label: {
                     Label("Party-Modus", systemImage: "party.popper")
@@ -365,13 +352,13 @@ private struct FilterChip: View {
 }
 
 #Preview("Mit Weinen") {
-    CellarView(selectedTab: .constant(.cellar))
+    CellarView()
         .environment(\.managedObjectContext, PreviewData.context)
         .environment(PartySession())
 }
 
 #Preview("Leer") {
-    CellarView(selectedTab: .constant(.cellar))
+    CellarView()
         .environment(\.managedObjectContext, PreviewData.emptyContext)
         .environment(PartySession())
 }

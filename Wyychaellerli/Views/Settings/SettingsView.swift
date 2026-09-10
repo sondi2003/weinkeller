@@ -12,7 +12,6 @@ struct SettingsView: View {
     @State private var isShowingWalkthrough = false
     @State private var didResetTips = false
     @Environment(\.managedObjectContext) private var context
-    @State private var hasPartyCode = false
     #if DEBUG
     @State private var isCreatingSchema = false
     @State private var schemaMessage: String?
@@ -101,24 +100,19 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        PartySettingsView()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "party.popper")
-                                .foregroundStyle(Color.accentColor)
-                                .frame(width: 26)
-                            Text("Party-Modus")
-                            Spacer()
-                            Text(hasPartyCode ? "Code gesetzt" : "Kein Code")
-                                .font(.caption)
-                                .foregroundStyle(hasPartyCode ? .secondary : .tertiary)
+                    Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Gäste stimmen ab, welche Flasche geöffnet wird")
+                                .font(.footnote.weight(.semibold))
+                            Text("Zu finden im Menü oben links in der Kellerliste. Verlassen lässt sich der Modus nur mit \(PartyLock.methodName) – dazwischen kommt niemand an deinen Keller. Es ist nichts einzurichten.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
+                    } icon: {
+                        Image(systemName: "party.popper")
                     }
                 } header: {
-                    Text("Party")
-                } footer: {
-                    Text("Deine Gäste stimmen ab, welche Flasche geöffnet wird. Der Code startet den Modus und beendet ihn – dazwischen kommt niemand an deinen Keller.")
+                    Text("Party-Modus")
                 }
 
                 Section {
@@ -145,8 +139,6 @@ struct SettingsView: View {
                 #endif
             }
             .navigationTitle("Einstellungen")
-            // Beim Zurückkommen von der Party-Seite kann sich der Zustand geändert haben.
-            .onAppear { hasPartyCode = PartyLock.isConfigured(in: context) }
             .fullScreenCover(isPresented: $isShowingWalkthrough) {
                 WalkthroughView()
             }
