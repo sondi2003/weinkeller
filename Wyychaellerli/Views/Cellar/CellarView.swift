@@ -5,9 +5,13 @@ import TipKit
 /// Tab 1: Liste aller Weine mit Bestand, Schnell-Abbuchung und Hinzufügen.
 struct CellarView: View {
 
+    /// Damit der Hinweis „kein Party-Code“ direkt in die Einstellungen führen kann.
+    @Binding var selectedTab: AppTab
+
     private let consumeTip = ConsumeTip()
 
     @Environment(\.managedObjectContext) private var context
+    @Environment(PartySession.self) private var party
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(key: "createdAt", ascending: false)],
         animation: .default
@@ -15,6 +19,9 @@ struct CellarView: View {
     @State private var viewModel = CellarViewModel()
     @State private var isShowingRatings = false
     @State private var isShowingRack = false
+    @State private var isUnlockingParty = false
+    @State private var isShowingPartyHistory = false
+    @State private var isMissingPartyCode = false
     /// Wein, der gerade bewertet wird – nach dem Austrinken der letzten Flasche.
     @State private var wineToRate: Wine?
     /// Wein, dessen Löschen noch bestätigt werden muss. Löschen ist endgültig und geht
@@ -63,6 +70,23 @@ struct CellarView: View {
             }
             .sheet(isPresented: $isShowingRack) {
                 RackView()
+            }
+            .sheet(isPresented: $isShowingPartyHistory) {
+                PartyHistoryView()
+            }
+            .sheet(isPresented: $isUnlockingParty) {
+                PartyCodeSheet(
+                    title: "Party-Modus",
+                    message: "Gib den Code ein. Danach sehen deine Gäste nur noch die Abstimmung."
+                ) {
+                    party.start()
+                }
+            }
+            .alert("Noch kein Code festgelegt", isPresented: $isMissingPartyCode) {
+                Button("Zu den Einstellungen") { selectedTab = .settings }
+                Button("Abbrechen", role: .cancel) { }
+            } message: {
+                Text("Der Party-Modus braucht einen Code – sonst kämst du nicht mehr heraus. Du legst ihn in den Einstellungen unter „Party-Modus“ fest.")
             }
             .searchable(text: $viewModel.searchText, prompt: "Name, Rebsorte, Region, Jahrgang")
             .sheet(item: $viewModel.addMode) { mode in
@@ -269,6 +293,22 @@ struct CellarView: View {
                 } label: {
                     Label("Bewertungen", systemImage: "star")
                 }
+                Divider()
+                Button {
+                    // Ohne Code kein Party-Modus – sonst gäbe es keinen Weg zurück.
+                    if PartyLock.isConfigured {
+                        isUnlockingParty = true
+                    } else {
+                        isMissingPartyCode = true
+                    }
+                } label: {
+                    Label("Party-Modus", systemImage: "party.popper")
+                }
+                Button {
+                    isShowingPartyHistory = true
+                } label: {
+                    Label("Party-Historie", systemImage: "trophy")
+                }
             } label: {
                 Image(systemName: viewModel.isFiltering ? "line.3.horizontal.decrease.circle.fill" : "ellipsis.circle")
             }
@@ -325,11 +365,13 @@ private struct FilterChip: View {
 }
 
 #Preview("Mit Weinen") {
-    CellarView()
+    CellarView(selectedTab: .constant(.cellar))
         .environment(\.managedObjectContext, PreviewData.context)
+        .environment(PartySession())
 }
 
 #Preview("Leer") {
-    CellarView()
+    CellarView(selectedTab: .constant(.cellar))
         .environment(\.managedObjectContext, PreviewData.emptyContext)
+        .environment(PartySession())
 }

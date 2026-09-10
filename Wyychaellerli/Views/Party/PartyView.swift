@@ -1,0 +1,201 @@
+import CoreData
+import SwiftUI
+import UIKit
+
+/// Der Party-Modus: gesperrter Vollbild-Ablauf, durch den das Gerät wandert.
+///
+/// Nichts hier führt in den Rest der App – kein Tab, keine Toolbar, kein Weg zur
+/// Detailseite. Hinaus kommt nur, wer den Code kennt (oder Face ID hat).
+struct PartyView: View {
+
+    @Environment(\.managedObjectContext) private var context
+
+    @State private var model: PartyViewModel
+    /// Wird gerufen, wenn die Party beendet ist.
+    let onFinish: () -> Void
+
+    @State private var isUnlocking = false
+    @State private var isConfirmingAbort = false
+
+    init(model: PartyViewModel, onFinish: @escaping () -> Void) {
+        _model = State(initialValue: model)
+        self.onFinish = onFinish
+    }
+
+    var body: some View {
+        ZStack {
+            Color(.systemGroupedBackground).ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                header
+                Divider()
+                content
+            }
+        }
+        // Das Gerät wandert von Hand zu Hand – schaltet sich der Bildschirm ab, braucht
+        // der nächste Gast den Gerätecode, und die Party steht.
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+            model.resolveCandidates(in: context)
+        }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .sheet(isPresented: $isUnlocking) {
+            PartyCodeSheet(
+                title: "Party beenden",
+                message: "Gib den Code ein, um den Party-Modus zu verlassen."
+            ) {
+                finish()
+            }
+        }
+        .confirmationDialog(
+            "Abstimmung verwerfen?",
+            isPresented: $isConfirmingAbort,
+            titleVisibility: .visible
+        ) {
+            Button("Verwerfen", role: .destructive) {
+                model.discard()
+                onFinish()
+            }
+            Button("Weitermachen", role: .cancel) { }
+        } message: {
+            Text("Die bisherigen Stimmen gehen verloren.")
+        }
+    }
+
+    // MARK: Kopf
+
+    private var header: some View {
+        HStack {
+            Label("Party", systemImage: "party.popper.fill")
+                .font(.headline)
+                .foregroundStyle(Color.accentColor)
+            Spacer()
+            Text(phaseTitle)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Button {
+                isUnlocking = true
+            } label: {
+                Image(systemName: "lock.fill")
+                    .font(.subheadline)
+                    .padding(8)
+                    .background(Color(.tertiarySystemFill), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Party beenden")
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemGroupedBackground))
+    }
+
+    private var phaseTitle: String {
+        switch model.state.phase {
+        case .candidates: return "Flaschen wählen"
+        case .guests:     return "Wer ist dabei?"
+        case .handover:   return "Weitergeben"
+        case .voting:     return "Abstimmen"
+        case .draw:       return "Auslosung"
+        case .podium:     return "Ergebnis"
+        }
+    }
+
+    // MARK: Inhalt
+
+    @ViewBuilder
+    private var content: some View {
+        switch model.state.phase {
+        case .candidates:
+            PartyCandidatesView(model: model)
+        case .guests:
+            PartyGuestsView(model: model)
+        case .handover:
+            PartyHandoverView(model: model)
+        case .voting:
+            PartyVotingView(model: model)
+        case .draw:
+            PartyDrawView(model: model)
+        case .podium:
+            PartyPodiumView(model: model) { finish() }
+        }
+    }
+
+    // MARK: Beenden
+
+    /// Steht ein Sieger fest, wandert er in die Historie – sonst wird gefragt.
+    private func finish() {
+        if model.state.winnerID != nil {
+            model.recordResult(in: context)
+            model.discard()
+            onFinish()
+        } else if model.hasAnyVote {
+            isConfirmingAbort = true
+        } else {
+            model.discard()
+            onFinish()
+        }
+    }
+}
+
+// MARK: - Übergabe
+
+/// Zwischenschirm von Gast zu Gast.
+///
+/// Ohne ihn sähe der Nächste noch die Auswahl seines Vorgängers – und wüsste, was
+/// gerade gewählt wurde. Der neue Gast tippt selbst, damit er die Karten frisch sieht.
+struct PartyHandoverView: View {
+
+    @Bindable var model: PartyViewModel
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "hand.wave.fill")
+                .font(.system(size: 54))
+                .foregroundStyle(Color.accentColor)
+
+            if let guest = model.state.currentGuest {
+                VStack(spacing: 8) {
+                    Text("Bitte weitergeben an")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text(guest.name)
+                        .font(.largeTitle.weight(.bold))
+                        .multilineTextAlignment(.center)
+                }
+
+                Text("\(model.state.votesPerGuest) \(model.state.votesPerGuest == 1 ? "Stimme" : "Stimmen") – höchstens eine je Flasche.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    model.beginTurn()
+                } label: {
+                    Text("Ich bin's, los geht's")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 40)
+
+                Button("Aussetzen, jemand anderes zuerst") {
+                    model.skipTurn()
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text("Noch offen: \(model.state.pendingGuests.count)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+                .padding(.bottom, 20)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}

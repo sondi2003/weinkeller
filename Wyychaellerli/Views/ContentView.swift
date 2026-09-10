@@ -9,6 +9,9 @@ enum AppTab: Hashable {
 
 struct ContentView: View {
 
+    @Environment(\.managedObjectContext) private var context
+    @Environment(PartySession.self) private var party
+
     @State private var selectedTab: AppTab = .cellar
     @State private var isShowingSplash = true
     @AppStorage(WalkthroughView.seenKey) private var hasSeenWalkthrough = false
@@ -17,7 +20,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
-                CellarView()
+                CellarView(selectedTab: $selectedTab)
                     .tabItem { Label("Wyychällerli", systemImage: "cabinet") }
                     .tag(AppTab.cellar)
 
@@ -35,14 +38,25 @@ struct ContentView: View {
                     .transition(.opacity.combined(with: .scale(scale: 1.04)))
                     .zIndex(1)
             }
+
+            // Über allem: Wer das Gerät in der Hand hat, kommt nur mit Code heraus.
+            // Auch nach einem Neustart – deshalb hier und nicht als Sheet in der Liste.
+            if let model = party.model {
+                PartyView(model: model) { party.end() }
+                    .transition(.opacity)
+                    .zIndex(2)
+            }
         }
+        .animation(.easeInOut(duration: 0.25), value: party.isRunning)
+        .onAppear { party.restoreIfNeeded(in: context) }
         .task {
             try? await Task.sleep(for: SplashView.displayDuration)
             withAnimation(.easeInOut(duration: 0.5)) {
                 isShowingSplash = false
             }
             // Die Einführung kommt erst, wenn der Splash weg ist – sonst überlagern sie sich.
-            if !hasSeenWalkthrough {
+            // Und nie während einer Party: Der gesperrte Modus muss der oberste bleiben.
+            if !hasSeenWalkthrough, !party.isRunning {
                 try? await Task.sleep(for: .milliseconds(400))
                 isShowingWalkthrough = true
             }

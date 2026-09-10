@@ -15,6 +15,10 @@ struct WyychaellerliApp: App {
     /// Wer an diesem Gerät bewertet (Kennung aus iCloud, Name aus den Einstellungen).
     @State private var rater = CurrentRater()
 
+    /// Ob gerade eine Party läuft. Muss über der ganzen App liegen, damit der gesperrte
+    /// Modus auch einen Neustart übersteht.
+    @State private var party = PartySession()
+
     /// Der KI-Service ist zustandslos und kann geteilt werden.
     private let aiService = AIService()
 
@@ -30,6 +34,7 @@ struct WyychaellerliApp: App {
             ContentView()
                 .environment(settings)
                 .environment(rater)
+                .environment(party)
                 .environment(\.aiService, aiService)
                 .environment(\.managedObjectContext, persistence.viewContext)
                 .preferredColorScheme(appearance.colorScheme)

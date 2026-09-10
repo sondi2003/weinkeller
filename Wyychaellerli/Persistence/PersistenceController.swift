@@ -500,12 +500,58 @@ final class PersistenceController: @unchecked Sendable {
         wineSlotsRelation.inverseRelationship = slotWineRelation
         slotWineRelation.inverseRelationship = wineSlotsRelation
 
-        cellar.properties.append(racksRelation)
+        // Siegerflaschen vergangener Party-Abstimmungen.
+        //
+        // Der Wein steht als **Text** drin, nicht als Beziehung: Eine Flasche wird
+        // getrunken und irgendwann gelöscht – die Erinnerung „Silvester 2026: der Barolo“
+        // soll das überleben. `wineUUID` erlaubt trotzdem den Sprung zum Wein, solange
+        // es ihn noch gibt.
+        let partyWin = NSEntityDescription()
+        partyWin.name = "PartyWin"
+        partyWin.managedObjectClassName = "PartyWinEntity"
+        partyWin.properties = [
+            attribute("uuid", .UUIDAttributeType, optional: true),
+            attribute("title", .stringAttributeType, default: ""),
+            attribute("date", .dateAttributeType, optional: true),
+            attribute("wineName", .stringAttributeType, default: ""),
+            attribute("wineSubtitle", .stringAttributeType, default: ""),
+            attribute("wineUUID", .UUIDAttributeType, optional: true),
+            binaryAttribute("labelImageData"),
+            attribute("votes", .integer64AttributeType, default: 0),
+            attribute("totalVotes", .integer64AttributeType, default: 0),
+            attribute("guestCount", .integer64AttributeType, default: 0),
+            attribute("candidateCount", .integer64AttributeType, default: 0),
+            attribute("wasDrawn", .booleanAttributeType, default: false)
+        ]
+
+        // Keller → Party-Ergebnisse. Hängt am Keller, damit die Erinnerungen mit der
+        // Freigabe zur Partnerin wandern.
+        let partyWinsRelation = NSRelationshipDescription()
+        partyWinsRelation.name = "partyWins"
+        partyWinsRelation.destinationEntity = partyWin
+        partyWinsRelation.minCount = 0
+        partyWinsRelation.maxCount = 0
+        partyWinsRelation.isOptional = true
+        partyWinsRelation.deleteRule = .cascadeDeleteRule
+
+        let partyWinCellarRelation = NSRelationshipDescription()
+        partyWinCellarRelation.name = "cellar"
+        partyWinCellarRelation.destinationEntity = cellar
+        partyWinCellarRelation.minCount = 0
+        partyWinCellarRelation.maxCount = 1
+        partyWinCellarRelation.isOptional = true
+        partyWinCellarRelation.deleteRule = .nullifyDeleteRule
+
+        partyWinsRelation.inverseRelationship = partyWinCellarRelation
+        partyWinCellarRelation.inverseRelationship = partyWinsRelation
+
+        cellar.properties.append(contentsOf: [racksRelation, partyWinsRelation])
         rack.properties.append(contentsOf: [rackCellarRelation, slotsRelation])
         slot.properties.append(contentsOf: [slotRackRelation, slotWineRelation])
         wine.properties.append(wineSlotsRelation)
+        partyWin.properties.append(partyWinCellarRelation)
 
-        model.entities = [cellar, wine, rating, rack, slot]
+        model.entities = [cellar, wine, rating, rack, slot, partyWin]
         return model
     }
 

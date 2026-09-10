@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage(AppearanceSetting.storageKey) private var appearance: AppearanceSetting = .system
     @State private var isShowingWalkthrough = false
     @State private var didResetTips = false
+    @State private var hasPartyCode = PartyLock.isConfigured
 
     var body: some View {
         @Bindable var settings = settings
@@ -94,6 +95,27 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        PartySettingsView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "party.popper")
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 26)
+                            Text("Party-Modus")
+                            Spacer()
+                            Text(hasPartyCode ? "Code gesetzt" : "Kein Code")
+                                .font(.caption)
+                                .foregroundStyle(hasPartyCode ? .secondary : .tertiary)
+                        }
+                    }
+                } header: {
+                    Text("Party")
+                } footer: {
+                    Text("Deine Gäste stimmen ab, welche Flasche geöffnet wird. Der Code startet den Modus und beendet ihn – dazwischen kommt niemand an deinen Keller.")
+                }
+
+                Section {
                     Button {
                         isShowingWalkthrough = true
                     } label: {
@@ -114,6 +136,8 @@ struct SettingsView: View {
 
             }
             .navigationTitle("Einstellungen")
+            // Beim Zurückkommen von der Party-Seite kann sich der Zustand geändert haben.
+            .onAppear { hasPartyCode = PartyLock.isConfigured }
             .fullScreenCover(isPresented: $isShowingWalkthrough) {
                 WalkthroughView()
             }

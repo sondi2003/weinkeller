@@ -238,6 +238,24 @@ Es gibt noch keine Unit-Tests. Logik ohne UI (Schema, Prompt, Decoding, Fehler-K
 - Testen ohne Gerät: App einmal starten (registriert die Intents), dann Kurzbefehle-App im Simulator öffnen, dort erscheint „Wein empfehlen“ unter „Wyychällerli“. Metadaten prüfen: `Metadata.appintents/extract.actionsdata` im gebauten `.app`.
 - CarPlay braucht keine eigene Arbeit und ist als eigene App auch nicht erlaubt (die App passt in keine zugelassene CarPlay-Kategorie). Siri im Auto nutzt denselben Intent.
 
+## Party-Modus
+
+Gäste stimmen ab, welche Flasche geöffnet wird. **Ein Gerät wandert von Hand zu Hand** – bewusst kein Server und kein lokaler Webserver: Android-Gäste sollen mitmachen können, ohne dass wir ein Backend betreiben. Die Entscheidung fiel am 10.9.2026 gegen Panorama-artige Netzwerklösungen; wird das Herumreichen bei vielen Gästen zäh, wäre ein QR-Code plus Webserver im WLAN der nächste Ausbauschritt (Abstimmungslogik und Podest blieben gleich).
+
+- **Ablauf** (`PartyState.Phase`): `candidates` (Flaschen wählen + Anlass) → `guests` (Namen) → `handover` → `voting` → ggf. `draw` → `podium`.
+- **Der laufende Stand liegt in `UserDefaults`** (`PartyState`, Codable), **nicht** in Core Data: Er gehört zu diesem einen Gerät und darf nicht über iCloud wandern. Gesichert wird nach jeder Änderung. **Grund:** Wischt ein Gast die App weg, ist der gesperrte Modus beim nächsten Start sofort wieder da – sonst stünde der ganze Keller offen. `PartySession` in `ContentView` stellt ihn wieder her; die Party liegt als `zIndex(2)` über allem, nicht als Sheet.
+- **Code** in `PartyLock`: nur der SHA256-Hash in der Keychain (`party.passcode`), 4–8 Ziffern. **Face ID ist der zweite Weg hinaus** (`INFOPLIST_KEY_NSFaceIDUsageDescription`) – ohne den wäre man bei vergessenem Code in der eigenen App gefangen, weil ein Neustart bewusst nicht hilft. Ändern nur mit dem bisherigen Code.
+- **Bildschirm bleibt an** (`isIdleTimerDisabled`), solange die Party läuft. Sonst sperrt das iPhone nach 30 s, und der nächste Gast bräuchte den Gerätecode.
+- **Kein Zwischenstand während der Runde.** Wer sieht, dass eine Flasche vorn liegt, stimmt anders. Sichtbar sind nur die eigenen restlichen Stimmen; Summen erst auf dem Podest, und dort **nie, wer für was gestimmt hat**.
+- **Der Übergabeschirm ist Pflicht**, nicht Zierde: Ohne ihn sähe der Nächste die Auswahl seines Vorgängers.
+- **Stimmenzahl folgt der Flaschenzahl** (`PartyState.votesPerGuest(forCandidates:)`): ≤ 2 → 1, 3–4 → 2, ab 5 → 3. Drei Stimmen bei drei Flaschen wären sinnlos. Höchstens **eine Stimme je Flasche**, sonst legt einer alle auf seinen Liebling.
+- **Gleichstand → Los**, sichtbar als auslaufendes Glücksrad (`PartyViewModel.runDraw`). Ein stiller Zufall würde niemandem am Tisch einleuchten.
+- Nachzügler jederzeit hinzufügen, Aussetzen lässt den Gast offen (angefangene Stimmen werden verworfen), Korrektur durch nochmaliges Antippen bis „Fertig“.
+- **Kandidaten**: nur `isArchived == NO AND quantity > 0`. Beim Auflösen werden zusätzlich archivierte/leere Weine nachgeschlagen – während der Party kann die letzte Flasche abgebucht worden sein, der Kandidat muss trotzdem aufs Podest.
+- **Die Weinkarte zeigt nicht**: Sterne, Bestand, Regalfach. Alles davon beeinflusst oder geht die Gäste nichts an. Etikett ist antippbar (Lupe).
+- **Historie** (`PartyWin`, Core Data, am Keller): Name, Untertitel und ein verkleinertes Etikett stehen als **Kopie** drin, nicht als Beziehung – die Flasche wird getrunken und irgendwann gelöscht, „Silvester 2026: der Barolo“ soll bleiben. `wineUUID` nur als Zusatz. **Neue Entität → vor dem nächsten TestFlight „Deploy Schema Changes“ in der CloudKit-Konsole.**
+- Logik am Mac geprüft (`scratchpad/party`, 17 Prüfungen): Stimmenzahl, Summen, Rangliste, Gleichstand, offene Gäste, Sichern und Wiederherstellen.
+
 ## Einführung (Walkthrough)
 
 - `Views/Walkthrough/WalkthroughView.swift` zeigt sechs Seiten als `fullScreenCover`; die Bilder liegen in `WalkthroughIllustrations.swift` und sind **gezeichnet** (Formen, SF Symbols, `BottleIcon`), keine Screenshots – so veralten sie nicht mit jeder Oberflächenänderung und folgen Hell/Dunkel.
