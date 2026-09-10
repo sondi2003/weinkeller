@@ -109,6 +109,14 @@ final class PersistenceController: @unchecked Sendable {
         container.viewContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
 
         observeCloudKitEvents()
+
+        #if DEBUG
+        // Neue Felder sollen in der Konsole auftauchen, ohne dass man sie erst in der
+        // App benutzt haben muss. Läuft nur, wenn sich das Modell geändert hat.
+        if useCloudKit, !inMemory {
+            initializeCloudKitSchemaIfModelChanged()
+        }
+        #endif
     }
 
     /// Schreibt mit, ob CloudKit Einrichtung, Empfang und Versand schafft.
@@ -177,20 +185,44 @@ final class PersistenceController: @unchecked Sendable {
     // MARK: Schema für CloudKit erzeugen
 
     #if DEBUG
-    /// Legt in der **Development**-Umgebung alle Record Types und Felder an, ohne dass
-    /// man vorher jede Funktion der App einmal benutzt haben muss.
+    /// Legt in der **Development**-Umgebung alle Record Types und Felder an – und zwar
+    /// von selbst, sobald sich das Datenmodell geändert hat.
     ///
     /// Ohne das entsteht ein Feld in CloudKit erst, wenn eine laufende App es zum ersten
     /// Mal beschreibt **und** der Export durchgelaufen ist. Wer im Simulator testet (kein
     /// iCloud-Konto) oder nicht lange genug wartet, sucht das Feld in der Konsole
-    /// vergeblich – und kann es nicht nach Production übertragen.
+    /// vergeblich – und kann es folglich nicht nach Production übertragen. Genau das ist
+    /// am 10.9.2026 mit `CD_PartyWin` passiert.
     ///
-    /// Nur im Debug-Build: Apple warnt ausdrücklich davor, das in einer ausgelieferten
-    /// App aufzurufen. Es braucht ein angemeldetes iCloud-Konto und dauert je nach Modell
-    /// einige Sekunden.
-    func initializeCloudKitSchema() throws {
-        try container.initializeCloudKitSchema(options: [])
-        Self.logger.info("CloudKit-Schema in Development erzeugt.")
+    /// Läuft nur im Debug-Build (Apple warnt davor, das in einer ausgelieferten App zu
+    /// tun), nur mit angemeldetem iCloud-Konto und nur einmal je Modellstand – der
+    /// Fingerabdruck über alle Entitäten und Attribute entscheidet darüber.
+    private func initializeCloudKitSchemaIfModelChanged() {
+        let key = "cloudkit.schema.fingerprint"
+        let fingerprint = Self.modelFingerprint()
+        guard UserDefaults.standard.string(forKey: key) != fingerprint else { return }
+
+        Task.detached(priority: .utility) { [container] in
+            do {
+                try container.initializeCloudKitSchema(options: [])
+                UserDefaults.standard.set(fingerprint, forKey: key)
+                Self.logger.info("CloudKit-Schema in Development erzeugt – jetzt „Deploy Schema Changes“ ausführen.")
+            } catch {
+                // Ohne iCloud-Konto (Simulator) ist das kein Fehler, nur nicht möglich.
+                Self.logger.info("Schema nicht erzeugt: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Kurzfassung des Modells: Entitäten mit ihren Attributnamen, sortiert.
+    private static func modelFingerprint() -> String {
+        makeModel().entities
+            .sorted { ($0.name ?? "") < ($1.name ?? "") }
+            .map { entity in
+                let attributes = entity.properties.map(\.name).sorted().joined(separator: ",")
+                return "\(entity.name ?? "")[\(attributes)]"
+            }
+            .joined(separator: ";")
     }
     #endif
 
