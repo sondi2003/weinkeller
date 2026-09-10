@@ -10,20 +10,10 @@ struct ZoomableImageView: UIViewRepresentable {
 
     let image: UIImage
 
-    func makeUIView(context: Context) -> UIScrollView {
-        let scrollView = UIScrollView()
+    func makeUIView(context: Context) -> ZoomScrollView {
+        let scrollView = ZoomScrollView()
         scrollView.delegate = context.coordinator
-        scrollView.minimumZoomScale = 1
-        scrollView.maximumZoomScale = 6
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.bouncesZoom = true
-        scrollView.backgroundColor = .clear
-
-        let imageView = UIImageView(image: image)
-        imageView.contentMode = .scaleAspectFit
-        scrollView.addSubview(imageView)
-        context.coordinator.imageView = imageView
+        scrollView.imageView.image = image
 
         let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.doubleTapped(_:)))
         doubleTap.numberOfTapsRequired = 2
@@ -31,45 +21,32 @@ struct ZoomableImageView: UIViewRepresentable {
         return scrollView
     }
 
-    func updateUIView(_ scrollView: UIScrollView, context: Context) {
-        guard let imageView = context.coordinator.imageView else { return }
-        if imageView.image !== image {
-            imageView.image = image
+    func updateUIView(_ scrollView: ZoomScrollView, context: Context) {
+        if scrollView.imageView.image !== image {
+            scrollView.imageView.image = image
             scrollView.zoomScale = 1
         }
-        imageView.frame = CGRect(origin: .zero, size: scrollView.bounds.size)
-        scrollView.contentSize = scrollView.bounds.size
-        context.coordinator.center(in: scrollView)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator: NSObject, UIScrollViewDelegate {
-        var imageView: UIImageView?
 
-        func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
-
-        func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            center(in: scrollView)
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+            (scrollView as? ZoomScrollView)?.imageView
         }
 
-        /// Hält das Bild in der Mitte, solange es kleiner als der Bildschirm ist.
-        func center(in scrollView: UIScrollView) {
-            guard let imageView else { return }
-            let bounds = scrollView.bounds.size
-            let content = imageView.frame.size
-            let dx = max(0, (bounds.width - content.width) / 2)
-            let dy = max(0, (bounds.height - content.height) / 2)
-            scrollView.contentInset = UIEdgeInsets(top: dy, left: dx, bottom: dy, right: dx)
+        func scrollViewDidZoom(_ scrollView: UIScrollView) {
+            (scrollView as? ZoomScrollView)?.centerImage()
         }
 
         @objc func doubleTapped(_ recognizer: UITapGestureRecognizer) {
-            guard let scrollView = recognizer.view as? UIScrollView, let imageView else { return }
+            guard let scrollView = recognizer.view as? ZoomScrollView else { return }
             if scrollView.zoomScale > scrollView.minimumZoomScale + 0.01 {
                 scrollView.setZoomScale(scrollView.minimumZoomScale, animated: true)
             } else {
                 // Auf den angetippten Punkt zoomen, nicht auf die Mitte.
-                let point = recognizer.location(in: imageView)
+                let point = recognizer.location(in: scrollView.imageView)
                 let scale: CGFloat = 3
                 let size = CGSize(width: scrollView.bounds.width / scale, height: scrollView.bounds.height / scale)
                 let rect = CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2,
@@ -77,6 +54,47 @@ struct ZoomableImageView: UIViewRepresentable {
                 scrollView.zoom(to: rect, animated: true)
             }
         }
+    }
+}
+
+/// Die Scroll-Ansicht misst sich selbst aus. Beim ersten `updateUIView` ist die Grösse
+/// noch 0×0 – wer das Bild dort einpasst, bekommt ein schwarzes Vollbild. Erst
+/// `layoutSubviews` kennt die echten Masse.
+final class ZoomScrollView: UIScrollView {
+
+    let imageView = UIImageView()
+    private var laidOutSize: CGSize = .zero
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        minimumZoomScale = 1
+        maximumZoomScale = 6
+        showsHorizontalScrollIndicator = false
+        showsVerticalScrollIndicator = false
+        bouncesZoom = true
+        backgroundColor = .clear
+        imageView.contentMode = .scaleAspectFit
+        addSubview(imageView)
+    }
+
+    required init?(coder: NSCoder) { fatalError("nicht aus einem Storyboard") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard bounds.size != laidOutSize, bounds.width > 0, bounds.height > 0 else { return }
+        laidOutSize = bounds.size
+        zoomScale = 1
+        imageView.frame = CGRect(origin: .zero, size: bounds.size)
+        contentSize = bounds.size
+        centerImage()
+    }
+
+    /// Hält das Bild in der Mitte, solange es kleiner als der Bildschirm ist.
+    func centerImage() {
+        let content = imageView.frame.size
+        let dx = max(0, (bounds.width - content.width) / 2)
+        let dy = max(0, (bounds.height - content.height) / 2)
+        contentInset = UIEdgeInsets(top: dy, left: dx, bottom: dy, right: dx)
     }
 }
 
