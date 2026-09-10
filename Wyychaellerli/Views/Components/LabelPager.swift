@@ -18,6 +18,7 @@ struct LabelPager: View {
     let wineName: String
 
     @State private var selection = 0
+    @State private var isZooming = false
 
     private var hasMultiplePages: Bool { pages.count > 1 }
 
@@ -30,6 +31,21 @@ struct LabelPager: View {
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
+                        // Die Lupe sitzt auf dem Bild, nicht auf dem Rahmen – so ist klar,
+                        // dass sie zu diesem Foto gehört.
+                        .overlay(alignment: .bottomTrailing) {
+                            Button {
+                                isZooming = true
+                            } label: {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.subheadline.weight(.semibold))
+                                    .padding(9)
+                                    .background(.ultraThinMaterial, in: Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(10)
+                            .accessibilityLabel("\(page.title) vergrössern")
+                        }
                         // Rand, damit der Schatten nicht am Rahmen abgeschnitten wird.
                         .padding(.horizontal, 4)
                         .padding(.vertical, 10)
@@ -40,6 +56,9 @@ struct LabelPager: View {
             // Eigene Anzeige statt der Systempunkte: Die sind auf hellem Grund kaum sichtbar.
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 320)
+            .fullScreenCover(isPresented: $isZooming) {
+                LabelZoomView(pages: pages, selection: selection)
+            }
 
             if hasMultiplePages {
                 HStack(spacing: 8) {

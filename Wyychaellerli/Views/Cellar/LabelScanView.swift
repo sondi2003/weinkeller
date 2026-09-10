@@ -14,8 +14,8 @@ struct LabelScanView: View {
     @Environment(AISettings.self) private var settings
     @Environment(\.aiService) private var aiService
     @State private var viewModel = LabelScanViewModel()
-    /// Welche Seite gerade mit der Kamera erfasst wird.
-    @State private var scanningSide: LabelScanViewModel.Side?
+    /// Was gerade mit der Kamera erfasst wird: Hauptfoto oder weitere Ansicht einer Seite.
+    @State private var scanningTarget: LabelScanViewModel.Target?
     @State private var isShowingRecognizedText = false
 
     var body: some View {
@@ -29,19 +29,25 @@ struct LabelScanView: View {
                             side: .front,
                             symbol: "tag",
                             photo: $viewModel.front,
+                            extras: viewModel.frontExtras,
                             onScan: {
                                 scanTip.invalidate(reason: .actionPerformed)
-                                scanningSide = .front
-                            }
+                                scanningTarget = .main(.front)
+                            },
+                            onAddView: { scanningTarget = .extra(.front) },
+                            onRemoveExtra: { viewModel.removeExtra(at: $0, side: .front) }
                         )
                         LabelPhotoSlot(
                             side: .back,
                             symbol: "text.alignleft",
                             photo: $viewModel.back,
+                            extras: viewModel.backExtras,
                             onScan: {
                                 scanTip.invalidate(reason: .actionPerformed)
-                                scanningSide = .back
-                            }
+                                scanningTarget = .main(.back)
+                            },
+                            onAddView: { scanningTarget = .extra(.back) },
+                            onRemoveExtra: { viewModel.removeExtra(at: $0, side: .back) }
                         )
                     }
 
@@ -65,10 +71,10 @@ struct LabelScanView: View {
                     Button("Abbrechen") { dismiss() }
                 }
             }
-            .fullScreenCover(item: $scanningSide) { side in
+            .fullScreenCover(item: $scanningTarget) { target in
                 CameraCaptureView { image in
-                    viewModel.applyPhoto(image, to: side)
-                    scanningSide = nil
+                    viewModel.applyPhoto(image, to: target)
+                    scanningTarget = nil
                 }
                 .ignoresSafeArea()
             }
@@ -151,13 +157,17 @@ struct LabelScanView: View {
 
 // MARK: - Foto-Slot
 
-/// Eine Etikettseite: grosse Fläche zum Scannen, darunter die Fotoauswahl als Alternative.
+/// Eine Etikettseite: grosse Fläche zum Scannen, darunter die Fotoauswahl als Alternative
+/// und – sobald ein Foto da ist – weitere Ansichten für rundum bedruckte Flaschen.
 private struct LabelPhotoSlot: View {
 
     let side: LabelScanViewModel.Side
     let symbol: String
     @Binding var photo: LabelScanViewModel.Photo?
+    var extras: [LabelScanViewModel.Photo] = []
     let onScan: () -> Void
+    var onAddView: () -> Void = {}
+    var onRemoveExtra: (Int) -> Void = { _ in }
 
     @State private var pickerItem: PhotosPickerItem?
 
@@ -237,6 +247,10 @@ private struct LabelPhotoSlot: View {
             }
             .buttonStyle(.bordered)
             .accessibilityLabel("\(side.title) aus Fotos wählen")
+
+            if photo != nil, canScan {
+                extraViews
+            }
         }
         .onChange(of: pickerItem) { _, item in
             guard let item else { return }
@@ -248,6 +262,54 @@ private struct LabelPhotoSlot: View {
                 pickerItem = nil
             }
         }
+    }
+
+    /// Weitere Ansichten: kleine Vorschauen plus Knopf. Die Kamera sieht nicht um die
+    /// Flasche herum – von links und rechts nachfotografiert, wird der Text zusammengeführt.
+    private var extraViews: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                ForEach(Array(extras.enumerated()), id: \.offset) { index, extra in
+                    Image(uiImage: extra.image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 50)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                onRemoveExtra(index)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.white, .black.opacity(0.6))
+                            }
+                            .offset(x: 4, y: -4)
+                            .accessibilityLabel("Ansicht \(index + 1) entfernen")
+                        }
+                }
+                if extras.count < 3 {
+                    Button(action: onAddView) {
+                        VStack(spacing: 2) {
+                            Image(systemName: "camera.badge.ellipsis")
+                                .font(.body)
+                            Text("Ansicht")
+                                .font(.caption2)
+                        }
+                        .frame(width: 44, height: 50)
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Weitere Ansicht der \(side.title) fotografieren")
+                }
+            }
+            Text(extras.isEmpty
+                 ? "Schrift läuft um die Flasche? Von links und rechts nachfotografieren."
+                 : "\(extras.count) weitere \(extras.count == 1 ? "Ansicht" : "Ansichten") – der Text wird zusammengeführt.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

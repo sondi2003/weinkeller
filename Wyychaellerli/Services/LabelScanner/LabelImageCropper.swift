@@ -7,7 +7,7 @@ import Vision
 
 /// Ergebnis des Zuschnitts – mit Diagnose, welche Strategie gegriffen hat.
 struct LabelCropResult: @unchecked Sendable {
-    enum Strategy: String, Sendable { case document, rectangle, textBounds, fullImage }
+    enum Strategy: String, Sendable { case document, rectangle, contour, textBounds, fullImage }
     let jpegData: Data
     let strategy: Strategy
     /// Drehung in Grad (0, 90, 180, 270), die angewendet wurde, damit der Text lesbar liegt.
@@ -53,6 +53,19 @@ enum LabelImageCropper {
             let textUnion = textBoxes.reduce(nil as CGRect?) { accumulated, box in accumulated?.union(box) ?? box }
             let document = detectLabelDocument(in: image, containing: textBoxes)
             let rectangle = document == nil ? detectLabelRectangle(in: image, containing: textBoxes) : nil
+            // Ein Rechteck zählt nur, wenn es den Text umfasst **und** nicht viel grösser ist
+            // als der Text. Sonst hat der Detektor die Flasche gefunden – bei bauchigen
+            // Flaschen mit ovalem Etikett passiert genau das, und die Entzerrung der
+            // Flaschenkontur liefert dann ein schiefes Bild mit der ganzen Flasche drauf.
+            let rectangleFits = rectangle.map { r in
+                textUnion.map { text in
+                    r.boundingBox.insetBy(dx: -0.03, dy: -0.03).contains(text)
+                        && r.boundingBox.width * r.boundingBox.height <= text.width * text.height * 4
+                } ?? false
+            } ?? false
+            // Erst wenn weder Dokument noch Rechteck greifen: Umriss – für ovale, runde
+            // und geschwungene Etiketten.
+            let contour = (document == nil && !rectangleFits) ? detectLabelContour(in: image, containing: textBoxes) : nil
 
             var cropped: CIImage
             let strategy: LabelCropResult.Strategy
@@ -61,14 +74,21 @@ enum LabelImageCropper {
                 // die Segmentierung liegt bereits genau auf der Kante.
                 cropped = perspectiveCorrected(source, quad: grown(document, by: 1.02), extent: extent)
                 strategy = .document
-            } else if let rectangle, let textUnion, rectangle.boundingBox.insetBy(dx: -0.03, dy: -0.03).contains(textUnion) {
+            } else if let rectangle, rectangleFits {
                 // Das Rechteck umfasst den ganzen Text → Etikett perspektivisch entzerren.
                 cropped = perspectiveCorrected(source, quad: grown(rectangle, by: 1.06), extent: extent)
                 strategy = .rectangle
+            } else if let contour {
+                // Ein ovales oder rundes Etikett: sein Umriss, gerade ausgeschnitten. Keine
+                // Perspektivkorrektur – die verlangt vier Ecken, die ein Oval nicht hat.
+                cropped = source.cropped(to: expanded(contour, by: 0.03, in: extent))
+                strategy = .contour
             } else if let textUnion, textUnion.width * textUnion.height < croppedAlreadyThreshold {
                 // Gerader Zuschnitt: Text plus erkanntes Rechteck (falls vorhanden) plus Rand.
+                // Der Rand ist grosszügig, damit ein Etikett ohne erkannte Kante nicht am
+                // Text abgeschnitten wird.
                 let area = rectangle.map { $0.boundingBox.union(textUnion) } ?? textUnion
-                cropped = source.cropped(to: expanded(area, by: 0.05, in: extent))
+                cropped = source.cropped(to: expanded(area, by: 0.09, in: extent))
                 strategy = .textBounds
             } else {
                 // Das Bild ist bereits im Wesentlichen das Etikett – nichts wegschneiden.
@@ -133,6 +153,11 @@ enum LabelImageCropper {
 
         let box = observation.boundingBox
         guard box.width * box.height < 0.88 else { return nil }
+        // Viel grösser als der Text darf das Viereck nicht sein – sonst ist es die Flasche.
+        if let textUnion = textBoxes.reduce(nil as CGRect?, { $0?.union($1) ?? $1 }),
+           box.width * box.height > textUnion.width * textUnion.height * 4 {
+            return nil
+        }
 
         let centers = textBoxes.map { CGPoint(x: $0.midX, y: $0.midY) }
         let covered = centers.filter { box.insetBy(dx: -0.02, dy: -0.02).contains($0) }.count
@@ -177,6 +202,48 @@ enum LabelImageCropper {
         }
         guard let best, Double(best.covered) >= Double(centers.count) * 0.5 else { return nil }
         return best.observation
+    }
+
+    /// Umriss-Erkennung für Etiketten ohne Ecken: oval, rund, geschwungen.
+    ///
+    /// Vision liefert alle geschlossenen Konturen im Bild. Gesucht ist die **kleinste**, die
+    /// den Grossteil der Textzeilen einschliesst – das ist das Etikett, nicht die Flasche
+    /// und nicht der Tisch. Hell auf dunkel (helles Etikett auf dunklem Glas) und dunkel auf
+    /// hell werden beide probiert. Ergebnis ist der Umriss als normiertes Rechteck.
+    private static func detectLabelContour(in image: ScanImage, containing textBoxes: [CGRect]) -> CGRect? {
+        guard textBoxes.count >= 2 else { return nil }
+        let centers = textBoxes.map { CGPoint(x: $0.midX, y: $0.midY) }
+        let needed = Int((Double(centers.count) * 0.7).rounded(.up))
+        // Dieselbe Schranke wie bei Dokument und Rechteck: höchstens viermal so gross wie
+        // der Text. Gemessen: Ein dunkles Etikett auf dunklem Glas hat keine eigene Kontur,
+        // und die nächstgrössere ist die Flasche (60 % der Fläche bei 6 % Text).
+        let textUnion = textBoxes.reduce(nil as CGRect?) { $0?.union($1) ?? $1 } ?? .zero
+        let maxArea = max(textUnion.width * textUnion.height * 4, 0.03)
+
+        var best: CGRect?
+        for darkOnLight in [false, true] {
+            let request = VNDetectContoursRequest()
+            request.contrastAdjustment = 2.0
+            request.detectsDarkOnLight = darkOnLight
+            request.maximumImageDimension = 1024
+            let handler = VNImageRequestHandler(cgImage: image.cgImage, orientation: image.orientation, options: [:])
+            guard (try? handler.perform([request])) != nil, let observation = request.results?.first else { continue }
+
+            for index in 0..<observation.contourCount {
+                guard let contour = try? observation.contour(at: index), contour.pointCount >= 24 else { continue }
+                let box = contour.normalizedPath.boundingBoxOfPath
+                let area = box.width * box.height
+                // Zu klein ist ein Buchstabe, zu gross die Flasche; zu schmal ein Streifen.
+                guard area > 0.03, area < 0.85, area <= maxArea, box.width > 0.12, box.height > 0.08 else { continue }
+                let aspect = box.width / box.height
+                guard aspect > 0.35, aspect < 3.0 else { continue }
+                let covered = centers.filter { box.insetBy(dx: -0.01, dy: -0.01).contains($0) }.count
+                guard covered >= needed else { continue }
+                if let current = best, current.width * current.height <= area { continue }
+                best = box
+            }
+        }
+        return best
     }
 
     /// Vergrössert das Viereck um seinen Schwerpunkt, damit Ränder nicht abgeschnitten werden.

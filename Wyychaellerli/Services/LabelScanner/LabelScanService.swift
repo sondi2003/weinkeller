@@ -23,7 +23,15 @@ struct LabelScanService: Sendable {
 
     /// Erkennt Text in den Bildern, schneidet die Vorderseite zu und ordnet die Felder zu.
     /// - Parameter cloud: Zugangsdaten des aktiven Anbieters oder `nil`, wenn keiner eingerichtet ist.
-    func scan(front: ScanImage?, back: ScanImage?, cloud: CloudCredentials?) async throws -> LabelScanResult {
+    /// - Parameters:
+    ///   - frontExtras, backExtras: Weitere Ansichten derselben Seite (von links, von rechts).
+    ///     Ihr Text wird mit dem der Hauptansicht zusammengeführt; Foto und Zuschnitt
+    ///     kommen immer von der Hauptansicht.
+    func scan(
+        front: ScanImage?, frontExtras: [ScanImage] = [],
+        back: ScanImage?, backExtras: [ScanImage] = [],
+        cloud: CloudCredentials?
+    ) async throws -> LabelScanResult {
         var sections: [(title: String, lines: [RecognizedLine])] = []
         var labelImageData: Data?
         var backLabelImageData: Data?
@@ -35,6 +43,7 @@ struct LabelScanService: Sendable {
                 Self.logger.info("Etikett vorne: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
                 lines = await Self.rereadingLabel(lines, crop: crop, side: "vorne")
             }
+            lines = await Self.merging(lines, with: frontExtras, side: "vorne")
             sections.append(("Vorderseite", lines))
         }
         if let back {
@@ -44,6 +53,7 @@ struct LabelScanService: Sendable {
                 Self.logger.info("Etikett hinten: \(crop.jpegData.count) Bytes, Zuschnitt \(crop.strategy.rawValue), Drehung \(crop.rotation)°")
                 lines = await Self.rereadingLabel(lines, crop: crop, side: "hinten")
             }
+            lines = await Self.merging(lines, with: backExtras, side: "hinten")
             sections.append(("Rückseite", lines))
         }
 
@@ -88,6 +98,38 @@ struct LabelScanService: Sendable {
         let secondScore = LabelTextRecognizer.score(of: second)
         logger.info("Zweites Lesen \(side): ganzes Foto \(Int(firstScore)), Zuschnitt \(Int(secondScore)) Punkte")
         return secondScore > firstScore ? second : first
+    }
+
+    /// Text weiterer Ansichten dazunehmen – nur Zeilen, die noch fehlen.
+    ///
+    /// Auf einer schmalen Flasche läuft die Schrift um die Rundung; die Kamera sieht nicht
+    /// um die Ecke. Von links und rechts nachfotografiert, ergibt die Summe das ganze
+    /// Etikett. Doppelte Zeilen (dieselbe Zeile aus zwei Winkeln) fallen weg.
+    private static func merging(_ lines: [RecognizedLine], with extras: [ScanImage], side: String) async -> [RecognizedLine] {
+        guard !extras.isEmpty else { return lines }
+        var merged = lines
+        var seen = Set(lines.map { Self.lineKey($0.text) })
+        var added = 0
+        for extra in extras {
+            guard let extraLines = try? await LabelTextRecognizer.recognizeLines(in: extra) else { continue }
+            for line in extraLines where seen.insert(Self.lineKey(line.text)).inserted {
+                merged.append(line)
+                added += 1
+            }
+        }
+        logger.info("Weitere Ansichten \(side): \(extras.count) Fotos, \(added) neue Zeilen")
+        return merged
+    }
+
+    /// Gleiche Zeile aus zwei Winkeln: Abstände, Satzzeichen, Gross/Klein und Akzente
+    /// dürfen abweichen. Bleibt nach dem Abstreifen zu wenig, zählt die Zeile für sich.
+    private static func lineKey(_ text: String) -> String {
+        let key = normalized(text)
+            .unicodeScalars
+            .filter { CharacterSet.alphanumerics.contains($0) }
+            .map(String.init)
+            .joined()
+        return key.count >= 3 ? key : UUID().uuidString
     }
 
     /// Wählt die beste verfügbare Zuordnung und fällt bei Fehlern eine Stufe zurück.

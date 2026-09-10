@@ -16,6 +16,10 @@ final class LabelScanViewModel {
 
     var front: Photo?
     var back: Photo?
+    /// Weitere Ansichten derselben Seite – von links und rechts, für Text, der um die
+    /// Flasche herumläuft. Nur für die Texterkennung; das Etikettfoto bleibt das Hauptbild.
+    var frontExtras: [Photo] = []
+    var backExtras: [Photo] = []
     var isProcessing = false
     var result: LabelScanResult?
     var errorMessage: String?
@@ -31,13 +35,38 @@ final class LabelScanViewModel {
         var title: String { self == .front ? "Vorderseite" : "Rückseite" }
     }
 
-    /// Aufnahme der angetippten Seite übernehmen.
-    func applyPhoto(_ image: UIImage?, to side: Side) {
+    /// Was die Kamera gerade aufnimmt: das Hauptfoto einer Seite oder eine weitere Ansicht.
+    enum Target: Identifiable {
+        case main(Side)
+        case extra(Side)
+        var id: String {
+            switch self {
+            case .main(let side):  return "main-\(side.rawValue)"
+            case .extra(let side): return "extra-\(side.rawValue)"
+            }
+        }
+    }
+
+    /// Aufnahme übernehmen.
+    func applyPhoto(_ image: UIImage?, to target: Target) {
         guard let image else { return }
         let photo = Photo(image: image)
+        switch target {
+        case .main(.front):  front = photo
+        case .main(.back):   back = photo
+        case .extra(.front): frontExtras.append(photo)
+        case .extra(.back):  backExtras.append(photo)
+        }
+    }
+
+    func extras(for side: Side) -> [Photo] {
+        side == .front ? frontExtras : backExtras
+    }
+
+    func removeExtra(at index: Int, side: Side) {
         switch side {
-        case .front: front = photo
-        case .back:  back = photo
+        case .front: if frontExtras.indices.contains(index) { frontExtras.remove(at: index) }
+        case .back:  if backExtras.indices.contains(index) { backExtras.remove(at: index) }
         }
     }
 
@@ -50,13 +79,20 @@ final class LabelScanViewModel {
 
         let frontScan = front.flatMap(Self.scanImage(from:))
         let backScan = back.flatMap(Self.scanImage(from:))
+        // Weitere Ansichten nur verkleinert: Sie liefern Text, kein Etikettfoto.
+        let frontExtraScans = frontExtras.compactMap(Self.scanImage(from:))
+        let backExtraScans = backExtras.compactMap(Self.scanImage(from:))
 
         let cloud: CloudCredentials? = settings.activeProvider.map {
             CloudCredentials(provider: $0, apiKey: settings.apiKey(for: $0), model: settings.model(for: $0))
         }
 
         do {
-            let scanResult = try await service.scan(front: frontScan, back: backScan, cloud: cloud)
+            let scanResult = try await service.scan(
+                front: frontScan, frontExtras: frontExtraScans,
+                back: backScan, backExtras: backExtraScans,
+                cloud: cloud
+            )
             result = scanResult
             recognizedText = scanResult.recognizedText
         } catch let error as LabelScanError {
